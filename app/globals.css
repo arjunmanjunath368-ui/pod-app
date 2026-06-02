@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #1a2e1f;
+  color: #1a2e1f;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Phone shell: fills the device on mobile, framed card on desktop */
+.phone {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  max-width: 100%;
+  background: #f4f0e6;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+}
+@media (min-width: 600px) {
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .phone {
+    max-width: 420px;
+    min-height: min(900px, 94vh);
+    margin: 3vh auto;
+    border-radius: 44px;
+    border: 10px solid #11160f;
+    overflow: hidden;
+  }
+}
+
+/* Tame Fraunces's quirky alternate glyphs (e.g. the curling capital J) */
+.font-serif {
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+}
