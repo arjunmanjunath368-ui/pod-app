@@ -16,12 +16,24 @@ export default function CodeActions({
     setCanShare(typeof navigator !== "undefined" && !!navigator.share);
   }, []);
 
+  // Built at click time so it always uses the URL the app is actually running on
+  // (localhost in dev, your Vercel address in production).
+  function buildMessage() {
+    const appUrl =
+      typeof window !== "undefined" ? window.location.origin : "";
+    return (
+      `Join my Pod "${podName}" on Pod 🫛\n` +
+      `Open ${appUrl} and sign in, then enter invite code ${code}.`
+    );
+  }
+
   async function copy() {
+    const message = buildMessage();
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(message);
     } catch {
       const ta = document.createElement("textarea");
-      ta.value = code;
+      ta.value = message;
       ta.style.position = "fixed";
       ta.style.opacity = "0";
       document.body.appendChild(ta);
@@ -34,9 +46,8 @@ export default function CodeActions({
   }
 
   async function share() {
-    const text = `Join my Pod "${podName}" — open the app and enter invite code ${code}.`;
     try {
-      await navigator.share({ title: "Join my Pod", text });
+      await navigator.share({ title: "Join my Pod", text: buildMessage() });
     } catch {
       // user cancelled or share unavailable — no-op
     }
