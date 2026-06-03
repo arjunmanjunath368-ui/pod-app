@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -17,6 +17,14 @@ export default function CreatePodPage() {
   const [max, setMax] = useState(4);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [back, setBack] = useState("/app");
+
+  useEffect(() => {
+    const f = new URLSearchParams(window.location.search).get("from");
+    setBack(
+      f === "you" ? "/app/you" : f === "start" ? "/app/start" : "/app"
+    );
+  }, []);
 
   async function create() {
     const trimmed = name.trim();
@@ -45,7 +53,7 @@ export default function CreatePodPage() {
 
   return (
     <div className="flex flex-1 flex-col px-7 py-10">
-      <Link href="/app/start" className="text-[15px] font-semibold text-muted">
+      <Link href={back} className="text-[15px] font-semibold text-muted">
         ← Back
       </Link>
 

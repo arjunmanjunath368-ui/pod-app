@@ -398,6 +398,29 @@ export default async function Home({
             </div>
           );
         })}
+        {/* Start or join another pod */}
+        <div className="mt-8 rounded-2xl border border-line bg-card p-4">
+          <div className="text-[15px] font-semibold text-ink">
+            Another pod?
+          </div>
+          <p className="mt-0.5 text-[13px] text-muted">
+            Start one for a different circle, or join with a code.
+          </p>
+          <div className="mt-3 flex gap-2.5">
+            <Link
+              href="/app/start/create?from=home"
+              className="flex-1 rounded-xl bg-ink py-3 text-center text-[14px] font-semibold text-paper transition active:scale-[0.99]"
+            >
+              Start a pod
+            </Link>
+            <Link
+              href="/app/start/join?from=home"
+              className="flex-1 rounded-xl border border-line bg-paper-2/60 py-3 text-center text-[14px] font-semibold text-ink-soft transition active:scale-[0.99]"
+            >
+              Join with a code
+            </Link>
+          </div>
+        </div>
       </main>
 
       <BottomNav active="home" podId={navPodId} userId={user.id} />

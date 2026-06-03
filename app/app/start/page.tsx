@@ -19,7 +19,7 @@ export default function StartPage() {
 
       <div className="mt-8 flex flex-col gap-4">
         <Link
-          href="/app/start/create"
+          href="/app/start/create?from=start"
           className="rounded-3xl bg-terra p-6 text-paper shadow-pod-lg transition active:scale-[0.99]"
         >
           <div className="text-[22px]">🌱</div>
@@ -32,7 +32,7 @@ export default function StartPage() {
         </Link>
 
         <Link
-          href="/app/start/join"
+          href="/app/start/join?from=start"
           className="rounded-3xl border border-line bg-card p-6 shadow-pod transition active:scale-[0.99]"
         >
           <div className="text-[22px]">🤝</div>

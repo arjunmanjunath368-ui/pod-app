@@ -223,7 +223,7 @@ export default async function YouPage() {
 
         <div className="mt-8 flex items-center justify-between">
           <Link
-            href="/app/start/join"
+            href="/app/start/join?from=you"
             className="text-[15px] font-semibold text-terra"
           >
             Join another pod
