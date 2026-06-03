@@ -17,6 +17,19 @@ export default async function Home({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // First-run: make sure the person has chosen a display name (not the email default)
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  const emailLocal = (user.email ?? "").split("@")[0];
+  const needsName =
+    !myProfile?.display_name ||
+    myProfile.display_name === emailLocal ||
+    myProfile.display_name === "New member";
+  if (needsName) redirect("/app/welcome");
+
   // Which pods am I in?
   const { data: memberships } = await supabase
     .from("pod_members")

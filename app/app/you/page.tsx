@@ -62,7 +62,7 @@ export default async function YouPage() {
         </div>
 
         <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
-          Your goals
+          Your weekly commitments
         </div>
         <div className="mt-3 flex flex-col gap-2.5">
           {pods.map((p: any) => {
@@ -88,7 +88,7 @@ export default async function YouPage() {
                     ? `${meta.emoji} ${p.label ?? meta.label} · ${p.target}×/week${
                         p.detail ? ` · ${p.detail}` : ""
                       }`
-                    : "No goal set yet"}
+                    : "No weekly goal set yet"}
                 </div>
               </div>
             );
