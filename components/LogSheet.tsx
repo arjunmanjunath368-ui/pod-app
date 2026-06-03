@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ACTIVITIES, type ActivityKey } from "@/lib/activities";
@@ -58,6 +58,28 @@ export default function LogSheet({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [pods, setPods] = useState<{ id: string; name: string }[]>([]);
+  const [selected, setSelected] = useState(podId);
+
+  useEffect(() => {
+    if (!open) return;
+    setSelected(podId);
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("pod_members")
+        .select("pod_id, pods(name)")
+        .eq("user_id", userId)
+        .neq("status", "left");
+      const list = (data ?? [])
+        .map((m: any) => ({
+          id: m.pod_id as string,
+          name: (Array.isArray(m.pods) ? m.pods[0] : m.pods)?.name as string,
+        }))
+        .filter((p: any) => p.name);
+      setPods(list);
+    })();
+  }, [open, podId, userId]);
 
   if (!open) return null;
 
@@ -82,7 +104,7 @@ export default function LogSheet({
     let photoUrl: string | null = null;
     if (photo) {
       const blob = await compressToJpeg(photo);
-      const path = `${podId}/${userId}/${crypto.randomUUID()}.jpg`;
+      const path = `${selected}/${userId}/${crypto.randomUUID()}.jpg`;
       const { error: upErr } = await supabase.storage
         .from("session-photos")
         .upload(path, blob, {
@@ -99,7 +121,7 @@ export default function LogSheet({
     }
 
     const { error } = await supabase.from("sessions").insert({
-      pod_id: podId,
+      pod_id: selected,
       user_id: userId,
       activity,
       note: note.trim() || null,
@@ -147,6 +169,29 @@ export default function LogSheet({
             <p className="mt-1 text-[15px] text-muted">
               What did you do? This counts toward your week.
             </p>
+
+            {pods.length > 1 && (
+              <div className="mt-4">
+                <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-muted">
+                  Which pod?
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {pods.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelected(p.id)}
+                      className={`rounded-full border px-3 py-1.5 text-[14px] font-semibold transition active:scale-95 ${
+                        selected === p.id
+                          ? "border-terra bg-terra/[0.08] text-terra"
+                          : "border-line bg-card text-ink-soft"
+                      }`}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mt-5 grid grid-cols-3 gap-2.5">
               {ACTIVITIES.map((a) => (
