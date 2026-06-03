@@ -7,6 +7,7 @@ import { dayKeyInTz, monthGrid } from "@/lib/days";
 import BottomNav from "@/components/BottomNav";
 import SignOutButton from "@/components/SignOutButton";
 import MyGoals from "@/components/MyGoals";
+import ShareStatsToggle from "@/components/ShareStatsToggle";
 import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
 
 export default async function YouPage() {
@@ -18,7 +19,7 @@ export default async function YouPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, initials, avatar_color, personal_goals")
+    .select("display_name, initials, avatar_color, personal_goals, share_stats")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -53,6 +54,15 @@ export default async function YouPage() {
     (c) => c.key && activeDayKeys.has(c.key)
   ).length;
   const weekdayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+
+  // Lifetime total active days (distinct days ever logged, across all pods)
+  const { data: allMine } = await supabase
+    .from("sessions")
+    .select("logged_at")
+    .eq("user_id", user.id);
+  const totalActiveDays = new Set(
+    (allMine ?? []).map((s: any) => dayKeyInTz(new Date(s.logged_at), userTz))
+  ).size;
 
   const pods = (memberships ?? []).map((m: any) => {
     const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
@@ -153,6 +163,22 @@ export default async function YouPage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Lifetime stat + sharing */}
+        <div className="mt-3 rounded-2xl border border-line bg-card p-4">
+          <div className="flex items-baseline gap-2">
+            <span className="font-serif text-[34px] font-semibold leading-none text-ink">
+              {totalActiveDays}
+            </span>
+            <span className="text-[14px] text-muted">
+              total active {totalActiveDays === 1 ? "day" : "days"}
+            </span>
+          </div>
+          <ShareStatsToggle
+            userId={user.id}
+            initial={(profile as any)?.share_stats ?? true}
+          />
         </div>
 
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">

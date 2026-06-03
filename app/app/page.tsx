@@ -18,7 +18,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
   const { data: members } = await supabase
     .from("pod_members")
     .select(
-      "user_id, status, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, profiles(display_name, initials, avatar_color)"
+      "user_id, status, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, profiles(display_name, initials, avatar_color, share_stats)"
     )
     .eq("pod_id", podId)
     .neq("status", "left");
@@ -37,10 +37,12 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
   const counts: Record<string, number> = {};
   const monthPrefix = dayKeyInTz(now, tz).slice(0, 7);
   const monthDays: Record<string, Set<string>> = {};
+  const allDays: Record<string, Set<string>> = {};
   (sessions ?? []).forEach((s: any) => {
     if (new Date(s.logged_at) >= weekStart)
       counts[s.user_id] = (counts[s.user_id] ?? 0) + 1;
     const k = dayKeyInTz(new Date(s.logged_at), tz);
+    (allDays[s.user_id] ??= new Set()).add(k);
     if (k.startsWith(monthPrefix)) (monthDays[s.user_id] ??= new Set()).add(k);
   });
 
@@ -81,6 +83,8 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
         hasGoal,
         ratio: hasGoal ? Math.min(done / target, 1) : 0,
         fire: monthDays[m.user_id]?.size ?? 0,
+        total: allDays[m.user_id]?.size ?? 0,
+        shareStats: prof?.share_stats ?? false,
         paused: m.status === "paused",
         isMe: m.user_id === userId,
       };
@@ -323,6 +327,11 @@ export default async function Home({
                             {r.fire > 0 && (
                               <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-paper-2 px-1.5 py-0.5 text-[12px] font-semibold text-terra">
                                 🔥 {r.fire}
+                              </span>
+                            )}
+                            {r.shareStats && r.total > 0 && (
+                              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-paper-2 px-1.5 py-0.5 text-[12px] font-medium text-muted">
+                                🗓 {r.total}
                               </span>
                             )}
                             {r.isMe && (
