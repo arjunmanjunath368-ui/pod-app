@@ -114,10 +114,10 @@ export default async function Home({
   );
   const remainingLabel =
     totalRemaining === 0
-      ? "Everyone's hit their goal this week 🎉"
+      ? "Perfect week — everyone showed up 🎉"
       : `${totalRemaining} ${
           totalRemaining === 1 ? "session" : "sessions"
-        } to go to hit every goal.`;
+        } from a perfect week.`;
 
   const me = rows.find((r: any) => r.isMe);
   const myDefaultActivity = (me?.activity ?? "strength") as ActivityKey;
