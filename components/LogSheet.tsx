@@ -5,6 +5,36 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ACTIVITIES, type ActivityKey } from "@/lib/activities";
 
+async function compressToJpeg(file: File): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxDim = 1200;
+    let { width, height } = bitmap;
+    if (width >= height && width > maxDim) {
+      height = Math.round((height * maxDim) / width);
+      width = maxDim;
+    } else if (height > maxDim) {
+      width = Math.round((width * maxDim) / height);
+      height = maxDim;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    return await new Promise<Blob>((resolve) =>
+      canvas.toBlob(
+        (b) => resolve(b ?? file),
+        "image/jpeg",
+        0.8
+      )
+    );
+  } catch {
+    return file; // fallback: upload original (e.g. unsupported decode)
+  }
+}
+
 export default function LogSheet({
   open,
   onClose,
@@ -23,21 +53,57 @@ export default function LogSheet({
     defaultActivity ?? "strength"
   );
   const [note, setNote] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
 
   if (!open) return null;
 
+  function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setPhoto(f);
+    setPreview(URL.createObjectURL(f));
+  }
+
+  function clearPhoto() {
+    setPhoto(null);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+  }
+
   async function logIt() {
     setSaving(true);
     setError("");
     const supabase = createClient();
+
+    let photoUrl: string | null = null;
+    if (photo) {
+      const blob = await compressToJpeg(photo);
+      const path = `${podId}/${userId}/${crypto.randomUUID()}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from("session-photos")
+        .upload(path, blob, {
+          contentType: "image/jpeg",
+          upsert: false,
+        });
+      if (upErr) {
+        setSaving(false);
+        setError("Photo upload failed: " + upErr.message);
+        return;
+      }
+      photoUrl = supabase.storage.from("session-photos").getPublicUrl(path)
+        .data.publicUrl;
+    }
+
     const { error } = await supabase.from("sessions").insert({
       pod_id: podId,
       user_id: userId,
       activity,
       note: note.trim() || null,
+      photo_url: photoUrl,
     });
     setSaving(false);
     if (error) {
@@ -48,6 +114,7 @@ export default function LogSheet({
     setTimeout(() => {
       setDone(false);
       setNote("");
+      clearPhoto();
       onClose();
       router.refresh();
     }, 900);
@@ -108,6 +175,35 @@ export default function LogSheet({
               maxLength={140}
               className="mt-4 w-full resize-none rounded-2xl border border-line bg-card px-4 py-3 text-[14px] text-ink outline-none focus:border-terra"
             />
+
+            {preview ? (
+              <div className="mt-3 flex items-center gap-3 rounded-2xl border border-line bg-card p-2.5">
+                <img
+                  src={preview}
+                  alt=""
+                  className="h-14 w-14 rounded-xl object-cover"
+                />
+                <span className="flex-1 text-[13px] text-muted">
+                  Photo attached
+                </span>
+                <button
+                  onClick={clearPhoto}
+                  className="rounded-full bg-paper-2 px-3 py-1.5 text-[12px] font-semibold text-muted"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-card py-3 text-[13.5px] font-semibold text-ink-soft">
+                <span className="text-[16px]">📷</span> Add a photo (optional)
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={pickPhoto}
+                />
+              </label>
+            )}
 
             {error && <p className="mt-3 text-[12.5px] text-terra">{error}</p>}
 
