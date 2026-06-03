@@ -11,7 +11,7 @@ export default function BottomNav({
   userId,
   defaultActivity,
 }: {
-  active: "home" | "pod" | "you";
+  active: "home" | "pod" | "you" | "settings";
   podId: string;
   userId: string;
   defaultActivity?: ActivityKey;
@@ -26,7 +26,7 @@ export default function BottomNav({
   return (
     <>
       <nav className="podnav border-t border-line bg-paper/95 backdrop-blur">
-        <div className="flex items-end px-3 pb-6 pt-2.5">
+        <div className="flex items-end px-2 pb-6 pt-2.5">
           <Link href={`/app?pod=${podId}`} className={itemCls(active === "home")}>
             <span className="text-[20px]">🏠</span>
             Home
@@ -56,7 +56,13 @@ export default function BottomNav({
             You
           </Link>
 
-          <div className="flex-1" aria-hidden="true" />
+          <Link
+            href={`/app/settings?pod=${podId}`}
+            className={itemCls(active === "settings")}
+          >
+            <span className="text-[20px]">⚙️</span>
+            Settings
+          </Link>
         </div>
       </nav>
 

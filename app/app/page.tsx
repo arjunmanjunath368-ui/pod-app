@@ -99,7 +99,7 @@ export default async function Home({
   });
 
   const rows = (members ?? [])
-    .filter((m: any) => m.status === "active")
+    .filter((m: any) => m.status === "active" || m.status === "paused")
     .map((m: any) => {
       const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
       const target = m.goal_target_per_week ?? 0;
@@ -119,13 +119,14 @@ export default async function Home({
         hasGoal,
         ratio,
         streak: memberStreak[m.user_id] ?? 0,
+        paused: m.status === "paused",
         isMe: m.user_id === user.id,
       };
     })
     // put me first
     .sort((a: any, b: any) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
 
-  const goalRows = rows.filter((r: any) => r.hasGoal);
+  const goalRows = rows.filter((r: any) => r.hasGoal && !r.paused);
   const podPct = goalRows.length
     ? Math.round(
         (goalRows.reduce((acc: number, r: any) => acc + r.ratio, 0) /
@@ -266,7 +267,11 @@ export default async function Home({
                         </span>
                       )}
                     </div>
-                    {r.hasGoal ? (
+                    {r.paused ? (
+                      <div className="mt-0.5 text-[12.5px] font-medium text-muted">
+                        ⏸ Paused this week
+                      </div>
+                    ) : r.hasGoal ? (
                       <div className="mt-0.5 text-[12.5px] text-muted">
                         {meta.emoji} {r.label ?? meta.label} · {r.target}×/week
                         {r.detail ? ` · ${r.detail}` : ""}
@@ -284,7 +289,7 @@ export default async function Home({
                       </div>
                     )}
                   </div>
-                  {r.hasGoal && (
+                  {r.hasGoal && !r.paused && (
                     <div className="text-right">
                       <div className="font-serif text-[18px] font-semibold text-ink">
                         {r.done}
@@ -298,7 +303,7 @@ export default async function Home({
                     </div>
                   )}
                 </div>
-                {r.hasGoal && (
+                {r.hasGoal && !r.paused && (
                   <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-paper-2">
                     <div
                       className="h-full rounded-full"
