@@ -167,7 +167,7 @@ export default async function PodFeed({
         </div>
 
         <div className="mt-5">
-          <Feed items={items} me={me} />
+          <Feed items={items} me={me} podId={podId} />
         </div>
       </main>
 

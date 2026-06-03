@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { activityMeta } from "@/lib/activities";
 
@@ -39,7 +39,16 @@ export type FeedItem = {
 
 type Me = { userId: string; name: string; initials: string; color: string };
 
-export default function Feed({ items, me }: { items: FeedItem[]; me: Me }) {
+export default function Feed({
+  items,
+  me,
+  podId,
+}: {
+  items: FeedItem[];
+  me: Me;
+  podId: string;
+}) {
+  const [feedItems, setFeedItems] = useState<FeedItem[]>(items);
   const [rstate, setRstate] = useState<
     Record<string, { counts: Record<string, number>; mine: Record<string, boolean> }>
   >(() => {
@@ -55,6 +64,117 @@ export default function Feed({ items, me }: { items: FeedItem[]; me: Me }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+
+  // Re-sync to server truth whenever the page re-fetches (e.g. after you log).
+  useEffect(() => {
+    setFeedItems(items);
+    const r: any = {};
+    const c: any = {};
+    for (const it of items) {
+      r[it.id] = { counts: it.counts, mine: it.mine };
+      c[it.id] = it.comments;
+    }
+    setRstate(r);
+    setCstate(c);
+  }, [items]);
+
+  // Live updates from everyone else in the pod.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`pod-feed-${podId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "sessions",
+          filter: `pod_id=eq.${podId}`,
+        },
+        async (payload: any) => {
+          const s = payload.new;
+          if (!s?.id || s.user_id === me.userId) return; // ours arrives via refresh
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("display_name, initials, avatar_color")
+            .eq("id", s.user_id)
+            .maybeSingle();
+          const item: FeedItem = {
+            id: s.id,
+            authorName: prof?.display_name ?? "Member",
+            initials: prof?.initials ?? "?",
+            color: prof?.avatar_color ?? "#c8553d",
+            activity: s.activity ?? "other",
+            note: s.note ?? null,
+            photoUrl: s.photo_url ?? null,
+            timeLabel: "just now",
+            isMine: false,
+            counts: {},
+            mine: {},
+            comments: [],
+          };
+          setFeedItems((prev) =>
+            prev.some((p) => p.id === s.id) ? prev : [item, ...prev]
+          );
+          setRstate((p) =>
+            p[s.id] ? p : { ...p, [s.id]: { counts: {}, mine: {} } }
+          );
+          setCstate((c) => (c[s.id] ? c : { ...c, [s.id]: [] }));
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reactions" },
+        (payload: any) => {
+          const isInsert = payload.eventType === "INSERT";
+          const row = isInsert ? payload.new : payload.old;
+          if (!row?.session_id || row.user_id === me.userId) return;
+          const sid = row.session_id;
+          const kind = row.kind;
+          setRstate((prev) => {
+            if (!prev[sid]) return prev;
+            const cur = prev[sid];
+            const next = Math.max(0, (cur.counts[kind] ?? 0) + (isInsert ? 1 : -1));
+            return {
+              ...prev,
+              [sid]: { counts: { ...cur.counts, [kind]: next }, mine: cur.mine },
+            };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments" },
+        async (payload: any) => {
+          const c = payload.new;
+          if (!c?.id || c.user_id === me.userId) return;
+          const { data: p } = await supabase
+            .from("profiles")
+            .select("display_name, initials, avatar_color")
+            .eq("id", c.user_id)
+            .maybeSingle();
+          setCstate((prev) => {
+            if (!prev[c.session_id]) return prev;
+            if (prev[c.session_id].some((x) => x.id === c.id)) return prev;
+            const nc: FeedComment = {
+              id: c.id,
+              name: p?.display_name ?? "Member",
+              initials: p?.initials ?? "?",
+              color: p?.avatar_color ?? "#c8553d",
+              body: c.body,
+              timeLabel: "just now",
+              isMine: false,
+            };
+            return { ...prev, [c.session_id]: [...prev[c.session_id], nc] };
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [podId, me.userId]);
 
   async function react(id: string, kind: string) {
     const cur = rstate[id];
@@ -107,7 +227,7 @@ export default function Feed({ items, me }: { items: FeedItem[]; me: Me }) {
     setDraft((d) => ({ ...d, [id]: "" }));
   }
 
-  if (items.length === 0) {
+  if (feedItems.length === 0) {
     return (
       <div className="mt-8 rounded-2xl border border-dashed border-line bg-card p-8 text-center">
         <div className="text-[32px]">🫛</div>
@@ -123,7 +243,7 @@ export default function Feed({ items, me }: { items: FeedItem[]; me: Me }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map((it) => {
+      {feedItems.map((it) => {
         const meta = activityMeta(it.activity);
         const comments = cstate[it.id] ?? [];
         const isOpen = open[it.id];
