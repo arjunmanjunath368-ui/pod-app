@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ACTIVITIES, type ActivityKey } from "@/lib/activities";
+import { weekStartUtc } from "@/lib/week";
+
+type Celebration = { tier: "perfect" | "goal"; detail: string };
 
 async function compressToJpeg(file: File): Promise<Blob> {
   try {
@@ -24,15 +27,78 @@ async function compressToJpeg(file: File): Promise<Blob> {
     if (!ctx) return file;
     ctx.drawImage(bitmap, 0, 0, width, height);
     return await new Promise<Blob>((resolve) =>
-      canvas.toBlob(
-        (b) => resolve(b ?? file),
-        "image/jpeg",
-        0.8
-      )
+      canvas.toBlob((b) => resolve(b ?? file), "image/jpeg", 0.8)
     );
   } catch {
     return file; // fallback: upload original (e.g. unsupported decode)
   }
+}
+
+// Did THIS log just cross a milestone? Runs against the source of truth right
+// after the insert, so it only fires on the session that tips you over.
+async function computeCelebration(
+  supabase: ReturnType<typeof createClient>,
+  podId: string,
+  userId: string
+): Promise<Celebration | null> {
+  const { data: pod } = await supabase
+    .from("pods")
+    .select("name, timezone, week_starts_on")
+    .eq("id", podId)
+    .maybeSingle();
+  if (!pod) return null;
+
+  const tz = pod.timezone || "UTC";
+  const weekStartsOn = pod.week_starts_on ?? 1;
+  const weekStart = weekStartUtc(tz, weekStartsOn).toISOString();
+
+  const { data: meMem } = await supabase
+    .from("pod_members")
+    .select("goal_target_per_week")
+    .eq("pod_id", podId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const myTarget = meMem?.goal_target_per_week ?? 0;
+  if (!myTarget || myTarget < 1) return null;
+
+  const { data: weekSessions } = await supabase
+    .from("sessions")
+    .select("user_id")
+    .eq("pod_id", podId)
+    .gte("logged_at", weekStart);
+  const counts: Record<string, number> = {};
+  (weekSessions ?? []).forEach((s: any) => {
+    counts[s.user_id] = (counts[s.user_id] ?? 0) + 1;
+  });
+
+  // Only the exact crossing celebrates (one per goal, per week).
+  if ((counts[userId] ?? 0) !== myTarget) return null;
+
+  // Perfect week: every active member with a goal has met it.
+  const { data: members } = await supabase
+    .from("pod_members")
+    .select("user_id, goal_target_per_week, status")
+    .eq("pod_id", podId)
+    .neq("status", "left");
+  const goalMembers = (members ?? []).filter(
+    (m: any) => (m.goal_target_per_week ?? 0) >= 1 && m.status === "active"
+  );
+  const allHit =
+    goalMembers.length > 1 &&
+    goalMembers.every(
+      (m: any) => (counts[m.user_id] ?? 0) >= m.goal_target_per_week
+    );
+
+  if (allHit) {
+    return {
+      tier: "perfect",
+      detail: `Everyone in ${pod.name} hit their goal this week.`,
+    };
+  }
+  return {
+    tier: "goal",
+    detail: `That's ${myTarget} of ${myTarget} this week. You showed up.`,
+  };
 }
 
 export default function LogSheet({
@@ -58,6 +124,7 @@ export default function LogSheet({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [celebration, setCelebration] = useState<Celebration | null>(null);
   const [pods, setPods] = useState<{ id: string; name: string }[]>([]);
   const [selected, setSelected] = useState(podId);
 
@@ -96,6 +163,15 @@ export default function LogSheet({
     setPreview(null);
   }
 
+  function finishCelebration() {
+    setCelebration(null);
+    setDone(false);
+    setNote("");
+    clearPhoto();
+    onClose();
+    router.refresh();
+  }
+
   async function logIt() {
     setSaving(true);
     setError("");
@@ -132,6 +208,19 @@ export default function LogSheet({
       setError(error.message);
       return;
     }
+
+    // Did this one cross a milestone?
+    let cel: Celebration | null = null;
+    try {
+      cel = await computeCelebration(supabase, selected, userId);
+    } catch {
+      cel = null;
+    }
+    if (cel) {
+      setCelebration(cel); // wait for the user to dismiss
+      return;
+    }
+
     setDone(true);
     setTimeout(() => {
       setDone(false);
@@ -146,12 +235,55 @@ export default function LogSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
         className="absolute inset-0 bg-ink/40"
-        onClick={() => !saving && onClose()}
+        onClick={() => !saving && !celebration && onClose()}
       />
       <div className="sheet-enter relative w-full max-w-[420px] rounded-t-[28px] bg-paper px-6 pb-9 pt-3 shadow-pod-lg">
         <div className="mx-auto mb-5 h-1.5 w-10 rounded-full bg-line" />
 
-        {done ? (
+        {celebration ? (
+          <div className="py-8 text-center">
+            {celebration.tier === "perfect" ? (
+              <>
+                <div className="mb-3 flex justify-center gap-1.5 text-[36px]">
+                  <span className="animate-bounce" style={{ animationDelay: "0ms" }}>
+                    🎉
+                  </span>
+                  <span
+                    className="animate-bounce"
+                    style={{ animationDelay: "120ms" }}
+                  >
+                    🔥
+                  </span>
+                  <span
+                    className="animate-bounce"
+                    style={{ animationDelay: "240ms" }}
+                  >
+                    🎉
+                  </span>
+                </div>
+                <p className="font-serif text-[27px] font-semibold leading-tight text-ink">
+                  Perfect week!
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-[46px]">🎯</div>
+                <p className="mt-2 font-serif text-[25px] font-semibold leading-tight text-ink">
+                  You hit your goal!
+                </p>
+              </>
+            )}
+            <p className="mx-auto mt-2 max-w-[300px] text-[15px] leading-relaxed text-muted">
+              {celebration.detail}
+            </p>
+            <button
+              onClick={finishCelebration}
+              className="mt-6 w-full rounded-2xl bg-terra py-4 text-[16px] font-semibold text-white transition active:scale-[0.98]"
+            >
+              {celebration.tier === "perfect" ? "Let's gooo" : "Nice!"}
+            </button>
+          </div>
+        ) : done ? (
           <div className="py-8 text-center">
             <div className="text-[40px]">✅</div>
             <p className="mt-2 font-serif text-[22px] font-semibold text-ink">
