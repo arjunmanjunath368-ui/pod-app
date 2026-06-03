@@ -25,6 +25,7 @@ export default function MyGoals({
   initial: string[];
 }) {
   const [goals, setGoals] = useState<string[]>(initial ?? []);
+  const [editing, setEditing] = useState((initial ?? []).length === 0);
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -51,10 +52,49 @@ export default function MyGoals({
     persist(goals.filter((x) => x !== g));
   }
 
+  function save() {
+    if (custom.trim()) add(custom);
+    setCustom("");
+    setEditing(false);
+  }
+
   const available = PRESETS.filter(
     (p) => !goals.some((g) => g.toLowerCase() === p.toLowerCase())
   );
 
+  // ---------- Collapsed view ----------
+  if (!editing) {
+    return (
+      <div className="rounded-2xl border border-line bg-card p-4">
+        <div className="flex items-start justify-between gap-3">
+          {goals.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {goals.map((g) => (
+                <span
+                  key={g}
+                  className="rounded-full bg-terra/[0.10] px-3 py-1.5 text-[13px] font-semibold text-terra"
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[13px] text-muted">
+              No goals yet — add what you're working toward.
+            </p>
+          )}
+          <button
+            onClick={() => setEditing(true)}
+            className="shrink-0 text-[12.5px] font-semibold text-terra"
+          >
+            {goals.length > 0 ? "Edit" : "Add"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Editing view ----------
   return (
     <div className="rounded-2xl border border-line bg-card p-4">
       {goals.length === 0 ? (
@@ -120,13 +160,21 @@ export default function MyGoals({
                 setCustom("");
               }}
               disabled={busy || !custom.trim()}
-              className="rounded-xl bg-ink px-4 py-2 text-[13px] font-semibold text-paper transition active:scale-95 disabled:opacity-50"
+              className="rounded-xl border border-line bg-paper-2/60 px-4 py-2 text-[13px] font-semibold text-ink-soft transition active:scale-95 disabled:opacity-50"
             >
               Add
             </button>
           </div>
         </div>
       )}
+
+      <button
+        onClick={save}
+        disabled={busy}
+        className="mt-4 w-full rounded-xl bg-ink py-3 text-[14px] font-semibold text-paper transition active:scale-[0.99] disabled:opacity-60"
+      >
+        Save
+      </button>
     </div>
   );
 }
