@@ -21,7 +21,7 @@ export default async function YouPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, initials, avatar_color, avatar_url, personal_goals, share_stats")
+    .select("display_name, initials, avatar_color, avatar_url, avatar_source_url, personal_goals, share_stats")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -111,7 +111,7 @@ export default async function YouPage() {
         </div>
 
         <div className="mt-4">
-          <AvatarUpload userId={user.id} hasPhoto={!!profile?.avatar_url} />
+          <AvatarUpload userId={user.id} hasPhoto={!!profile?.avatar_url} avatarUrl={profile?.avatar_url ?? null} sourceUrl={profile?.avatar_source_url ?? null} />
         </div>
 
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">

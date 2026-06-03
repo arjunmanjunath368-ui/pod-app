@@ -10,79 +10,75 @@ type Area = { x: number; y: number; width: number; height: number };
 function createImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    image.crossOrigin = "anonymous";
     image.addEventListener("load", () => resolve(image));
     image.addEventListener("error", (e) => reject(e));
     image.src = url;
   });
 }
 
-function rad(deg: number) {
-  return (deg * Math.PI) / 180;
-}
-
-function rotatedSize(w: number, h: number, rotation: number) {
-  const r = rad(rotation);
-  return {
-    width: Math.abs(Math.cos(r) * w) + Math.abs(Math.sin(r) * h),
-    height: Math.abs(Math.sin(r) * w) + Math.abs(Math.cos(r) * h),
-  };
-}
-
-// Render the cropped + rotated region into a square JPEG (max 512px).
+// Crop the selected region into a square JPEG (max 512px), with optional flip.
 async function getCroppedBlob(
-  imageSrc: string,
-  crop: Area,
-  rotation: number
+  src: string,
+  area: Area
 ): Promise<Blob | null> {
-  const image = await createImage(imageSrc);
+  const image = await createImage(src);
+  const size = Math.min(512, Math.round(area.width));
   const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-
-  const { width: bw, height: bh } = rotatedSize(
-    image.width,
-    image.height,
-    rotation
-  );
-  canvas.width = bw;
-  canvas.height = bh;
-  ctx.translate(bw / 2, bh / 2);
-  ctx.rotate(rad(rotation));
-  ctx.translate(-image.width / 2, -image.height / 2);
-  ctx.drawImage(image, 0, 0);
-
-  const data = ctx.getImageData(crop.x, crop.y, crop.width, crop.height);
-
-  const tmp = document.createElement("canvas");
-  tmp.width = crop.width;
-  tmp.height = crop.height;
-  tmp.getContext("2d")?.putImageData(data, 0, 0);
-
-  const size = Math.min(512, Math.round(crop.width));
-  const out = document.createElement("canvas");
-  out.width = size;
-  out.height = size;
-  out
-    .getContext("2d")
-    ?.drawImage(tmp, 0, 0, crop.width, crop.height, 0, 0, size, size);
-
+  ctx.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, size, size);
   return new Promise((resolve) =>
-    out.toBlob((b) => resolve(b), "image/jpeg", 0.85)
+    canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85)
   );
+}
+
+// Downscale the original for re-editing later (keeps "Edit" non-lossy).
+async function compressOriginal(file: File): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxDim = 1024;
+    let { width, height } = bitmap;
+    if (width >= height && width > maxDim) {
+      height = Math.round((height * maxDim) / width);
+      width = maxDim;
+    } else if (height > maxDim) {
+      width = Math.round((width * maxDim) / height);
+      height = maxDim;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    return await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b ?? file), "image/jpeg", 0.85)
+    );
+  } catch {
+    return file;
+  }
 }
 
 export default function AvatarUpload({
   userId,
   hasPhoto,
+  avatarUrl,
+  sourceUrl,
 }: {
   userId: string;
   hasPhoto: boolean;
+  avatarUrl: string | null;
+  sourceUrl: string | null;
 }) {
   const router = useRouter();
   const [src, setSrc] = useState<string | null>(null);
+  const [isNew, setIsNew] = useState(false);
+  const [origFile, setOrigFile] = useState<File | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
   const [areaPixels, setAreaPixels] = useState<Area | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -91,20 +87,41 @@ export default function AvatarUpload({
     setAreaPixels(areaPx);
   }, []);
 
+  function resetControls() {
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setError("");
+  }
+
   function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    setError("");
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setRotation(0);
+    resetControls();
+    setIsNew(true);
+    setOrigFile(f);
     const reader = new FileReader();
     reader.onload = () => setSrc(reader.result as string);
     reader.readAsDataURL(f);
-    e.target.value = ""; // allow re-picking the same file later
+    e.target.value = "";
+  }
+
+  async function editExisting() {
+    const u = sourceUrl || avatarUrl;
+    if (!u) return;
+    resetControls();
+    setIsNew(false);
+    setOrigFile(null);
+    try {
+      const res = await fetch(u);
+      const blob = await res.blob();
+      setSrc(URL.createObjectURL(blob));
+    } catch {
+      setError("Couldn't load your photo to edit. Try Change photo instead.");
+    }
   }
 
   function cancel() {
+    if (src && src.startsWith("blob:")) URL.revokeObjectURL(src);
     setSrc(null);
     setError("");
   }
@@ -113,48 +130,93 @@ export default function AvatarUpload({
     if (!src || !areaPixels) return;
     setBusy(true);
     setError("");
-    const blob = await getCroppedBlob(src, areaPixels, rotation);
+    const blob = await getCroppedBlob(src, areaPixels);
     if (!blob) {
       setBusy(false);
       setError("Couldn't process that image. Try another.");
       return;
     }
     const supabase = createClient();
-    const path = `${userId}/${crypto.randomUUID()}.jpg`;
+    const cropPath = `${userId}/${crypto.randomUUID()}.jpg`;
     const { error: upErr } = await supabase.storage
       .from("avatars")
-      .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+      .upload(cropPath, blob, { contentType: "image/jpeg", upsert: false });
     if (upErr) {
       setBusy(false);
       setError("Upload failed: " + upErr.message);
       return;
     }
-    const publicUrl = supabase.storage.from("avatars").getPublicUrl(path)
+    const newAvatarUrl = supabase.storage.from("avatars").getPublicUrl(cropPath)
       .data.publicUrl;
+
+    const updates: { avatar_url: string; avatar_source_url?: string } = {
+      avatar_url: newAvatarUrl,
+    };
+
+    // For a brand-new photo, also stash the original so future edits are clean.
+    if (isNew && origFile) {
+      const srcBlob = await compressOriginal(origFile);
+      const srcPath = `${userId}/src-${crypto.randomUUID()}.jpg`;
+      const { error: srcErr } = await supabase.storage
+        .from("avatars")
+        .upload(srcPath, srcBlob, {
+          contentType: "image/jpeg",
+          upsert: false,
+        });
+      if (!srcErr) {
+        updates.avatar_source_url = supabase.storage
+          .from("avatars")
+          .getPublicUrl(srcPath).data.publicUrl;
+      }
+    }
+
     const { error: updErr } = await supabase
       .from("profiles")
-      .update({ avatar_url: publicUrl })
+      .update(updates)
       .eq("id", userId);
     setBusy(false);
     if (updErr) {
       setError(updErr.message);
       return;
     }
-    setSrc(null);
+    cancel();
     router.refresh();
   }
 
   return (
     <div>
-      <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-card px-4 py-2 text-[14px] font-semibold text-ink-soft transition active:scale-95">
-        {hasPhoto ? "Change photo" : "Add a photo"}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={pick}
-        />
-      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        {hasPhoto && (
+          <button
+            onClick={editExisting}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-4 py-2 text-[14px] font-semibold text-ink-soft transition active:scale-95"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            Edit
+          </button>
+        )}
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-card px-4 py-2 text-[14px] font-semibold text-ink-soft transition active:scale-95">
+          {hasPhoto ? "Change photo" : "Add a photo"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={pick}
+          />
+        </label>
+      </div>
 
       {src && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -165,7 +227,7 @@ export default function AvatarUpload({
               Frame your photo
             </h2>
             <p className="mt-1 text-[14px] text-muted">
-              Drag to move, and use the sliders to zoom and rotate.
+              Drag to move, pinch or use the slider to zoom.
             </p>
 
             <div className="relative mt-4 h-64 w-full overflow-hidden rounded-2xl bg-ink">
@@ -173,52 +235,28 @@ export default function AvatarUpload({
                 image={src}
                 crop={crop}
                 zoom={zoom}
-                rotation={rotation}
                 aspect={1}
                 cropShape="round"
                 showGrid={false}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
-                onRotationChange={setRotation}
                 onCropComplete={onCropComplete}
               />
             </div>
 
-            <div className="mt-4 space-y-3">
-              <div>
-                <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-muted">
-                  Zoom
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.01}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="w-full accent-terra"
-                />
+            <div className="mt-4">
+              <div className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-muted">
+                Zoom
               </div>
-              <div>
-                <div className="mb-1 flex items-center justify-between text-[12px] font-semibold uppercase tracking-wide text-muted">
-                  <span>Rotate</span>
-                  <button
-                    onClick={() => setRotation((r) => (r + 90) % 360)}
-                    className="rounded-full bg-paper-2 px-2.5 py-0.5 text-[12px] font-semibold text-ink-soft"
-                  >
-                    +90°
-                  </button>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={360}
-                  step={1}
-                  value={rotation}
-                  onChange={(e) => setRotation(Number(e.target.value))}
-                  className="w-full accent-terra"
-                />
-              </div>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.01}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full accent-terra"
+              />
             </div>
 
             {error && <p className="mt-3 text-[13px] text-terra">{error}</p>}
