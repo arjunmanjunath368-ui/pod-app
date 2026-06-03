@@ -34,12 +34,17 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isProtected = path.startsWith("/app");
 
-  if (!user && isProtected) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-  if (user && (path === "/" || path === "/login")) {
-    return NextResponse.redirect(new URL("/app", request.url));
-  }
+  // Build a redirect that carries over any auth cookies refreshed above,
+  // so a refreshed session isn't lost on the redirect (which would bounce
+  // a logged-in user back to /login).
+  const redirectTo = (to: string) => {
+    const r = NextResponse.redirect(new URL(to, request.url));
+    response.cookies.getAll().forEach((c) => r.cookies.set(c));
+    return r;
+  };
+
+  if (!user && isProtected) return redirectTo("/login");
+  if (user && (path === "/" || path === "/login")) return redirectTo("/app");
 
   return response;
 }
