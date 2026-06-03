@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { weekStartUtc } from "@/lib/week";
+import { computeStreaks } from "@/lib/streaks";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
 import BottomNav from "@/components/BottomNav";
 import InviteButton from "@/components/InviteButton";
@@ -34,7 +35,7 @@ export default async function Home({
   const { data: memberships } = await supabase
     .from("pod_members")
     .select(
-      "pod_id, pods(id, name, invite_code, max_members, timezone, week_starts_on)"
+      "pod_id, pods(id, name, invite_code, max_members, timezone, week_starts_on, created_at)"
     )
     .eq("user_id", user.id)
     .neq("status", "left");
@@ -52,25 +53,49 @@ export default async function Home({
   const { data: members } = await supabase
     .from("pod_members")
     .select(
-      "user_id, role, status, goal_activity, goal_label, goal_target_per_week, goal_detail, profiles(display_name, initials, avatar_color)"
+      "user_id, role, status, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, profiles(display_name, initials, avatar_color)"
     )
     .eq("pod_id", podId)
     .neq("status", "left");
 
-  // This week's sessions for the pod
+  // Sessions since the pod was created (covers this week + prior weeks for streaks)
   const weekStart = weekStartUtc(
     current.timezone ?? "America/Chicago",
     current.week_starts_on ?? 1
   );
+  const podCreatedAt = current.created_at
+    ? new Date(current.created_at)
+    : new Date(Date.now() - 26 * 7 * 86400000);
   const { data: sessions } = await supabase
     .from("sessions")
     .select("user_id, logged_at")
     .eq("pod_id", podId)
-    .gte("logged_at", weekStart.toISOString());
+    .gte("logged_at", podCreatedAt.toISOString());
 
+  // This week's counts (derived from the full set)
   const counts: Record<string, number> = {};
   (sessions ?? []).forEach((s: any) => {
-    counts[s.user_id] = (counts[s.user_id] ?? 0) + 1;
+    if (new Date(s.logged_at) >= weekStart) {
+      counts[s.user_id] = (counts[s.user_id] ?? 0) + 1;
+    }
+  });
+
+  // Streaks
+  const { podStreak, memberStreak } = computeStreaks({
+    members: (members ?? []).map((m: any) => ({
+      userId: m.user_id,
+      target: m.goal_target_per_week ?? 0,
+      hasGoal: !!m.goal_target_per_week,
+      status: m.status,
+      joinedAt: m.joined_at ? new Date(m.joined_at) : podCreatedAt,
+    })),
+    sessions: (sessions ?? []).map((s: any) => ({
+      userId: s.user_id,
+      loggedAt: new Date(s.logged_at),
+    })),
+    tz: current.timezone ?? "America/Chicago",
+    weekStartsOn: current.week_starts_on ?? 1,
+    podCreatedAt,
   });
 
   const rows = (members ?? [])
@@ -93,6 +118,7 @@ export default async function Home({
         done,
         hasGoal,
         ratio,
+        streak: memberStreak[m.user_id] ?? 0,
         isMe: m.user_id === user.id,
       };
     })
@@ -162,9 +188,15 @@ export default async function Home({
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sage-soft">
               This week
             </div>
-            <div className="text-[11px] text-sage-soft">
-              {goalRows.length} of {rows.length} have goals set
-            </div>
+            {podStreak > 0 ? (
+              <div className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11.5px] font-semibold text-paper">
+                🔥 {podStreak}-week pod streak
+              </div>
+            ) : (
+              <div className="text-[11px] text-sage-soft">
+                {goalRows.length} of {rows.length} have goals set
+              </div>
+            )}
           </div>
 
           {goalRows.length > 0 ? (
@@ -223,6 +255,11 @@ export default async function Home({
                       <span className="truncate text-[15px] font-semibold text-ink">
                         {r.name}
                       </span>
+                      {r.streak > 0 && (
+                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-paper-2 px-1.5 py-0.5 text-[10.5px] font-semibold text-terra">
+                          🔥 {r.streak}
+                        </span>
+                      )}
                       {r.isMe && (
                         <span className="rounded-full bg-paper-2 px-2 py-0.5 text-[10px] font-semibold text-muted">
                           you
