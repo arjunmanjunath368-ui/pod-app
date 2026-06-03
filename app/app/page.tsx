@@ -278,7 +278,7 @@ export default async function Home({
               <div className="mt-3 rounded-3xl bg-ink p-6 text-paper shadow-pod-lg">
                 <div className="flex items-center justify-between">
                   <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-sage-soft">
-                    This week
+                    Your pod · this week
                   </div>
                   {sec.podStreak > 0 ? (
                     <div className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-semibold text-paper">
@@ -298,7 +298,7 @@ export default async function Home({
                         {sec.podPct}%
                       </span>
                       <span className="text-[15px] text-sage-soft">
-                        of goals hit
+                        of the pod's goals hit
                       </span>
                     </div>
                     <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/12">

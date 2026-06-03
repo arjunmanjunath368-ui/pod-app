@@ -81,8 +81,20 @@ export default function Feed({
   // Live updates from everyone else in the pod.
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`pod-feed-${podId}`)
+    let channel: any = null;
+    let cancelled = false;
+
+    (async () => {
+      // Realtime honors RLS: the socket must carry the user's token, or the
+      // server treats it as anonymous and silently blocks every event.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.access_token) supabase.realtime.setAuth(session.access_token);
+      if (cancelled) return;
+
+      channel = supabase
+        .channel(`pod-feed-${podId}`)
       .on(
         "postgres_changes",
         {
@@ -125,20 +137,28 @@ export default function Feed({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "reactions" },
-        (payload: any) => {
-          const isInsert = payload.eventType === "INSERT";
-          const row = isInsert ? payload.new : payload.old;
-          if (!row?.session_id || row.user_id === me.userId) return;
-          const sid = row.session_id;
-          const kind = row.kind;
+        async (payload: any) => {
+          const row =
+            payload.new && Object.keys(payload.new).length
+              ? payload.new
+              : payload.old;
+          const sid = row?.session_id;
+          if (!sid) return;
+          // Recompute this post's reactions from the source of truth — avoids
+          // any drift from overlapping live events and optimistic updates.
+          const { data: rows } = await supabase
+            .from("reactions")
+            .select("user_id, kind")
+            .eq("session_id", sid);
           setRstate((prev) => {
             if (!prev[sid]) return prev;
-            const cur = prev[sid];
-            const next = Math.max(0, (cur.counts[kind] ?? 0) + (isInsert ? 1 : -1));
-            return {
-              ...prev,
-              [sid]: { counts: { ...cur.counts, [kind]: next }, mine: cur.mine },
-            };
+            const counts: Record<string, number> = {};
+            const mine: Record<string, boolean> = {};
+            (rows ?? []).forEach((r: any) => {
+              counts[r.kind] = (counts[r.kind] ?? 0) + 1;
+              if (r.user_id === me.userId) mine[r.kind] = true;
+            });
+            return { ...prev, [sid]: { counts, mine } };
           });
         }
       )
@@ -169,10 +189,22 @@ export default function Feed({
           });
         }
       )
-      .subscribe();
+        .subscribe((status: string) => {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.warn("pod feed realtime:", status);
+          }
+        });
+    })();
+
+    // Keep the socket authed if the access token refreshes mid-session.
+    const { data: authSub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session?.access_token) supabase.realtime.setAuth(session.access_token);
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      authSub.subscription.unsubscribe();
+      if (channel) supabase.removeChannel(channel);
     };
   }, [podId, me.userId]);
 
@@ -205,6 +237,24 @@ export default function Feed({
   async function addComment(id: string) {
     const body = (draft[id] ?? "").trim();
     if (!body) return;
+    const tempId = `temp-${crypto.randomUUID()}`;
+    // Show it immediately, then reconcile with the server.
+    setCstate((c) => ({
+      ...c,
+      [id]: [
+        ...(c[id] ?? []),
+        {
+          id: tempId,
+          name: me.name,
+          initials: me.initials,
+          color: me.color,
+          body,
+          timeLabel: "just now",
+          isMine: true,
+        },
+      ],
+    }));
+    setDraft((d) => ({ ...d, [id]: "" }));
     setBusy((b) => ({ ...b, [id]: true }));
     const supabase = createClient();
     const { data, error } = await supabase
@@ -213,18 +263,23 @@ export default function Feed({
       .select("id")
       .single();
     setBusy((b) => ({ ...b, [id]: false }));
-    if (error) return;
-    const newC: FeedComment = {
-      id: data?.id ?? crypto.randomUUID(),
-      name: me.name,
-      initials: me.initials,
-      color: me.color,
-      body,
-      timeLabel: "just now",
-      isMine: true,
-    };
-    setCstate((c) => ({ ...c, [id]: [...(c[id] ?? []), newC] }));
-    setDraft((d) => ({ ...d, [id]: "" }));
+    if (error) {
+      // roll back and give them their text back
+      setCstate((c) => ({
+        ...c,
+        [id]: (c[id] ?? []).filter((x) => x.id !== tempId),
+      }));
+      setDraft((d) => ({ ...d, [id]: body }));
+      return;
+    }
+    if (data?.id) {
+      setCstate((c) => ({
+        ...c,
+        [id]: (c[id] ?? []).map((x) =>
+          x.id === tempId ? { ...x, id: data.id } : x
+        ),
+      }));
+    }
   }
 
   if (feedItems.length === 0) {
