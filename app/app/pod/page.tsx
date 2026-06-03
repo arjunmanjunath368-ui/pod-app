@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { timeAgo } from "@/lib/timeago";
 import { type ActivityKey } from "@/lib/activities";
 import BottomNav from "@/components/BottomNav";
+import InviteButton from "@/components/InviteButton";
+import LeavePodButton from "@/components/LeavePodButton";
 import Feed, { type FeedItem, type FeedComment } from "@/components/Feed";
 
 export default async function PodFeed({
@@ -18,7 +21,7 @@ export default async function PodFeed({
 
   const { data: memberships } = await supabase
     .from("pod_members")
-    .select("pod_id, pods(id, name)")
+    .select("pod_id, pods(id, name, invite_code)")
     .eq("user_id", user.id)
     .neq("status", "left");
 
@@ -126,13 +129,46 @@ export default async function PodFeed({
   return (
     <>
       <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
-        <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
-          The pod
+        {podsList.length > 1 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {podsList.map((p: any) => (
+              <Link
+                key={p.id}
+                href={`/app/pod?pod=${p.id}`}
+                className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold transition ${
+                  p.id === podId
+                    ? "border-terra bg-terra/[0.08] text-terra"
+                    : "border-line bg-card text-muted"
+                }`}
+              >
+                {p.name}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
+              My pods
+            </div>
+            <h1 className="truncate font-serif text-[26px] font-semibold leading-tight text-ink">
+              {current.name}
+            </h1>
+          </div>
+          <div className="flex shrink-0 items-center gap-3 pt-1">
+            <InviteButton code={current.invite_code} podName={current.name} />
+            <LeavePodButton
+              podId={podId}
+              userId={user.id}
+              podName={current.name}
+            />
+          </div>
         </div>
-        <h1 className="mb-5 font-serif text-[26px] font-semibold leading-tight text-ink">
-          {current.name}
-        </h1>
-        <Feed items={items} me={me} />
+
+        <div className="mt-5">
+          <Feed items={items} me={me} />
+        </div>
       </main>
 
       <BottomNav active="pod" podId={podId} userId={user.id} />

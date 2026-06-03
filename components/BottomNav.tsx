@@ -82,7 +82,7 @@ export default function BottomNav({
             className={itemCls(active === "pod")}
           >
             <span className="text-[21px] leading-none">🫛</span>
-            Pod
+            My Pods
           </Link>
 
           <div className="flex flex-1 flex-col items-center">
