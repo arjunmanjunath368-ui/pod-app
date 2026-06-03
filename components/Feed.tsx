@@ -238,7 +238,7 @@ export default function Feed({ items, me }: { items: FeedItem[]; me: Me }) {
                     disabled={busy[it.id] || !(draft[it.id] ?? "").trim()}
                     className="rounded-xl bg-ink px-4 py-2 text-[14px] font-semibold text-paper transition active:scale-95 disabled:opacity-50"
                   >
-                    Send
+                    Post
                   </button>
                 </div>
               </div>
