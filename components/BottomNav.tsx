@@ -25,18 +25,6 @@ function HomeIcon() {
     </svg>
   );
 }
-function PodIcon() {
-  return (
-    <svg {...ICON}>
-      <circle cx="5" cy="7" r="1.2" />
-      <line x1="9" y1="7" x2="20" y2="7" />
-      <circle cx="5" cy="12" r="1.2" />
-      <line x1="9" y1="12" x2="20" y2="12" />
-      <circle cx="5" cy="17" r="1.2" />
-      <line x1="9" y1="17" x2="20" y2="17" />
-    </svg>
-  );
-}
 function YouIcon() {
   return (
     <svg {...ICON}>
@@ -48,10 +36,16 @@ function YouIcon() {
 function SettingsIcon() {
   return (
     <svg {...ICON}>
-      <line x1="4" y1="8.5" x2="20" y2="8.5" />
-      <circle cx="15" cy="8.5" r="2.4" fill="#f4f0e6" />
-      <line x1="4" y1="15.5" x2="20" y2="15.5" />
-      <circle cx="9" cy="15.5" r="2.4" fill="#f4f0e6" />
+      <circle cx="12" cy="12" r="3" />
+      <circle cx="12" cy="12" r="6.5" />
+      <line x1="12" y1="2" x2="12" y2="5.5" />
+      <line x1="12" y1="18.5" x2="12" y2="22" />
+      <line x1="2" y1="12" x2="5.5" y2="12" />
+      <line x1="18.5" y1="12" x2="22" y2="12" />
+      <line x1="5.4" y1="5.4" x2="7.6" y2="7.6" />
+      <line x1="16.4" y1="16.4" x2="18.6" y2="18.6" />
+      <line x1="5.4" y1="18.6" x2="7.6" y2="16.4" />
+      <line x1="16.4" y1="7.6" x2="18.6" y2="5.4" />
     </svg>
   );
 }
@@ -87,7 +81,7 @@ export default function BottomNav({
             href={`/app/pod?pod=${podId}`}
             className={itemCls(active === "pod")}
           >
-            <PodIcon />
+            <span className="text-[21px] leading-none">🫛</span>
             Pod
           </Link>
 

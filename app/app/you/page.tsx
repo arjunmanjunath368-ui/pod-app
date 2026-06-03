@@ -182,7 +182,7 @@ export default async function YouPage() {
         </div>
 
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
-          Your weekly commitments
+          Your weekly challenges
         </div>
         <div className="mt-3 flex flex-col gap-2.5">
           {pods.map((p: any) => {
