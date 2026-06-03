@@ -6,6 +6,7 @@ import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz, monthGrid } from "@/lib/days";
 import BottomNav from "@/components/BottomNav";
 import SignOutButton from "@/components/SignOutButton";
+import MyGoals from "@/components/MyGoals";
 import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
 
 export default async function YouPage() {
@@ -17,7 +18,7 @@ export default async function YouPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, initials, avatar_color")
+    .select("display_name, initials, avatar_color, personal_goals")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -95,6 +96,16 @@ export default async function YouPage() {
               {BRAND_MARK} {BRAND_NAME} member
             </div>
           </div>
+        </div>
+
+        <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+          My goals
+        </div>
+        <div className="mt-3">
+          <MyGoals
+            userId={user.id}
+            initial={(profile as any)?.personal_goals ?? []}
+          />
         </div>
 
         <div className="mt-7 flex items-baseline justify-between">
