@@ -37,17 +37,34 @@ export default function CreatePodPage() {
     const supabase = createClient();
     const tz =
       Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago";
-    const { error } = await supabase.rpc("create_pod", {
+    const { data, error } = await supabase.rpc("create_pod", {
       p_name: trimmed,
       p_max: max,
       p_tz: tz,
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(error.message);
       return;
     }
-    router.push("/app");
+    let podId = typeof data === "string" ? data : null;
+    if (!podId) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: mem } = await supabase
+          .from("pod_members")
+          .select("pod_id")
+          .eq("user_id", user.id)
+          .order("joined_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        podId = mem?.pod_id ?? null;
+      }
+    }
+    setLoading(false);
+    router.push(podId ? `/app/goal?pod=${podId}&onboarding=1` : "/app");
     router.refresh();
   }
 

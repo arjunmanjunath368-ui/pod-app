@@ -116,7 +116,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
 export default async function Home({
   searchParams,
 }: {
-  searchParams: { pod?: string };
+  searchParams: { pod?: string; welcome?: string };
 }) {
   const supabase = createClient();
   const {
@@ -208,6 +208,10 @@ export default async function Home({
 
   const navPodId = podsList[0].id as string;
 
+  const welcomePod =
+    sections.find((s: any) => s.pod.id === searchParams.pod) ?? sections[0];
+  const welcomeLone = !!welcomePod && welcomePod.rows.length <= 1;
+
   return (
     <>
       <main className="flex-1 overflow-y-auto px-5 pb-28 pt-8">
@@ -220,6 +224,24 @@ export default async function Home({
         </h1>
 
         <NudgeBanner nudges={nudgeList} userId={user.id} />
+
+        {searchParams.welcome === "1" && (
+          <div className="mt-4 rounded-2xl border border-terra/30 bg-terra/[0.08] p-4">
+            <div className="text-[16px] font-semibold text-ink">
+              You're all set 🎉
+            </div>
+            <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
+              Welcome to{" "}
+              {sections.find((s: any) => s.pod.id === searchParams.pod)?.pod
+                .name ?? "your pod"}
+              . Tap the + below to log your first session — that's all it takes
+              to show up for your pod.
+              {welcomeLone
+                ? " It's just you so far — use Invite to bring your people in."
+                : ""}
+            </p>
+          </div>
+        )}
 
         {sections.map((sec: any) => {
           const me = sec.rows.find((r: any) => r.isMe);

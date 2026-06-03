@@ -13,10 +13,13 @@ export default function JoinPodPage() {
   const [back, setBack] = useState("/app");
 
   useEffect(() => {
-    const f = new URLSearchParams(window.location.search).get("from");
+    const params = new URLSearchParams(window.location.search);
+    const f = params.get("from");
     setBack(
       f === "you" ? "/app/you" : f === "start" ? "/app/start" : "/app"
     );
+    const c = params.get("code");
+    if (c) setCode(c.toUpperCase());
   }, []);
 
   async function join() {
@@ -28,13 +31,23 @@ export default function JoinPodPage() {
     setLoading(true);
     setError("");
     const supabase = createClient();
-    const { error } = await supabase.rpc("join_pod", { p_code: trimmed });
-    setLoading(false);
+    const { data, error } = await supabase.rpc("join_pod", { p_code: trimmed });
     if (error) {
+      setLoading(false);
       setError(error.message);
       return;
     }
-    router.push("/app");
+    let podId = typeof data === "string" ? data : null;
+    if (!podId) {
+      const { data: pod } = await supabase
+        .from("pods")
+        .select("id")
+        .eq("invite_code", trimmed)
+        .maybeSingle();
+      podId = pod?.id ?? null;
+    }
+    setLoading(false);
+    router.push(podId ? `/app/goal?pod=${podId}&onboarding=1` : "/app");
     router.refresh();
   }
 
