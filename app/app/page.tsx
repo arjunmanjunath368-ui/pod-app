@@ -108,6 +108,17 @@ export default async function Home({
       )
     : 0;
 
+  const totalRemaining = goalRows.reduce(
+    (acc: number, r: any) => acc + Math.max(r.target - r.done, 0),
+    0
+  );
+  const remainingLabel =
+    totalRemaining === 0
+      ? "Everyone's hit their goal this week 🎉"
+      : `${totalRemaining} ${
+          totalRemaining === 1 ? "session" : "sessions"
+        } to go to hit every goal.`;
+
   const me = rows.find((r: any) => r.isMe);
   const myDefaultActivity = (me?.activity ?? "strength") as ActivityKey;
 
@@ -166,13 +177,16 @@ export default async function Home({
                   of goals hit
                 </span>
               </div>
-              <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-white/12">
+              <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/12">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-[#4ADE80] to-[#60A5FA]"
                   style={{ width: `${podPct}%` }}
                 />
               </div>
-              <p className="mt-4 text-[12.5px] leading-relaxed text-sage-soft">
+              <div className="mt-3 text-[12.5px] font-semibold text-gold">
+                {remainingLabel}
+              </div>
+              <p className="mt-3 text-[12.5px] leading-relaxed text-sage-soft">
                 It's not about who does the most. The pod rises when everyone
                 shows up to their own goal.
               </p>

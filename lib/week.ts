@@ -25,6 +25,18 @@ export function weekStartUtc(
   return new Date(startLocalWall - offset);
 }
 
+// Days remaining in the current week (1..7), including today, in the pod's tz.
+export function daysLeftInWeek(
+  tz: string,
+  weekStartsOn = 1,
+  ref: Date = new Date()
+): number {
+  const offset = tzOffsetMs(ref, tz);
+  const localWall = new Date(ref.getTime() + offset);
+  const idx = (localWall.getUTCDay() - weekStartsOn + 7) % 7; // 0-based day in week
+  return 7 - idx;
+}
+
 function tzOffsetMs(date: Date, tz: string): number {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,

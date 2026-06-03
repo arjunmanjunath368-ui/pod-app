@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
+import { weekStartUtc } from "@/lib/week";
 import BottomNav from "@/components/BottomNav";
 import SignOutButton from "@/components/SignOutButton";
 import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
@@ -22,20 +23,38 @@ export default async function YouPage() {
   const { data: memberships } = await supabase
     .from("pod_members")
     .select(
-      "pod_id, goal_activity, goal_label, goal_target_per_week, goal_detail, pods(id, name)"
+      "pod_id, goal_activity, goal_label, goal_target_per_week, goal_detail, pods(id, name, timezone, week_starts_on)"
     )
     .eq("user_id", user.id)
     .neq("status", "left");
 
+  // This user's sessions over the last 8 days (enough to cover any week boundary)
+  const since = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: mySessions } = await supabase
+    .from("sessions")
+    .select("pod_id, logged_at")
+    .eq("user_id", user.id)
+    .gte("logged_at", since);
+
   const pods = (memberships ?? []).map((m: any) => {
     const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
+    const tz = pod?.timezone ?? "America/Chicago";
+    const weekStart = weekStartUtc(tz, pod?.week_starts_on ?? 1);
+    const done = (mySessions ?? []).filter(
+      (s: any) => s.pod_id === m.pod_id && new Date(s.logged_at) >= weekStart
+    ).length;
+    const target = (m.goal_target_per_week as number | null) ?? 0;
     return {
       podId: m.pod_id as string,
       name: pod?.name ?? "Pod",
       activity: m.goal_activity as ActivityKey | null,
       label: m.goal_label as string | null,
-      target: m.goal_target_per_week as number | null,
+      target,
       detail: m.goal_detail as string | null,
+      done,
+      hasGoal: !!m.goal_target_per_week,
+      remaining: Math.max(target - done, 0),
+      ratio: target ? Math.min(done / target, 1) : 0,
     };
   });
 
@@ -84,12 +103,44 @@ export default async function YouPage() {
                   </Link>
                 </div>
                 <div className="mt-1 text-[12.5px] text-muted">
-                  {p.target
+                  {p.hasGoal
                     ? `${meta.emoji} ${p.label ?? meta.label} · ${p.target}×/week${
                         p.detail ? ` · ${p.detail}` : ""
                       }`
                     : "No weekly goal set yet"}
                 </div>
+
+                {p.hasGoal && (
+                  <>
+                    <div className="mt-3 flex items-center justify-between text-[12.5px]">
+                      <span className="font-semibold text-ink">
+                        {p.done}
+                        <span className="text-muted">/{p.target} this week</span>
+                      </span>
+                      <span
+                        className={
+                          p.remaining === 0
+                            ? "font-semibold text-sage"
+                            : "text-muted"
+                        }
+                      >
+                        {p.remaining === 0
+                          ? "Goal hit ✓"
+                          : `${p.remaining} to go`}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-paper-2">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.round(p.ratio * 100)}%`,
+                          backgroundColor:
+                            p.ratio >= 1 ? "#7a9471" : "#c8553d",
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
