@@ -4,12 +4,23 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { activityMeta } from "@/lib/activities";
 
-type Kind = "clap" | "fire" | "heart";
-const KINDS: { kind: Kind; emoji: string }[] = [
+const REACTIONS: { kind: string; emoji: string }[] = [
   { kind: "clap", emoji: "👏" },
   { kind: "fire", emoji: "🔥" },
   { kind: "heart", emoji: "❤️" },
+  { kind: "muscle", emoji: "💪" },
+  { kind: "tada", emoji: "🎉" },
 ];
+
+export type FeedComment = {
+  id: string;
+  name: string;
+  initials: string;
+  color: string;
+  body: string;
+  timeLabel: string;
+  isMine: boolean;
+};
 
 export type FeedItem = {
   id: string;
@@ -21,52 +32,79 @@ export type FeedItem = {
   photoUrl: string | null;
   timeLabel: string;
   isMine: boolean;
-  counts: Record<Kind, number>;
-  mine: Record<Kind, boolean>;
+  counts: Record<string, number>;
+  mine: Record<string, boolean>;
+  comments: FeedComment[];
 };
 
-export default function Feed({
-  items,
-  userId,
-}: {
-  items: FeedItem[];
-  userId: string;
-}) {
-  const [state, setState] = useState<
-    Record<string, { counts: Record<Kind, number>; mine: Record<Kind, boolean> }>
+type Me = { userId: string; name: string; initials: string; color: string };
+
+export default function Feed({ items, me }: { items: FeedItem[]; me: Me }) {
+  const [rstate, setRstate] = useState<
+    Record<string, { counts: Record<string, number>; mine: Record<string, boolean> }>
   >(() => {
     const m: any = {};
     for (const it of items) m[it.id] = { counts: it.counts, mine: it.mine };
     return m;
   });
+  const [cstate, setCstate] = useState<Record<string, FeedComment[]>>(() => {
+    const m: any = {};
+    for (const it of items) m[it.id] = it.comments;
+    return m;
+  });
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
 
-  async function toggle(id: string, kind: Kind) {
-    const cur = state[id];
+  async function react(id: string, kind: string) {
+    const cur = rstate[id];
     if (!cur) return;
-    const wasMine = cur.mine[kind];
-    setState((prev) => ({
-      ...prev,
+    const was = cur.mine[kind];
+    setRstate((p) => ({
+      ...p,
       [id]: {
-        counts: {
-          ...prev[id].counts,
-          [kind]: prev[id].counts[kind] + (wasMine ? -1 : 1),
-        },
-        mine: { ...prev[id].mine, [kind]: !wasMine },
+        counts: { ...p[id].counts, [kind]: (p[id].counts[kind] ?? 0) + (was ? -1 : 1) },
+        mine: { ...p[id].mine, [kind]: !was },
       },
     }));
     const supabase = createClient();
-    if (wasMine) {
+    if (was) {
       await supabase
         .from("reactions")
         .delete()
         .eq("session_id", id)
-        .eq("user_id", userId)
+        .eq("user_id", me.userId)
         .eq("kind", kind);
     } else {
       await supabase
         .from("reactions")
-        .insert({ session_id: id, user_id: userId, kind });
+        .insert({ session_id: id, user_id: me.userId, kind });
     }
+  }
+
+  async function addComment(id: string) {
+    const body = (draft[id] ?? "").trim();
+    if (!body) return;
+    setBusy((b) => ({ ...b, [id]: true }));
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("comments")
+      .insert({ session_id: id, user_id: me.userId, body })
+      .select("id")
+      .single();
+    setBusy((b) => ({ ...b, [id]: false }));
+    if (error) return;
+    const newC: FeedComment = {
+      id: data?.id ?? crypto.randomUUID(),
+      name: me.name,
+      initials: me.initials,
+      color: me.color,
+      body,
+      timeLabel: "just now",
+      isMine: true,
+    };
+    setCstate((c) => ({ ...c, [id]: [...(c[id] ?? []), newC] }));
+    setDraft((d) => ({ ...d, [id]: "" }));
   }
 
   if (items.length === 0) {
@@ -87,15 +125,13 @@ export default function Feed({
     <div className="flex flex-col gap-3">
       {items.map((it) => {
         const meta = activityMeta(it.activity);
-        const s = state[it.id];
+        const comments = cstate[it.id] ?? [];
+        const isOpen = open[it.id];
         return (
-          <div
-            key={it.id}
-            className="rounded-2xl border border-line bg-card p-4"
-          >
+          <div key={it.id} className="rounded-2xl border border-line bg-card p-4">
             <div className="flex items-center gap-3">
               <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold text-white"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold text-white"
                 style={{ backgroundColor: it.color }}
               >
                 {it.initials}
@@ -126,15 +162,15 @@ export default function Feed({
               />
             )}
 
-            <div className="mt-3 flex items-center gap-2">
-              {KINDS.map(({ kind, emoji }) => {
-                const active = s?.mine[kind];
-                const count = s?.counts[kind] ?? 0;
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {REACTIONS.map(({ kind, emoji }) => {
+                const active = rstate[it.id]?.mine[kind];
+                const count = rstate[it.id]?.counts[kind] ?? 0;
                 return (
                   <button
                     key={kind}
-                    onClick={() => toggle(it.id, kind)}
-                    className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-[15px] transition active:scale-95 ${
+                    onClick={() => react(it.id, kind)}
+                    className={`flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-[14px] transition active:scale-95 ${
                       active
                         ? "border-terra bg-terra/[0.08] font-semibold text-terra"
                         : "border-line bg-paper-2/40 text-muted"
@@ -146,6 +182,67 @@ export default function Feed({
                 );
               })}
             </div>
+
+            {/* Comments */}
+            <button
+              onClick={() => setOpen((o) => ({ ...o, [it.id]: !o[it.id] }))}
+              className="mt-3 flex items-center gap-1.5 text-[14px] font-semibold text-muted"
+            >
+              💬{" "}
+              {comments.length > 0
+                ? `${comments.length} ${
+                    comments.length === 1 ? "comment" : "comments"
+                  }`
+                : "Comment"}
+            </button>
+
+            {isOpen && (
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="flex flex-col gap-3">
+                  {comments.map((c) => (
+                    <div key={c.id} className="flex items-start gap-2.5">
+                      <div
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+                        style={{ backgroundColor: c.color }}
+                      >
+                        {c.initials}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px]">
+                          <span className="font-semibold text-ink">
+                            {c.isMine ? "You" : c.name}
+                          </span>{" "}
+                          <span className="text-muted">{c.timeLabel}</span>
+                        </div>
+                        <div className="text-[15px] leading-snug text-ink-soft">
+                          {c.body}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={draft[it.id] ?? ""}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, [it.id]: e.target.value }))
+                    }
+                    onKeyDown={(e) => e.key === "Enter" && addComment(it.id)}
+                    placeholder="Add a comment…"
+                    maxLength={300}
+                    className="min-w-0 flex-1 rounded-xl border border-line bg-paper-2/40 px-3 py-2 text-[15px] text-ink outline-none focus:border-terra"
+                  />
+                  <button
+                    onClick={() => addComment(it.id)}
+                    disabled={busy[it.id] || !(draft[it.id] ?? "").trim()}
+                    className="rounded-xl bg-ink px-4 py-2 text-[14px] font-semibold text-paper transition active:scale-95 disabled:opacity-50"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}

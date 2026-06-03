@@ -3,9 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { timeAgo } from "@/lib/timeago";
 import { type ActivityKey } from "@/lib/activities";
 import BottomNav from "@/components/BottomNav";
-import Feed, { type FeedItem } from "@/components/Feed";
-
-type Kind = "clap" | "fire" | "heart";
+import Feed, { type FeedItem, type FeedComment } from "@/components/Feed";
 
 export default async function PodFeed({
   searchParams,
@@ -43,27 +41,72 @@ export default async function PodFeed({
     .limit(50);
 
   const ids = (sessions ?? []).map((s: any) => s.id);
+  const noIds = ["00000000-0000-0000-0000-000000000000"];
+
   const { data: reactions } = await supabase
     .from("reactions")
     .select("session_id, user_id, kind")
-    .in("session_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    .in("session_id", ids.length ? ids : noIds);
+
+  const { data: comments } = await supabase
+    .from("comments")
+    .select("id, session_id, user_id, body, created_at")
+    .in("session_id", ids.length ? ids : noIds)
+    .order("created_at", { ascending: true });
+
+  // Profiles for commenters
+  const commenterIds = Array.from(
+    new Set((comments ?? []).map((c: any) => c.user_id))
+  );
+  const cprofMap: Record<string, any> = {};
+  if (commenterIds.length) {
+    const { data: cprofs } = await supabase
+      .from("profiles")
+      .select("id, display_name, initials, avatar_color")
+      .in("id", commenterIds);
+    (cprofs ?? []).forEach((p: any) => (cprofMap[p.id] = p));
+  }
+
+  // My profile (for optimistic comment rendering)
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("display_name, initials, avatar_color")
+    .eq("id", user.id)
+    .maybeSingle();
+  const me = {
+    userId: user.id,
+    name: myProfile?.display_name ?? "You",
+    initials: myProfile?.initials ?? "?",
+    color: myProfile?.avatar_color ?? "#c8553d",
+  };
 
   const now = new Date();
   const items: FeedItem[] = (sessions ?? []).map((s: any) => {
     const prof = Array.isArray(s.profiles) ? s.profiles[0] : s.profiles;
-    const counts: Record<Kind, number> = { clap: 0, fire: 0, heart: 0 };
-    const mine: Record<Kind, boolean> = {
-      clap: false,
-      fire: false,
-      heart: false,
-    };
+    const counts: Record<string, number> = {};
+    const mine: Record<string, boolean> = {};
     (reactions ?? [])
       .filter((r: any) => r.session_id === s.id)
       .forEach((r: any) => {
-        const k = r.kind as Kind;
-        counts[k] = (counts[k] ?? 0) + 1;
-        if (r.user_id === user.id) mine[k] = true;
+        counts[r.kind] = (counts[r.kind] ?? 0) + 1;
+        if (r.user_id === user.id) mine[r.kind] = true;
       });
+
+    const cmts: FeedComment[] = (comments ?? [])
+      .filter((c: any) => c.session_id === s.id)
+      .map((c: any) => {
+        const p = cprofMap[c.user_id];
+        return {
+          id: c.id,
+          name: p?.display_name ?? "Member",
+          initials: p?.initials ?? "?",
+          color: p?.avatar_color ?? "#c8553d",
+          body: c.body,
+          timeLabel: timeAgo(new Date(c.created_at), now),
+          isMine: c.user_id === user.id,
+        };
+      });
+
     return {
       id: s.id,
       authorName: prof?.display_name ?? "Member",
@@ -76,6 +119,7 @@ export default async function PodFeed({
       isMine: s.user_id === user.id,
       counts,
       mine,
+      comments: cmts,
     };
   });
 
@@ -88,7 +132,7 @@ export default async function PodFeed({
         <h1 className="mb-5 font-serif text-[26px] font-semibold leading-tight text-ink">
           {current.name}
         </h1>
-        <Feed items={items} userId={user.id} />
+        <Feed items={items} me={me} />
       </main>
 
       <BottomNav active="pod" podId={podId} userId={user.id} />
