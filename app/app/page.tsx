@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Avatar from "@/components/Avatar";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { weekStartUtc } from "@/lib/week";
@@ -18,7 +19,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
   const { data: members } = await supabase
     .from("pod_members")
     .select(
-      "user_id, status, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, profiles(display_name, initials, avatar_color, share_stats)"
+      "user_id, status, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, profiles(display_name, initials, avatar_color, avatar_url, share_stats)"
     )
     .eq("pod_id", podId)
     .neq("status", "left");
@@ -75,6 +76,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
         name: prof?.display_name ?? "Member",
         initials: prof?.initials ?? "?",
         color: prof?.avatar_color ?? "#c8553d",
+        avatarUrl: prof?.avatar_url ?? null,
         activity: m.goal_activity as ActivityKey | null,
         label: m.goal_label as string | null,
         target,
@@ -335,12 +337,12 @@ export default async function Home({
                       className="rounded-2xl border border-line bg-card p-4"
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold text-white"
-                          style={{ backgroundColor: r.color }}
-                        >
-                          {r.initials}
-                        </div>
+                        <Avatar
+                          url={r.avatarUrl}
+                          initials={r.initials}
+                          color={r.color}
+                          size={44}
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
                             <span className="truncate text-[16px] font-semibold text-ink">

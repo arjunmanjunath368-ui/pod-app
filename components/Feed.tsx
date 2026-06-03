@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { activityMeta } from "@/lib/activities";
+import Avatar from "@/components/Avatar";
 
 const REACTIONS: { kind: string; emoji: string }[] = [
   { kind: "clap", emoji: "👏" },
@@ -14,6 +15,7 @@ const REACTIONS: { kind: string; emoji: string }[] = [
 
 export type FeedComment = {
   id: string;
+  avatarUrl: string | null;
   name: string;
   initials: string;
   color: string;
@@ -24,6 +26,7 @@ export type FeedComment = {
 
 export type FeedItem = {
   id: string;
+  avatarUrl: string | null;
   authorName: string;
   initials: string;
   color: string;
@@ -37,7 +40,7 @@ export type FeedItem = {
   comments: FeedComment[];
 };
 
-type Me = { userId: string; name: string; initials: string; color: string };
+type Me = { userId: string; name: string; initials: string; color: string; avatarUrl: string | null };
 
 export default function Feed({
   items,
@@ -108,7 +111,7 @@ export default function Feed({
           if (!s?.id || s.user_id === me.userId) return; // ours arrives via refresh
           const { data: prof } = await supabase
             .from("profiles")
-            .select("display_name, initials, avatar_color")
+            .select("display_name, initials, avatar_color, avatar_url")
             .eq("id", s.user_id)
             .maybeSingle();
           const item: FeedItem = {
@@ -116,6 +119,7 @@ export default function Feed({
             authorName: prof?.display_name ?? "Member",
             initials: prof?.initials ?? "?",
             color: prof?.avatar_color ?? "#c8553d",
+            avatarUrl: prof?.avatar_url ?? null,
             activity: s.activity ?? "other",
             note: s.note ?? null,
             photoUrl: s.photo_url ?? null,
@@ -170,7 +174,7 @@ export default function Feed({
           if (!c?.id || c.user_id === me.userId) return;
           const { data: p } = await supabase
             .from("profiles")
-            .select("display_name, initials, avatar_color")
+            .select("display_name, initials, avatar_color, avatar_url")
             .eq("id", c.user_id)
             .maybeSingle();
           setCstate((prev) => {
@@ -181,6 +185,7 @@ export default function Feed({
               name: p?.display_name ?? "Member",
               initials: p?.initials ?? "?",
               color: p?.avatar_color ?? "#c8553d",
+              avatarUrl: p?.avatar_url ?? null,
               body: c.body,
               timeLabel: "just now",
               isMine: false,
@@ -248,6 +253,7 @@ export default function Feed({
           name: me.name,
           initials: me.initials,
           color: me.color,
+          avatarUrl: me.avatarUrl,
           body,
           timeLabel: "just now",
           isMine: true,
@@ -305,12 +311,12 @@ export default function Feed({
         return (
           <div key={it.id} className="rounded-2xl border border-line bg-card p-4">
             <div className="flex items-center gap-3">
-              <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold text-white"
-                style={{ backgroundColor: it.color }}
-              >
-                {it.initials}
-              </div>
+              <Avatar
+                url={it.avatarUrl}
+                initials={it.initials}
+                color={it.color}
+                size={40}
+              />
               <div className="min-w-0 flex-1">
                 <div className="text-[15px] text-ink">
                   <span className="font-semibold">
@@ -376,12 +382,12 @@ export default function Feed({
                 <div className="flex flex-col gap-3">
                   {comments.map((c) => (
                     <div key={c.id} className="flex items-start gap-2.5">
-                      <div
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-                        style={{ backgroundColor: c.color }}
-                      >
-                        {c.initials}
-                      </div>
+                      <Avatar
+                        url={c.avatarUrl}
+                        initials={c.initials}
+                        color={c.color}
+                        size={28}
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="text-[13px]">
                           <span className="font-semibold text-ink">

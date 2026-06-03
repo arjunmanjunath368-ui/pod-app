@@ -37,7 +37,7 @@ export default async function PodFeed({
   const { data: sessions } = await supabase
     .from("sessions")
     .select(
-      "id, user_id, activity, note, photo_url, logged_at, profiles(display_name, initials, avatar_color)"
+      "id, user_id, activity, note, photo_url, logged_at, profiles(display_name, initials, avatar_color, avatar_url)"
     )
     .eq("pod_id", podId)
     .order("logged_at", { ascending: false })
@@ -65,7 +65,7 @@ export default async function PodFeed({
   if (commenterIds.length) {
     const { data: cprofs } = await supabase
       .from("profiles")
-      .select("id, display_name, initials, avatar_color")
+      .select("id, display_name, initials, avatar_color, avatar_url")
       .in("id", commenterIds);
     (cprofs ?? []).forEach((p: any) => (cprofMap[p.id] = p));
   }
@@ -73,7 +73,7 @@ export default async function PodFeed({
   // My profile (for optimistic comment rendering)
   const { data: myProfile } = await supabase
     .from("profiles")
-    .select("display_name, initials, avatar_color")
+    .select("display_name, initials, avatar_color, avatar_url")
     .eq("id", user.id)
     .maybeSingle();
   const me = {
@@ -81,6 +81,7 @@ export default async function PodFeed({
     name: myProfile?.display_name ?? "You",
     initials: myProfile?.initials ?? "?",
     color: myProfile?.avatar_color ?? "#c8553d",
+    avatarUrl: myProfile?.avatar_url ?? null,
   };
 
   const now = new Date();
@@ -104,6 +105,7 @@ export default async function PodFeed({
           name: p?.display_name ?? "Member",
           initials: p?.initials ?? "?",
           color: p?.avatar_color ?? "#c8553d",
+          avatarUrl: p?.avatar_url ?? null,
           body: c.body,
           timeLabel: timeAgo(new Date(c.created_at), now),
           isMine: c.user_id === user.id,
@@ -115,6 +117,7 @@ export default async function PodFeed({
       authorName: prof?.display_name ?? "Member",
       initials: prof?.initials ?? "?",
       color: prof?.avatar_color ?? "#c8553d",
+      avatarUrl: prof?.avatar_url ?? null,
       activity: (s.activity as ActivityKey) ?? "other",
       note: s.note,
       photoUrl: s.photo_url,
