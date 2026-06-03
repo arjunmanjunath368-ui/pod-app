@@ -324,16 +324,6 @@ export default async function Home({
                             <span className="truncate text-[16px] font-semibold text-ink">
                               {r.name}
                             </span>
-                            {r.fire > 0 && (
-                              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-paper-2 px-1.5 py-0.5 text-[12px] font-semibold text-terra">
-                                🔥 {r.fire}
-                              </span>
-                            )}
-                            {r.shareStats && r.total > 0 && (
-                              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-paper-2 px-1.5 py-0.5 text-[12px] font-medium text-muted">
-                                🗓 {r.total}
-                              </span>
-                            )}
                             {r.isMe && (
                               <span className="rounded-full bg-paper-2 px-2 py-0.5 text-[12px] font-semibold text-muted">
                                 you
@@ -363,17 +353,28 @@ export default async function Home({
                             </div>
                           )}
                         </div>
-                        {r.hasGoal && !r.paused && (
-                          <div className="text-right">
-                            <div className="font-serif text-[18px] font-semibold text-ink">
-                              {r.done}
-                              <span className="text-[15px] text-muted">
-                                /{r.target}
-                              </span>
-                            </div>
-                            <div className="text-[12px] uppercase tracking-wide text-muted">
-                              this week
-                            </div>
+                        {((r.hasGoal && !r.paused) ||
+                          ((r.isMe || r.shareStats) && r.total > 0)) && (
+                          <div className="shrink-0 text-right">
+                            {r.hasGoal && !r.paused && (
+                              <>
+                                <div className="font-serif text-[18px] font-semibold text-ink">
+                                  {r.done}
+                                  <span className="text-[15px] text-muted">
+                                    /{r.target}
+                                  </span>
+                                </div>
+                                <div className="text-[12px] uppercase tracking-wide text-muted">
+                                  this week
+                                </div>
+                              </>
+                            )}
+                            {(r.isMe || r.shareStats) && r.total > 0 && (
+                              <div className="mt-0.5 text-[12px] text-muted">
+                                {r.total} active{" "}
+                                {r.total === 1 ? "day" : "days"}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
