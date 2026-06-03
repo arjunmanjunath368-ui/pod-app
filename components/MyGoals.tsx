@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const PRESETS = [
+  "Honestly, it's the feel good factor",
   "Lose weight",
   "Build muscle",
   "More stamina",
