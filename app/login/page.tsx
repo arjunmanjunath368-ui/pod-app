@@ -29,7 +29,7 @@ export default function LoginPage() {
     <div className="phone">
       <div className="flex flex-1 flex-col justify-center px-7 py-12">
         <div className="mb-8 rounded-[28px] bg-ink p-7 text-paper shadow-pod-lg">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sage-soft">
+          <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-sage-soft">
             {BRAND_MARK} {BRAND_NAME}
           </div>
           <h1 className="mt-2 font-serif text-[30px] font-semibold leading-[1.1]">
@@ -37,7 +37,7 @@ export default function LoginPage() {
             <br />
             your people.
           </h1>
-          <p className="mt-3 text-[13.5px] leading-relaxed text-sage-soft">
+          <p className="mt-3 text-[15px] leading-relaxed text-sage-soft">
             Everyone in your pod chases their own goal. You only compete on one
             thing — who shows up.
           </p>
@@ -45,7 +45,7 @@ export default function LoginPage() {
 
         {!sent ? (
           <div>
-            <label className="mb-2 block text-[12.5px] font-semibold text-muted">
+            <label className="mb-2 block text-[13px] font-semibold text-muted">
               Email
             </label>
             <input
@@ -56,17 +56,17 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendLink()}
               placeholder="you@email.com"
-              className="w-full rounded-2xl border border-line bg-card px-4 py-4 text-[15px] text-ink outline-none focus:border-terra"
+              className="w-full rounded-2xl border border-line bg-card px-4 py-4 text-[16px] text-ink outline-none focus:border-terra"
             />
-            {error && <p className="mt-3 text-[12.5px] text-terra">{error}</p>}
+            {error && <p className="mt-3 text-[13px] text-terra">{error}</p>}
             <button
               onClick={sendLink}
               disabled={loading}
-              className="mt-4 w-full rounded-2xl bg-terra py-4 text-[15.5px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+              className="mt-4 w-full rounded-2xl bg-terra py-4 text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
             >
               {loading ? "Sending…" : "Send me a magic link"}
             </button>
-            <p className="mt-5 text-center text-[12px] leading-relaxed text-muted">
+            <p className="mt-5 text-center text-[13px] leading-relaxed text-muted">
               No passwords. We email you a link that signs you straight in.
             </p>
           </div>
@@ -76,7 +76,7 @@ export default function LoginPage() {
             <h2 className="mt-2 font-serif text-[21px] font-semibold text-ink">
               Check your email
             </h2>
-            <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
+            <p className="mt-2 text-[15px] leading-relaxed text-muted">
               We sent a sign-in link to <b className="text-ink">{email}</b>. Tap
               it on this device to get into your pod.
             </p>
@@ -85,7 +85,7 @@ export default function LoginPage() {
                 setSent(false);
                 setEmail("");
               }}
-              className="mt-5 text-[13px] font-semibold text-terra"
+              className="mt-5 text-[15px] font-semibold text-terra"
             >
               Use a different email
             </button>

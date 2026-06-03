@@ -32,14 +32,14 @@ export default function JoinPodPage() {
 
   return (
     <div className="flex flex-1 flex-col px-7 py-10">
-      <Link href="/app/start" className="text-[13px] font-semibold text-muted">
+      <Link href="/app/start" className="text-[15px] font-semibold text-muted">
         ← Back
       </Link>
 
       <h1 className="mt-6 font-serif text-[26px] font-semibold text-ink">
         Join a pod
       </h1>
-      <p className="mt-2 text-[13.5px] text-muted">
+      <p className="mt-2 text-[15px] text-muted">
         Paste the 6-character code whoever started the pod shared with you.
       </p>
 
@@ -52,12 +52,12 @@ export default function JoinPodPage() {
         className="mt-5 w-full rounded-2xl border border-line bg-card px-4 py-4 text-center font-serif text-[26px] font-semibold tracking-[0.3em] text-ink outline-none focus:border-terra"
       />
 
-      {error && <p className="mt-4 text-[12.5px] text-terra">{error}</p>}
+      {error && <p className="mt-4 text-[13px] text-terra">{error}</p>}
 
       <button
         onClick={join}
         disabled={loading}
-        className="mt-6 w-full rounded-2xl bg-terra py-4 text-[15.5px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+        className="mt-6 w-full rounded-2xl bg-terra py-4 text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
       >
         {loading ? "Joining…" : "Join pod"}
       </button>

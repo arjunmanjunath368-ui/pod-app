@@ -82,7 +82,7 @@ export default async function PodFeed({
   return (
     <>
       <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+        <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
           The pod
         </div>
         <h1 className="mb-5 font-serif text-[26px] font-semibold leading-tight text-ink">

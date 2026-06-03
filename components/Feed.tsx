@@ -76,7 +76,7 @@ export default function Feed({
         <p className="mt-2 font-serif text-[18px] font-semibold text-ink">
           Nothing here yet
         </p>
-        <p className="mt-1 text-[13px] text-muted">
+        <p className="mt-1 text-[15px] text-muted">
           Log a session with the + button to kick off your pod's feed.
         </p>
       </div>
@@ -95,24 +95,24 @@ export default function Feed({
           >
             <div className="flex items-center gap-3">
               <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold text-white"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold text-white"
                 style={{ backgroundColor: it.color }}
               >
                 {it.initials}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[14px] text-ink">
+                <div className="text-[15px] text-ink">
                   <span className="font-semibold">
                     {it.isMine ? "You" : it.authorName}
                   </span>{" "}
                   logged {meta.emoji} {meta.label.toLowerCase()}
                 </div>
-                <div className="text-[12px] text-muted">{it.timeLabel}</div>
+                <div className="text-[13px] text-muted">{it.timeLabel}</div>
               </div>
             </div>
 
             {it.note && (
-              <p className="mt-3 text-[14px] leading-relaxed text-ink-soft">
+              <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
                 {it.note}
               </p>
             )}
@@ -134,7 +134,7 @@ export default function Feed({
                   <button
                     key={kind}
                     onClick={() => toggle(it.id, kind)}
-                    className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] transition active:scale-95 ${
+                    className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-[15px] transition active:scale-95 ${
                       active
                         ? "border-terra bg-terra/[0.08] font-semibold text-terra"
                         : "border-line bg-paper-2/40 text-muted"

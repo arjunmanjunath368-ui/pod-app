@@ -88,7 +88,7 @@ function GoalForm() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center text-[14px] text-muted">
+      <div className="flex flex-1 items-center justify-center text-[15px] text-muted">
         Loading…
       </div>
     );
@@ -98,7 +98,7 @@ function GoalForm() {
     <div className="flex flex-1 flex-col px-7 py-9">
       <Link
         href={`/app?pod=${podId}`}
-        className="text-[13px] font-semibold text-muted"
+        className="text-[15px] font-semibold text-muted"
       >
         ← Back
       </Link>
@@ -106,12 +106,12 @@ function GoalForm() {
       <h1 className="mt-6 font-serif text-[26px] font-semibold text-ink">
         Your weekly goal
       </h1>
-      <p className="mt-2 text-[13.5px] text-muted">
+      <p className="mt-2 text-[15px] text-muted">
         This is yours alone — pick what you'll commit to. The pod is scored on
         everyone showing up to their own goal, not on matching each other.
       </p>
 
-      <div className="mt-6 text-[12.5px] font-semibold uppercase tracking-wide text-muted">
+      <div className="mt-6 text-[13px] font-semibold uppercase tracking-wide text-muted">
         Activity
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2.5">
@@ -126,14 +126,14 @@ function GoalForm() {
             }`}
           >
             <span className="text-[22px]">{a.emoji}</span>
-            <span className="text-[12px] font-semibold text-ink">
+            <span className="text-[13px] font-semibold text-ink">
               {a.label}
             </span>
           </button>
         ))}
       </div>
 
-      <div className="mt-6 text-[12.5px] font-semibold uppercase tracking-wide text-muted">
+      <div className="mt-6 text-[13px] font-semibold uppercase tracking-wide text-muted">
         Times per week
       </div>
       <div className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card px-5 py-3">
@@ -147,7 +147,7 @@ function GoalForm() {
           <div className="font-serif text-[30px] font-semibold text-ink">
             {target}
           </div>
-          <div className="text-[11px] text-muted">times / week</div>
+          <div className="text-[12px] text-muted">times / week</div>
         </div>
         <button
           onClick={() => setTarget((t) => Math.min(7, t + 1))}
@@ -157,7 +157,7 @@ function GoalForm() {
         </button>
       </div>
 
-      <div className="mt-6 text-[12.5px] font-semibold uppercase tracking-wide text-muted">
+      <div className="mt-6 text-[13px] font-semibold uppercase tracking-wide text-muted">
         Label (optional)
       </div>
       <input
@@ -168,10 +168,10 @@ function GoalForm() {
         }}
         placeholder="Weight training"
         maxLength={30}
-        className="mt-3 w-full rounded-2xl border border-line bg-card px-4 py-3.5 text-[15px] text-ink outline-none focus:border-terra"
+        className="mt-3 w-full rounded-2xl border border-line bg-card px-4 py-3.5 text-[16px] text-ink outline-none focus:border-terra"
       />
 
-      <div className="mt-5 text-[12.5px] font-semibold uppercase tracking-wide text-muted">
+      <div className="mt-5 text-[13px] font-semibold uppercase tracking-wide text-muted">
         Detail (optional)
       </div>
       <input
@@ -179,15 +179,15 @@ function GoalForm() {
         onChange={(e) => setDetail(e.target.value)}
         placeholder="45 min+ · or · 8,000 steps"
         maxLength={30}
-        className="mt-3 w-full rounded-2xl border border-line bg-card px-4 py-3.5 text-[15px] text-ink outline-none focus:border-terra"
+        className="mt-3 w-full rounded-2xl border border-line bg-card px-4 py-3.5 text-[16px] text-ink outline-none focus:border-terra"
       />
 
-      {error && <p className="mt-4 text-[12.5px] text-terra">{error}</p>}
+      {error && <p className="mt-4 text-[13px] text-terra">{error}</p>}
 
       <button
         onClick={save}
         disabled={saving}
-        className="mt-7 w-full rounded-2xl bg-ink py-4 text-[15.5px] font-semibold text-paper transition active:scale-[0.98] disabled:opacity-60"
+        className="mt-7 w-full rounded-2xl bg-ink py-4 text-[16px] font-semibold text-paper transition active:scale-[0.98] disabled:opacity-60"
       >
         {saving ? "Saving…" : "Save goal"}
       </button>
@@ -199,7 +199,7 @@ export default function GoalPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-1 items-center justify-center text-[14px] text-muted">
+        <div className="flex flex-1 items-center justify-center text-[15px] text-muted">
           Loading…
         </div>
       }

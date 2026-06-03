@@ -56,14 +56,14 @@ export default function CodeActions({
     <div className="flex items-center gap-2">
       <button
         onClick={copy}
-        className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-paper transition active:scale-95"
+        className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-paper transition active:scale-95"
       >
         {copied ? "✓ Copied" : "Copy"}
       </button>
       {canShare && (
         <button
           onClick={share}
-          className="flex items-center gap-1.5 rounded-full bg-terra px-3 py-1.5 text-[12px] font-semibold text-white transition active:scale-95"
+          className="flex items-center gap-1.5 rounded-full bg-terra px-3 py-1.5 text-[13px] font-semibold text-white transition active:scale-95"
         >
           Share
         </button>

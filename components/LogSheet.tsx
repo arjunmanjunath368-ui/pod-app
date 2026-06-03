@@ -135,7 +135,7 @@ export default function LogSheet({
             <p className="mt-2 font-serif text-[22px] font-semibold text-ink">
               Logged. Nice.
             </p>
-            <p className="mt-1 text-[13px] text-muted">
+            <p className="mt-1 text-[15px] text-muted">
               Your pod sees you showed up.
             </p>
           </div>
@@ -144,7 +144,7 @@ export default function LogSheet({
             <h2 className="font-serif text-[22px] font-semibold text-ink">
               Log a session
             </h2>
-            <p className="mt-1 text-[13px] text-muted">
+            <p className="mt-1 text-[15px] text-muted">
               What did you do? This counts toward your week.
             </p>
 
@@ -160,7 +160,7 @@ export default function LogSheet({
                   }`}
                 >
                   <span className="text-[22px]">{a.emoji}</span>
-                  <span className="text-[12px] font-semibold text-ink">
+                  <span className="text-[13px] font-semibold text-ink">
                     {a.label}
                   </span>
                 </button>
@@ -173,7 +173,7 @@ export default function LogSheet({
               placeholder="Add a note (optional) — how'd it go?"
               rows={2}
               maxLength={140}
-              className="mt-4 w-full resize-none rounded-2xl border border-line bg-card px-4 py-3 text-[14px] text-ink outline-none focus:border-terra"
+              className="mt-4 w-full resize-none rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
             />
 
             {preview ? (
@@ -183,18 +183,18 @@ export default function LogSheet({
                   alt=""
                   className="h-14 w-14 rounded-xl object-cover"
                 />
-                <span className="flex-1 text-[13px] text-muted">
+                <span className="flex-1 text-[15px] text-muted">
                   Photo attached
                 </span>
                 <button
                   onClick={clearPhoto}
-                  className="rounded-full bg-paper-2 px-3 py-1.5 text-[12px] font-semibold text-muted"
+                  className="rounded-full bg-paper-2 px-3 py-1.5 text-[13px] font-semibold text-muted"
                 >
                   Remove
                 </button>
               </div>
             ) : (
-              <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-card py-3 text-[13.5px] font-semibold text-ink-soft">
+              <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-card py-3 text-[15px] font-semibold text-ink-soft">
                 <span className="text-[16px]">📷</span> Add a photo (optional)
                 <input
                   type="file"
@@ -205,12 +205,12 @@ export default function LogSheet({
               </label>
             )}
 
-            {error && <p className="mt-3 text-[12.5px] text-terra">{error}</p>}
+            {error && <p className="mt-3 text-[13px] text-terra">{error}</p>}
 
             <button
               onClick={logIt}
               disabled={saving}
-              className="mt-4 w-full rounded-2xl bg-terra py-4 text-[15.5px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+              className="mt-4 w-full rounded-2xl bg-terra py-4 text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
             >
               {saving ? "Logging…" : "Log it"}
             </button>

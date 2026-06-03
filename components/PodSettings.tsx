@@ -10,11 +10,13 @@ export default function PodSettings({
   userId,
   initialStatus,
   podName,
+  displayName,
 }: {
   podId: string;
   userId: string;
   initialStatus: string;
   podName: string;
+  displayName: string;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
@@ -55,10 +57,10 @@ export default function PodSettings({
     <div className="flex flex-col gap-3">
       {/* Participation */}
       <div className="rounded-2xl border border-line bg-card p-4">
-        <div className="text-[14px] font-semibold text-ink">
+        <div className="text-[15px] font-semibold text-ink">
           Participation
         </div>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-muted">
+        <p className="mt-1 text-[13px] leading-relaxed text-muted">
           {paused
             ? "You're paused. You don't count toward the pod's perfect-week streak right now — resume when you're back."
             : "Going to be away — travel, illness, a busy week? Pause so a missed week doesn't break the pod's streak."}
@@ -66,7 +68,7 @@ export default function PodSettings({
         <button
           onClick={() => setMembership(paused ? "active" : "paused")}
           disabled={busy}
-          className={`mt-3 w-full rounded-xl py-3 text-[14px] font-semibold transition active:scale-[0.99] disabled:opacity-60 ${
+          className={`mt-3 w-full rounded-xl py-3 text-[15px] font-semibold transition active:scale-[0.99] disabled:opacity-60 ${
             paused
               ? "bg-terra text-white"
               : "border border-line bg-paper-2/60 text-ink-soft"
@@ -78,18 +80,21 @@ export default function PodSettings({
 
       {/* Display name */}
       <div className="rounded-2xl border border-line bg-card p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[14px] font-semibold text-ink">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[15px] font-semibold text-ink">
               Display name
             </div>
-            <p className="mt-0.5 text-[12.5px] text-muted">
+            <div className="mt-0.5 truncate text-[16px] text-ink-soft">
+              {displayName}
+            </div>
+            <p className="mt-0.5 text-[13px] text-muted">
               How your pods see you.
             </p>
           </div>
           <Link
-            href="/app/welcome"
-            className="text-[12.5px] font-semibold text-terra"
+            href={`/app/welcome?from=settings&pod=${podId}`}
+            className="shrink-0 text-[13px] font-semibold text-terra"
           >
             Edit
           </Link>
@@ -98,14 +103,14 @@ export default function PodSettings({
 
       {/* Leave pod */}
       <div className="rounded-2xl border border-line bg-card p-4">
-        <div className="text-[14px] font-semibold text-ink">Leave this pod</div>
-        <p className="mt-0.5 text-[12.5px] text-muted">
+        <div className="text-[15px] font-semibold text-ink">Leave this pod</div>
+        <p className="mt-0.5 text-[13px] text-muted">
           Step out of {podName}. You can rejoin anytime with the code.
         </p>
         <button
           onClick={leave}
           disabled={busy}
-          className="mt-3 text-[13px] font-semibold text-terra"
+          className="mt-3 text-[15px] font-semibold text-terra"
         >
           Leave pod
         </button>

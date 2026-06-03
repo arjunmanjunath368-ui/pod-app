@@ -24,6 +24,13 @@ export default async function SettingsPage({
 
   if (!memberships || memberships.length === 0) redirect("/app/start");
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  const displayName = profile?.display_name ?? "You";
+
   const rows = memberships.map((m: any) => ({
     podId: m.pod_id as string,
     status: m.status as string,
@@ -34,7 +41,7 @@ export default async function SettingsPage({
   return (
     <>
       <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+        <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
           Settings · {current.name}
         </div>
         <h1 className="mb-5 font-serif text-[26px] font-semibold leading-tight text-ink">
@@ -46,13 +53,14 @@ export default async function SettingsPage({
           userId={user.id}
           initialStatus={current.status}
           podName={current.name}
+          displayName={displayName}
         />
 
         {/* How it works */}
-        <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+        <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           How {BRAND_NAME} works
         </div>
-        <div className="mt-3 rounded-2xl border border-line bg-card p-4 text-[13px] leading-relaxed text-ink-soft">
+        <div className="mt-3 rounded-2xl border border-line bg-card p-4 text-[15px] leading-relaxed text-ink-soft">
           <p>
             Everyone sets their own weekly goal — how many times they'll show
             up. You're scored together on consistency, not on who does the most.

@@ -19,7 +19,7 @@ export default function BottomNav({
   const [open, setOpen] = useState(false);
 
   const itemCls = (on: boolean) =>
-    `flex flex-1 flex-col items-center gap-0.5 text-[11px] font-semibold ${
+    `flex flex-1 flex-col items-center gap-0.5 text-[12px] font-semibold ${
       on ? "text-terra" : "text-muted"
     }`;
 

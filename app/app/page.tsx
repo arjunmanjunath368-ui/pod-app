@@ -155,7 +155,7 @@ export default async function Home({
         {/* Pod header */}
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
               Your pod
             </div>
             <h1 className="font-serif text-[27px] font-semibold leading-tight text-ink">
@@ -173,10 +173,10 @@ export default async function Home({
             href={`/app/goal?pod=${podId}`}
             className="mt-5 block rounded-2xl border border-terra bg-terra/[0.06] p-4"
           >
-            <div className="text-[14px] font-semibold text-ink">
+            <div className="text-[15px] font-semibold text-ink">
               Set your weekly goal →
             </div>
-            <div className="mt-0.5 text-[12.5px] text-muted">
+            <div className="mt-0.5 text-[13px] text-muted">
               Pick how many times you'll show up each week. Until you do, you're
               not in the count.
             </div>
@@ -186,15 +186,15 @@ export default async function Home({
         {/* Pod consistency card */}
         <div className="mt-5 rounded-3xl bg-ink p-6 text-paper shadow-pod-lg">
           <div className="flex items-center justify-between">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sage-soft">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-sage-soft">
               This week
             </div>
             {podStreak > 0 ? (
-              <div className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11.5px] font-semibold text-paper">
+              <div className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-semibold text-paper">
                 🔥 {podStreak}-week pod streak
               </div>
             ) : (
-              <div className="text-[11px] text-sage-soft">
+              <div className="text-[12px] text-sage-soft">
                 {goalRows.length} of {rows.length} have goals set
               </div>
             )}
@@ -206,7 +206,7 @@ export default async function Home({
                 <span className="font-serif text-[52px] font-semibold leading-none text-paper">
                   {podPct}%
                 </span>
-                <span className="text-[13px] text-sage-soft">
+                <span className="text-[15px] text-sage-soft">
                   of goals hit
                 </span>
               </div>
@@ -216,16 +216,16 @@ export default async function Home({
                   style={{ width: `${podPct}%` }}
                 />
               </div>
-              <div className="mt-3 text-[12.5px] font-semibold text-gold">
+              <div className="mt-3 text-[13px] font-semibold text-gold">
                 {remainingLabel}
               </div>
-              <p className="mt-3 text-[12.5px] leading-relaxed text-sage-soft">
+              <p className="mt-3 text-[13px] leading-relaxed text-sage-soft">
                 It's not about who does the most. The pod rises when everyone
                 shows up to their own goal.
               </p>
             </>
           ) : (
-            <p className="mt-3 text-[13.5px] leading-relaxed text-sage-soft">
+            <p className="mt-3 text-[15px] leading-relaxed text-sage-soft">
               Once people set their weekly goals, you'll see how the pod is
               tracking together here.
             </p>
@@ -233,7 +233,7 @@ export default async function Home({
         </div>
 
         {/* Member rows */}
-        <div className="mt-6 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+        <div className="mt-6 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           The pod
         </div>
         <div className="mt-3 flex flex-col gap-2.5">
@@ -246,45 +246,45 @@ export default async function Home({
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold text-white"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold text-white"
                     style={{ backgroundColor: r.color }}
                   >
                     {r.initials}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="truncate text-[15px] font-semibold text-ink">
+                      <span className="truncate text-[16px] font-semibold text-ink">
                         {r.name}
                       </span>
                       {r.streak > 0 && (
-                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-paper-2 px-1.5 py-0.5 text-[10.5px] font-semibold text-terra">
+                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-paper-2 px-1.5 py-0.5 text-[12px] font-semibold text-terra">
                           🔥 {r.streak}
                         </span>
                       )}
                       {r.isMe && (
-                        <span className="rounded-full bg-paper-2 px-2 py-0.5 text-[10px] font-semibold text-muted">
+                        <span className="rounded-full bg-paper-2 px-2 py-0.5 text-[12px] font-semibold text-muted">
                           you
                         </span>
                       )}
                     </div>
                     {r.paused ? (
-                      <div className="mt-0.5 text-[12.5px] font-medium text-muted">
+                      <div className="mt-0.5 text-[13px] font-medium text-muted">
                         ⏸ Paused this week
                       </div>
                     ) : r.hasGoal ? (
-                      <div className="mt-0.5 text-[12.5px] text-muted">
+                      <div className="mt-0.5 text-[13px] text-muted">
                         {meta.emoji} {r.label ?? meta.label} · {r.target}×/week
                         {r.detail ? ` · ${r.detail}` : ""}
                       </div>
                     ) : r.isMe ? (
                       <Link
                         href={`/app/goal?pod=${podId}`}
-                        className="mt-0.5 inline-block text-[12.5px] font-semibold text-terra"
+                        className="mt-0.5 inline-block text-[13px] font-semibold text-terra"
                       >
                         Set your goal →
                       </Link>
                     ) : (
-                      <div className="mt-0.5 text-[12.5px] text-muted">
+                      <div className="mt-0.5 text-[13px] text-muted">
                         Getting set up…
                       </div>
                     )}
@@ -293,11 +293,11 @@ export default async function Home({
                     <div className="text-right">
                       <div className="font-serif text-[18px] font-semibold text-ink">
                         {r.done}
-                        <span className="text-[13px] text-muted">
+                        <span className="text-[15px] text-muted">
                           /{r.target}
                         </span>
                       </div>
-                      <div className="text-[10.5px] uppercase tracking-wide text-muted">
+                      <div className="text-[12px] uppercase tracking-wide text-muted">
                         this week
                       </div>
                     </div>
@@ -322,7 +322,7 @@ export default async function Home({
         {/* Pod switcher (only if in more than one) */}
         {podsList.length > 1 && (
           <div className="mt-6">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
               Switch pod
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -330,7 +330,7 @@ export default async function Home({
                 <Link
                   key={p.id}
                   href={`/app?pod=${p.id}`}
-                  className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold ${
+                  className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${
                     p.id === podId
                       ? "bg-ink text-paper"
                       : "border border-line bg-card text-ink-soft"

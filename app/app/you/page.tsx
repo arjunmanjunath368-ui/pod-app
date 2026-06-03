@@ -92,13 +92,13 @@ export default async function YouPage() {
             <h1 className="font-serif text-[24px] font-semibold leading-tight text-ink">
               {profile?.display_name ?? "You"}
             </h1>
-            <div className="text-[12.5px] text-muted">
+            <div className="text-[13px] text-muted">
               {BRAND_MARK} {BRAND_NAME} member
             </div>
           </div>
         </div>
 
-        <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+        <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           My goals
         </div>
         <div className="mt-3">
@@ -109,10 +109,10 @@ export default async function YouPage() {
         </div>
 
         <div className="mt-7 flex items-baseline justify-between">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+          <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
             Your activity
           </div>
-          <div className="text-[12px] text-muted">
+          <div className="text-[13px] text-muted">
             {activeThisMonth} active {activeThisMonth === 1 ? "day" : "days"} in{" "}
             {grid.monthLabel}
           </div>
@@ -122,7 +122,7 @@ export default async function YouPage() {
             {weekdayLabels.map((w, i) => (
               <div
                 key={i}
-                className="text-center text-[10px] font-semibold uppercase text-muted"
+                className="text-center text-[12px] font-semibold uppercase text-muted"
               >
                 {w}
               </div>
@@ -140,14 +140,14 @@ export default async function YouPage() {
                   } ${c.isToday ? "ring-1 ring-terra" : ""}`}
                 >
                   <span
-                    className={`text-[11px] leading-none ${
+                    className={`text-[12px] leading-none ${
                       active ? "font-semibold text-terra" : "text-muted"
                     }`}
                   >
                     {c.day}
                   </span>
                   {active && (
-                    <span className="mt-0.5 text-[10px] leading-none">🔥</span>
+                    <span className="mt-0.5 text-[12px] leading-none">🔥</span>
                   )}
                 </div>
               );
@@ -155,7 +155,7 @@ export default async function YouPage() {
           </div>
         </div>
 
-        <div className="mt-7 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+        <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           Your weekly commitments
         </div>
         <div className="mt-3 flex flex-col gap-2.5">
@@ -167,17 +167,17 @@ export default async function YouPage() {
                 className="rounded-2xl border border-line bg-card p-4"
               >
                 <div className="flex items-center justify-between">
-                  <div className="text-[15px] font-semibold text-ink">
+                  <div className="text-[16px] font-semibold text-ink">
                     {p.name}
                   </div>
                   <Link
                     href={`/app/goal?pod=${p.podId}`}
-                    className="text-[12.5px] font-semibold text-terra"
+                    className="text-[13px] font-semibold text-terra"
                   >
                     {p.target ? "Edit" : "Set goal"}
                   </Link>
                 </div>
-                <div className="mt-1 text-[12.5px] text-muted">
+                <div className="mt-1 text-[13px] text-muted">
                   {p.hasGoal
                     ? `${meta.emoji} ${p.label ?? meta.label} · ${p.target}×/week${
                         p.detail ? ` · ${p.detail}` : ""
@@ -187,7 +187,7 @@ export default async function YouPage() {
 
                 {p.hasGoal && (
                   <>
-                    <div className="mt-3 flex items-center justify-between text-[12.5px]">
+                    <div className="mt-3 flex items-center justify-between text-[13px]">
                       <span className="font-semibold text-ink">
                         {p.done}
                         <span className="text-muted">/{p.target} this week</span>
@@ -224,7 +224,7 @@ export default async function YouPage() {
         <div className="mt-8 flex items-center justify-between">
           <Link
             href="/app/start/join"
-            className="text-[13px] font-semibold text-terra"
+            className="text-[15px] font-semibold text-terra"
           >
             Join another pod
           </Link>

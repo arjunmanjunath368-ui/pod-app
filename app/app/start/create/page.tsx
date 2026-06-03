@@ -45,14 +45,14 @@ export default function CreatePodPage() {
 
   return (
     <div className="flex flex-1 flex-col px-7 py-10">
-      <Link href="/app/start" className="text-[13px] font-semibold text-muted">
+      <Link href="/app/start" className="text-[15px] font-semibold text-muted">
         ← Back
       </Link>
 
       <h1 className="mt-6 font-serif text-[26px] font-semibold text-ink">
         Name your pod
       </h1>
-      <p className="mt-2 text-[13.5px] text-muted">
+      <p className="mt-2 text-[15px] text-muted">
         Something your circle will recognize — "The Sharma Pod", "Morning
         Crew", whatever fits.
       </p>
@@ -62,10 +62,10 @@ export default function CreatePodPage() {
         onChange={(e) => setName(e.target.value)}
         placeholder="The Sharma Pod"
         maxLength={40}
-        className="mt-5 w-full rounded-2xl border border-line bg-card px-4 py-4 text-[15px] text-ink outline-none focus:border-terra"
+        className="mt-5 w-full rounded-2xl border border-line bg-card px-4 py-4 text-[16px] text-ink outline-none focus:border-terra"
       />
 
-      <div className="mt-7 text-[12.5px] font-semibold uppercase tracking-wide text-muted">
+      <div className="mt-7 text-[13px] font-semibold uppercase tracking-wide text-muted">
         Pod size
       </div>
       <div className="mt-3 flex flex-col gap-3">
@@ -80,13 +80,13 @@ export default function CreatePodPage() {
             }`}
           >
             <div>
-              <div className="text-[15px] font-semibold text-ink">
+              <div className="text-[16px] font-semibold text-ink">
                 {s.label}
               </div>
-              <div className="text-[12px] text-muted">{s.hint}</div>
+              <div className="text-[13px] text-muted">{s.hint}</div>
             </div>
             <div
-              className={`flex h-6 w-6 items-center justify-center rounded-full text-[13px] text-white ${
+              className={`flex h-6 w-6 items-center justify-center rounded-full text-[15px] text-white ${
                 max === s.value ? "bg-terra" : "bg-line"
               }`}
             >
@@ -96,12 +96,12 @@ export default function CreatePodPage() {
         ))}
       </div>
 
-      {error && <p className="mt-4 text-[12.5px] text-terra">{error}</p>}
+      {error && <p className="mt-4 text-[13px] text-terra">{error}</p>}
 
       <button
         onClick={create}
         disabled={loading}
-        className="mt-7 w-full rounded-2xl bg-ink py-4 text-[15.5px] font-semibold text-paper transition active:scale-[0.98] disabled:opacity-60"
+        className="mt-7 w-full rounded-2xl bg-ink py-4 text-[16px] font-semibold text-paper transition active:scale-[0.98] disabled:opacity-60"
       >
         {loading ? "Creating…" : "Create pod"}
       </button>

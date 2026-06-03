@@ -72,20 +72,20 @@ export default function MyGoals({
               {goals.map((g) => (
                 <span
                   key={g}
-                  className="rounded-full bg-terra/[0.10] px-3 py-1.5 text-[13px] font-semibold text-terra"
+                  className="rounded-full bg-terra/[0.10] px-3 py-1.5 text-[15px] font-semibold text-terra"
                 >
                   {g}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-[13px] text-muted">
+            <p className="text-[15px] text-muted">
               No goals yet — add what you're working toward.
             </p>
           )}
           <button
             onClick={() => setEditing(true)}
-            className="shrink-0 text-[12.5px] font-semibold text-terra"
+            className="shrink-0 text-[13px] font-semibold text-terra"
           >
             {goals.length > 0 ? "Edit" : "Add"}
           </button>
@@ -98,7 +98,7 @@ export default function MyGoals({
   return (
     <div className="rounded-2xl border border-line bg-card p-4">
       {goals.length === 0 ? (
-        <p className="text-[13px] text-muted">
+        <p className="text-[15px] text-muted">
           What are you working toward? Add a few — they're just for you, not
           scored.
         </p>
@@ -107,14 +107,14 @@ export default function MyGoals({
           {goals.map((g) => (
             <span
               key={g}
-              className="inline-flex items-center gap-1.5 rounded-full bg-terra/[0.10] py-1.5 pl-3 pr-2 text-[13px] font-semibold text-terra"
+              className="inline-flex items-center gap-1.5 rounded-full bg-terra/[0.10] py-1.5 pl-3 pr-2 text-[15px] font-semibold text-terra"
             >
               {g}
               <button
                 onClick={() => remove(g)}
                 disabled={busy}
                 aria-label={`Remove ${g}`}
-                className="flex h-4 w-4 items-center justify-center rounded-full bg-terra/20 text-[11px] leading-none text-terra"
+                className="flex h-4 w-4 items-center justify-center rounded-full bg-terra/20 text-[12px] leading-none text-terra"
               >
                 ×
               </button>
@@ -125,7 +125,7 @@ export default function MyGoals({
 
       {goals.length < MAX_GOALS && available.length > 0 && (
         <div className="mt-3 border-t border-line pt-3">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
+          <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-muted">
             Add a goal
           </div>
           <div className="flex flex-wrap gap-2">
@@ -134,7 +134,7 @@ export default function MyGoals({
                 key={p}
                 onClick={() => add(p)}
                 disabled={busy}
-                className="rounded-full border border-line bg-paper-2/60 px-3 py-1.5 text-[12.5px] font-medium text-ink-soft transition active:scale-95"
+                className="rounded-full border border-line bg-paper-2/60 px-3 py-1.5 text-[13px] font-medium text-ink-soft transition active:scale-95"
               >
                 + {p}
               </button>
@@ -152,7 +152,7 @@ export default function MyGoals({
               }}
               placeholder="Something else…"
               maxLength={40}
-              className="min-w-0 flex-1 rounded-xl border border-line bg-paper-2/40 px-3 py-2 text-[13.5px] text-ink outline-none focus:border-terra"
+              className="min-w-0 flex-1 rounded-xl border border-line bg-paper-2/40 px-3 py-2 text-[15px] text-ink outline-none focus:border-terra"
             />
             <button
               onClick={() => {
@@ -160,7 +160,7 @@ export default function MyGoals({
                 setCustom("");
               }}
               disabled={busy || !custom.trim()}
-              className="rounded-xl border border-line bg-paper-2/60 px-4 py-2 text-[13px] font-semibold text-ink-soft transition active:scale-95 disabled:opacity-50"
+              className="rounded-xl border border-line bg-paper-2/60 px-4 py-2 text-[15px] font-semibold text-ink-soft transition active:scale-95 disabled:opacity-50"
             >
               Add
             </button>
@@ -171,7 +171,7 @@ export default function MyGoals({
       <button
         onClick={save}
         disabled={busy}
-        className="mt-4 w-full rounded-xl bg-ink py-3 text-[14px] font-semibold text-paper transition active:scale-[0.99] disabled:opacity-60"
+        className="mt-4 w-full rounded-xl bg-ink py-3 text-[15px] font-semibold text-paper transition active:scale-[0.99] disabled:opacity-60"
       >
         Save
       </button>
