@@ -324,7 +324,7 @@ export default async function Home({
                             <span className="truncate text-[16px] font-semibold text-ink">
                               {r.name}
                             </span>
-                            {(r.isMe || r.shareStats) && r.total > 0 && (
+                            {r.shareStats && r.total > 0 && (
                               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-paper-2 px-2 py-0.5 text-[12px] font-semibold text-terra">
                                 🔥 {r.total} {r.total === 1 ? "day" : "days"}
                               </span>
