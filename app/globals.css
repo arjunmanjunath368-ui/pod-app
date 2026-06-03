@@ -41,11 +41,6 @@ body {
   }
 }
 
-/* Tame Fraunces's quirky alternate glyphs (e.g. the curling capital J) */
-.font-serif {
-  font-variation-settings: "SOFT" 0, "WONK" 0;
-}
-
 /* Bottom nav pinned to the phone width, at the bottom of the viewport */
 .podnav {
   position: fixed;

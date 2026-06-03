@@ -19,7 +19,7 @@ const config: Config = {
         line: "#dcd5c4",
       },
       fontFamily: {
-        serif: ["var(--font-fraunces)", "serif"],
+        serif: ["var(--font-serif)", "serif"],
         sans: ["var(--font-outfit)", "sans-serif"],
       },
       boxShadow: {

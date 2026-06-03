@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Outfit } from "next/font/google";
+import { Lora, Outfit } from "next/font/google";
 import { BRAND_NAME } from "@/lib/brand";
 import "./globals.css";
 
-const fraunces = Fraunces({
+// Heading / display serif. Lora has a clean, upright capital J.
+const lora = Lora({
   subsets: ["latin"],
-  axes: ["SOFT", "WONK"],
-  variable: "--font-fraunces",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-serif",
 });
 const outfit = Outfit({
   subsets: ["latin"],
@@ -33,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${outfit.variable}`}>
+    <html lang="en" className={`${lora.variable} ${outfit.variable}`}>
       <body className="font-sans">{children}</body>
     </html>
   );
