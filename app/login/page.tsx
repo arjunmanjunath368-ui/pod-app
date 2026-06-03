@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -27,10 +28,9 @@ export default function LoginPage() {
   return (
     <div className="phone">
       <div className="flex flex-1 flex-col justify-center px-7 py-12">
-        {/* Hero */}
         <div className="mb-8 rounded-[28px] bg-ink p-7 text-paper shadow-pod-lg">
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sage-soft">
-            🫛 Pod
+            {BRAND_MARK} {BRAND_NAME}
           </div>
           <h1 className="mt-2 font-serif text-[30px] font-semibold leading-[1.1]">
             Fitness with
@@ -38,7 +38,7 @@ export default function LoginPage() {
             your people.
           </h1>
           <p className="mt-3 text-[13.5px] leading-relaxed text-sage-soft">
-            Your circle each chases their own goal. You only compete on one
+            Everyone in your pod chases their own goal. You only compete on one
             thing — who shows up.
           </p>
         </div>
@@ -58,9 +58,7 @@ export default function LoginPage() {
               placeholder="you@email.com"
               className="w-full rounded-2xl border border-line bg-card px-4 py-4 text-[15px] text-ink outline-none focus:border-terra"
             />
-            {error && (
-              <p className="mt-3 text-[12.5px] text-terra">{error}</p>
-            )}
+            {error && <p className="mt-3 text-[12.5px] text-terra">{error}</p>}
             <button
               onClick={sendLink}
               disabled={loading}
@@ -79,8 +77,8 @@ export default function LoginPage() {
               Check your email
             </h2>
             <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
-              We sent a sign-in link to <b className="text-ink">{email}</b>.
-              Tap it on this device to get into your pod.
+              We sent a sign-in link to <b className="text-ink">{email}</b>. Tap
+              it on this device to get into your pod.
             </p>
             <button
               onClick={() => {

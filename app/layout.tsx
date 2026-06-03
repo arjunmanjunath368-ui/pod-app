@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Outfit } from "next/font/google";
+import { BRAND_NAME } from "@/lib/brand";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -14,7 +15,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Pod — Fitness with your people",
+  title: `${BRAND_NAME} — Fitness with your people`,
   description: "Trusted circles that show up together.",
 };
 

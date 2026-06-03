@@ -32,15 +32,39 @@ body {
   }
   .phone {
     max-width: 420px;
-    min-height: min(900px, 94vh);
+    height: min(900px, 94vh);
     margin: 3vh auto;
     border-radius: 44px;
     border: 10px solid #11160f;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 }
 
 /* Tame Fraunces's quirky alternate glyphs (e.g. the curling capital J) */
 .font-serif {
   font-variation-settings: "SOFT" 0, "WONK" 0;
+}
+
+/* Bottom nav pinned to the phone width, at the bottom of the viewport */
+.podnav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 420px;
+  z-index: 40;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.sheet-enter {
+  animation: sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }

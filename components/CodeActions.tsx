@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
 
 export default function CodeActions({
   code,
@@ -16,13 +17,11 @@ export default function CodeActions({
     setCanShare(typeof navigator !== "undefined" && !!navigator.share);
   }, []);
 
-  // Built at click time so it always uses the URL the app is actually running on
-  // (localhost in dev, your Vercel address in production).
   function buildMessage() {
     const appUrl =
       typeof window !== "undefined" ? window.location.origin : "";
     return (
-      `Join my Pod "${podName}" on Pod 🫛\n` +
+      `Join my pod "${podName}" on ${BRAND_NAME} ${BRAND_MARK}\n` +
       `Open ${appUrl} and sign in, then enter invite code ${code}.`
     );
   }
@@ -47,7 +46,7 @@ export default function CodeActions({
 
   async function share() {
     try {
-      await navigator.share({ title: "Join my Pod", text: buildMessage() });
+      await navigator.share({ title: "Join my pod", text: buildMessage() });
     } catch {
       // user cancelled or share unavailable — no-op
     }
