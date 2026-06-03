@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { weekStartUtc } from "@/lib/week";
 import { computeStreaks } from "@/lib/streaks";
+import { dayKeyInTz } from "@/lib/days";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
 import BottomNav from "@/components/BottomNav";
 import InviteButton from "@/components/InviteButton";
@@ -80,8 +81,44 @@ export default async function Home({
     }
   });
 
+  // Active days THIS CALENDAR MONTH per member (resets on the 1st)
+  const tz = current.timezone ?? "America/Chicago";
+  const now = new Date();
+  const monthPrefix = dayKeyInTz(now, tz).slice(0, 7); // "YYYY-MM"
+  const monthDays: Record<string, Set<string>> = {};
+  (sessions ?? []).forEach((s: any) => {
+    const k = dayKeyInTz(new Date(s.logged_at), tz);
+    if (k.startsWith(monthPrefix)) (monthDays[s.user_id] ??= new Set()).add(k);
+  });
+
+  // Greeting + day flavor for the header
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    weekday: "long",
+  }).format(now);
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      hour12: false,
+    }).format(now)
+  );
+  const greeting =
+    hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : hour < 22 ? "Evening" : "Hey";
+  const firstName = (myProfile?.display_name ?? "there").split(/\s+/)[0];
+  const DAY_TWIST: Record<string, string> = {
+    Monday: "Make it count",
+    Tuesday: "Keep it rolling",
+    Wednesday: "Halfway strong",
+    Thursday: "Earn the weekend",
+    Friday: "Finish strong",
+    Saturday: "Show up for you",
+    Sunday: "Close it out",
+  };
+  const twist = DAY_TWIST[weekday] ?? "Let's move";
+
   // Streaks
-  const { podStreak, memberStreak } = computeStreaks({
+  const { podStreak } = computeStreaks({
     members: (members ?? []).map((m: any) => ({
       userId: m.user_id,
       target: m.goal_target_per_week ?? 0,
@@ -118,7 +155,7 @@ export default async function Home({
         done,
         hasGoal,
         ratio,
-        streak: memberStreak[m.user_id] ?? 0,
+        fire: monthDays[m.user_id]?.size ?? 0,
         paused: m.status === "paused",
         isMe: m.user_id === user.id,
       };
@@ -152,14 +189,14 @@ export default async function Home({
   return (
     <>
       <main className="flex-1 overflow-y-auto px-5 pb-28 pt-8">
-        {/* Pod header */}
+        {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
-              Your pod
+              {weekday} · {twist}
             </div>
             <h1 className="font-serif text-[27px] font-semibold leading-tight text-ink">
-              {current.name}
+              {greeting}, {firstName}
             </h1>
           </div>
           <div className="pt-1">
@@ -234,7 +271,7 @@ export default async function Home({
 
         {/* Member rows */}
         <div className="mt-6 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
-          The pod
+          {current.name}
         </div>
         <div className="mt-3 flex flex-col gap-2.5">
           {rows.map((r: any) => {
@@ -256,9 +293,9 @@ export default async function Home({
                       <span className="truncate text-[16px] font-semibold text-ink">
                         {r.name}
                       </span>
-                      {r.streak > 0 && (
+                      {r.fire > 0 && (
                         <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-paper-2 px-1.5 py-0.5 text-[12px] font-semibold text-terra">
-                          🔥 {r.streak}
+                          🔥 {r.fire}
                         </span>
                       )}
                       {r.isMe && (
