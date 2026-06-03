@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
 import { weekStartUtc } from "@/lib/week";
+import { dayKeyInTz, monthGrid } from "@/lib/days";
 import BottomNav from "@/components/BottomNav";
 import SignOutButton from "@/components/SignOutButton";
 import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
@@ -28,13 +29,29 @@ export default async function YouPage() {
     .eq("user_id", user.id)
     .neq("status", "left");
 
-  // This user's sessions over the last 8 days (enough to cover any week boundary)
-  const since = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+  // This user's sessions over the last ~40 days (covers the current month + week boundaries)
+  const since = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
   const { data: mySessions } = await supabase
     .from("sessions")
     .select("pod_id, logged_at")
     .eq("user_id", user.id)
     .gte("logged_at", since);
+
+  // Activity calendar (personal, across all pods) — bucket days by the user's pod tz
+  const firstMembershipPod = memberships?.[0]
+    ? Array.isArray(memberships[0].pods)
+      ? memberships[0].pods[0]
+      : memberships[0].pods
+    : null;
+  const userTz = (firstMembershipPod as any)?.timezone ?? "America/Chicago";
+  const activeDayKeys = new Set(
+    (mySessions ?? []).map((s: any) => dayKeyInTz(new Date(s.logged_at), userTz))
+  );
+  const grid = monthGrid(userTz);
+  const activeThisMonth = grid.cells.filter(
+    (c) => c.key && activeDayKeys.has(c.key)
+  ).length;
+  const weekdayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
   const pods = (memberships ?? []).map((m: any) => {
     const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
@@ -77,6 +94,53 @@ export default async function YouPage() {
             <div className="text-[12.5px] text-muted">
               {BRAND_MARK} {BRAND_NAME} member
             </div>
+          </div>
+        </div>
+
+        <div className="mt-7 flex items-baseline justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+            Your activity
+          </div>
+          <div className="text-[12px] text-muted">
+            {activeThisMonth} active {activeThisMonth === 1 ? "day" : "days"} in{" "}
+            {grid.monthLabel}
+          </div>
+        </div>
+        <div className="mt-3 rounded-2xl border border-line bg-card p-4">
+          <div className="mb-2 grid grid-cols-7 gap-1.5">
+            {weekdayLabels.map((w, i) => (
+              <div
+                key={i}
+                className="text-center text-[10px] font-semibold uppercase text-muted"
+              >
+                {w}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1.5">
+            {grid.cells.map((c, i) => {
+              if (c.day === null) return <div key={i} />;
+              const active = !!(c.key && activeDayKeys.has(c.key));
+              return (
+                <div
+                  key={i}
+                  className={`flex aspect-square flex-col items-center justify-center rounded-lg ${
+                    active ? "bg-terra/[0.10]" : "bg-paper-2/60"
+                  } ${c.isToday ? "ring-1 ring-terra" : ""}`}
+                >
+                  <span
+                    className={`text-[11px] leading-none ${
+                      active ? "font-semibold text-terra" : "text-muted"
+                    }`}
+                  >
+                    {c.day}
+                  </span>
+                  {active && (
+                    <span className="mt-0.5 text-[10px] leading-none">🔥</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
