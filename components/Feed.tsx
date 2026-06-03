@@ -67,6 +67,8 @@ export default function Feed({
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
 
   // Re-sync to server truth whenever the page re-fetches (e.g. after you log).
   useEffect(() => {
@@ -216,27 +218,63 @@ export default function Feed({
   async function react(id: string, kind: string) {
     const cur = rstate[id];
     if (!cur) return;
-    const was = cur.mine[kind];
-    setRstate((p) => ({
-      ...p,
-      [id]: {
-        counts: { ...p[id].counts, [kind]: (p[id].counts[kind] ?? 0) + (was ? -1 : 1) },
-        mine: { ...p[id].mine, [kind]: !was },
-      },
-    }));
+    const had = !!cur.mine[kind];
+    const myKind = Object.keys(cur.mine).find((k) => cur.mine[k]);
+    // One reaction per person per post: switch, or tap again to remove.
+    setRstate((p) => {
+      const counts = { ...p[id].counts };
+      if (had) {
+        counts[kind] = Math.max(0, (counts[kind] ?? 0) - 1);
+        return { ...p, [id]: { counts, mine: {} } };
+      }
+      if (myKind && myKind !== kind) {
+        counts[myKind] = Math.max(0, (counts[myKind] ?? 0) - 1);
+      }
+      counts[kind] = (counts[kind] ?? 0) + 1;
+      return { ...p, [id]: { counts, mine: { [kind]: true } } };
+    });
     const supabase = createClient();
-    if (was) {
-      await supabase
-        .from("reactions")
-        .delete()
-        .eq("session_id", id)
-        .eq("user_id", me.userId)
-        .eq("kind", kind);
-    } else {
+    await supabase
+      .from("reactions")
+      .delete()
+      .eq("session_id", id)
+      .eq("user_id", me.userId);
+    if (!had) {
       await supabase
         .from("reactions")
         .insert({ session_id: id, user_id: me.userId, kind });
     }
+  }
+
+  function startEdit(c: FeedComment) {
+    setEditingId(c.id);
+    setEditDraft(c.body);
+  }
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft("");
+  }
+  async function saveEdit(sessionId: string, commentId: string) {
+    const body = editDraft.trim();
+    if (!body) return;
+    setCstate((c) => ({
+      ...c,
+      [sessionId]: (c[sessionId] ?? []).map((x) =>
+        x.id === commentId ? { ...x, body } : x
+      ),
+    }));
+    setEditingId(null);
+    const supabase = createClient();
+    await supabase.from("comments").update({ body }).eq("id", commentId);
+  }
+  async function deleteComment(sessionId: string, commentId: string) {
+    if (!window.confirm("Delete this comment?")) return;
+    setCstate((c) => ({
+      ...c,
+      [sessionId]: (c[sessionId] ?? []).filter((x) => x.id !== commentId),
+    }));
+    const supabase = createClient();
+    await supabase.from("comments").delete().eq("id", commentId);
   }
 
   async function addComment(id: string) {
@@ -395,9 +433,56 @@ export default function Feed({
                           </span>{" "}
                           <span className="text-muted">{c.timeLabel}</span>
                         </div>
-                        <div className="text-[15px] leading-snug text-ink-soft">
-                          {c.body}
-                        </div>
+                        {editingId === c.id ? (
+                          <div className="mt-1">
+                            <input
+                              value={editDraft}
+                              onChange={(e) => setEditDraft(e.target.value)}
+                              onKeyDown={(e) =>
+                                e.key === "Enter" && saveEdit(it.id, c.id)
+                              }
+                              autoFocus
+                              maxLength={300}
+                              className="w-full rounded-lg border border-line bg-paper-2/40 px-2.5 py-1.5 text-[15px] text-ink outline-none focus:border-terra"
+                            />
+                            <div className="mt-1.5 flex gap-2">
+                              <button
+                                onClick={() => saveEdit(it.id, c.id)}
+                                className="rounded-lg bg-ink px-3 py-1 text-[12px] font-semibold text-paper"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="rounded-lg bg-paper-2 px-3 py-1 text-[12px] font-semibold text-muted"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="text-[15px] leading-snug text-ink-soft">
+                              {c.body}
+                            </div>
+                            {c.isMine && (
+                              <div className="mt-0.5 flex gap-3">
+                                <button
+                                  onClick={() => startEdit(c)}
+                                  className="text-[12px] font-semibold text-muted"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deleteComment(it.id, c.id)}
+                                  className="text-[12px] font-semibold text-muted"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
