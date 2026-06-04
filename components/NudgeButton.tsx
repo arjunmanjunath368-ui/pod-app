@@ -7,10 +7,12 @@ export default function NudgeButton({
   podId,
   fromUserId,
   toUserId,
+  fromName,
 }: {
   podId: string;
   fromUserId: string;
   toUserId: string;
+  fromName?: string;
 }) {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -23,6 +25,17 @@ export default function NudgeButton({
       .insert({ pod_id: podId, from_user: fromUserId, to_user: toUserId });
     setBusy(false);
     setSent(true);
+    // Fire a push too (best-effort — the in-app nudge already landed).
+    fetch("/api/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toUserId,
+        title: "Pod",
+        body: `${fromName || "Someone in your pod"} nudged you — your pod's waiting 👋`,
+        url: "/app",
+      }),
+    }).catch(() => {});
   }
 
   return (

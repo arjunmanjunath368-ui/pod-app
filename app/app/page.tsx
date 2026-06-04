@@ -421,6 +421,7 @@ export default async function Home({
                             podId={sec.pod.id}
                             fromUserId={user.id}
                             toUserId={r.userId}
+                            fromName={myProfile?.display_name ?? "Someone"}
                           />
                         </div>
                       )}
