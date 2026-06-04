@@ -25,6 +25,25 @@ export function weekStartUtc(
   return new Date(startLocalWall - offset);
 }
 
+// Human label for the current week with day names, in the pod's tz.
+// e.g. "Mon, Jun 2 – Sun, Jun 8" — makes the week boundaries unambiguous.
+export function weekRangeLabel(
+  tz: string,
+  weekStartsOn = 1,
+  ref: Date = new Date()
+): string {
+  const start = weekStartUtc(tz, weekStartsOn, ref);
+  const end = new Date(start.getTime() + 6 * 86400000);
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(d);
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
 // Days remaining in the current week (1..7), including today, in the pod's tz.
 export function daysLeftInWeek(
   tz: string,

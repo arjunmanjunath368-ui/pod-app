@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Avatar from "@/components/Avatar";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { weekStartUtc } from "@/lib/week";
+import { weekStartUtc, weekRangeLabel } from "@/lib/week";
 import { computeStreaks } from "@/lib/streaks";
 import { dayKeyInTz } from "@/lib/days";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
@@ -112,7 +112,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
           totalRemaining === 1 ? "session" : "sessions"
         } from a perfect week.`;
 
-  return { pod, rows, goalRows, podPct, remainingLabel, podStreak };
+  return { pod, rows, goalRows, podPct, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso) };
 }
 
 export default async function Home({
@@ -279,8 +279,13 @@ export default async function Home({
               {/* Consistency card */}
               <div className="mt-3 rounded-3xl bg-ink p-6 text-paper shadow-pod-lg">
                 <div className="flex items-center justify-between">
-                  <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-sage-soft">
-                    Your pod · this week
+                  <div>
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-sage-soft">
+                      Your pod · this week
+                    </div>
+                    <div className="mt-0.5 text-[12px] text-sage-soft/80">
+                      {sec.weekRange}
+                    </div>
                   </div>
                   {sec.podStreak > 0 ? (
                     <div className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-semibold text-paper">
