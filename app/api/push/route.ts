@@ -27,44 +27,75 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}) as any);
   const self = !!body.self;
-  const toUserId: string | undefined = self ? user.id : body.toUserId;
-  if (!toUserId) {
-    return NextResponse.json({ error: "Missing recipient" }, { status: 400 });
-  }
+  const podId: string | undefined = body.podId;
 
-  // Authorize: self always allowed; otherwise must share a pod.
-  if (toUserId !== user.id) {
-    const { data: mine } = await supabase
+  let recipientIds: string[] = [];
+  let title = body.title || "Pod";
+  let message = body.body || "Your pod's waiting.";
+  const url = body.url || "/app";
+
+  if (self) {
+    recipientIds = [user.id];
+    message = body.body || "Test notification — push is working 🎉";
+  } else if (podId) {
+    // Broadcast to active pod-mates (everyone in the pod except the sender).
+    const { data: members } = await supabase
       .from("pod_members")
-      .select("pod_id")
-      .eq("user_id", user.id);
-    const { data: theirs } = await supabase
-      .from("pod_members")
-      .select("pod_id")
-      .eq("user_id", toUserId);
-    const mineSet = new Set((mine ?? []).map((r: any) => r.pod_id));
-    const shared = (theirs ?? []).some((r: any) => mineSet.has(r.pod_id));
-    if (!shared) {
+      .select("user_id, status")
+      .eq("pod_id", podId)
+      .eq("status", "active");
+    const ids = (members ?? []).map((m: any) => m.user_id);
+    if (!ids.includes(user.id)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    recipientIds = ids.filter((id: string) => id !== user.id);
+
+    // Compose the message server-side with the sender's name.
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    const name = me?.display_name || "Someone in your pod";
+    const label = body.activityLabel ? ` ${body.activityLabel}` : " a workout";
+    message = body.body || `${name} logged${label} 💪 — your turn?`;
+  } else {
+    const toUserId: string | undefined = body.toUserId;
+    if (!toUserId) {
+      return NextResponse.json({ error: "Missing recipient" }, { status: 400 });
+    }
+    if (toUserId !== user.id) {
+      const { data: mine } = await supabase
+        .from("pod_members")
+        .select("pod_id")
+        .eq("user_id", user.id);
+      const { data: theirs } = await supabase
+        .from("pod_members")
+        .select("pod_id")
+        .eq("user_id", toUserId);
+      const mineSet = new Set((mine ?? []).map((r: any) => r.pod_id));
+      const shared = (theirs ?? []).some((r: any) => mineSet.has(r.pod_id));
+      if (!shared) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+    recipientIds = [toUserId];
+  }
+
+  if (recipientIds.length === 0) {
+    return NextResponse.json({ sent: 0, note: "no-recipients" });
   }
 
   const { data: subs } = await supabase
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth")
-    .eq("user_id", toUserId);
+    .in("user_id", recipientIds);
 
   if (!subs || subs.length === 0) {
     return NextResponse.json({ sent: 0, note: "no-subscriptions" });
   }
 
-  const payload = JSON.stringify({
-    title: body.title || "Pod",
-    body:
-      body.body ||
-      (self ? "Test notification — push is working 🎉" : "Your pod's waiting."),
-    url: body.url || "/app",
-  });
+  const payload = JSON.stringify({ title, body: message, url });
 
   let sent = 0;
   await Promise.all(

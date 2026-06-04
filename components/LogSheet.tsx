@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { ACTIVITIES, type ActivityKey } from "@/lib/activities";
+import { ACTIVITIES, activityMeta, type ActivityKey } from "@/lib/activities";
 import { weekStartUtc } from "@/lib/week";
 
 type Celebration = { tier: "perfect" | "goal"; detail: string };
@@ -218,6 +218,16 @@ export default function LogSheet({
       setError(error.message);
       return;
     }
+
+    // Tell the pod someone showed up (best-effort; never blocks the log).
+    const activityLabel = activities
+      .map((k) => activityMeta(k).label.toLowerCase())
+      .join(" + ");
+    fetch("/api/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podId: selected, activityLabel, url: "/app" }),
+    }).catch(() => {});
 
     // Did this one cross a milestone?
     let cel: Celebration | null = null;
