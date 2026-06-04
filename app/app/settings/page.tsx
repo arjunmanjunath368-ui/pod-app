@@ -61,6 +61,19 @@ export default async function SettingsPage({
           <NotificationToggle userId={user.id} />
         </div>
 
+        <a
+          href={`/app/stakes?pod=${current.podId}`}
+          className="mt-4 flex items-center justify-between rounded-2xl border border-line bg-card p-4 transition active:scale-[0.99]"
+        >
+          <div className="min-w-0">
+            <div className="text-[15px] font-semibold text-ink">Stakes</div>
+            <p className="mt-1 text-[14px] text-muted">
+              Put a number on the line each week.
+            </p>
+          </div>
+          <span className="ml-3 text-muted">→</span>
+        </a>
+
         {/* How it works */}
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           How {BRAND_NAME} works
