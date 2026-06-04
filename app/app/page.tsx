@@ -7,6 +7,7 @@ import { computeStreaks } from "@/lib/streaks";
 import { dayKeyInTz } from "@/lib/days";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
 import BottomNav from "@/components/BottomNav";
+import PodSync from "@/components/PodSync";
 import InviteButton from "@/components/InviteButton";
 import NudgeButton from "@/components/NudgeButton";
 import NudgeBanner from "@/components/NudgeBanner";
@@ -457,6 +458,7 @@ export default async function Home({
         </div>
       </main>
 
+      <PodSync />
       <BottomNav active="home" podId={navPodId} userId={user.id} />
     </>
   );
