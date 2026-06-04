@@ -115,9 +115,14 @@ export default function LogSheet({
   defaultActivity?: ActivityKey;
 }) {
   const router = useRouter();
-  const [activity, setActivity] = useState<ActivityKey>(
-    defaultActivity ?? "strength"
+  const [activities, setActivities] = useState<ActivityKey[]>(
+    defaultActivity ? [defaultActivity] : []
   );
+  function toggleActivity(key: ActivityKey) {
+    setActivities((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }
   const [note, setNote] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -173,6 +178,10 @@ export default function LogSheet({
   }
 
   async function logIt() {
+    if (activities.length === 0) {
+      setError("Pick at least one activity.");
+      return;
+    }
     setSaving(true);
     setError("");
     const supabase = createClient();
@@ -199,7 +208,8 @@ export default function LogSheet({
     const { error } = await supabase.from("sessions").insert({
       pod_id: selected,
       user_id: userId,
-      activity,
+      activity: activities[0],
+      activities,
       note: note.trim() || null,
       photo_url: photoUrl,
     });
@@ -326,22 +336,31 @@ export default function LogSheet({
             )}
 
             <div className="mt-5 grid grid-cols-3 gap-2.5">
-              {ACTIVITIES.map((a) => (
-                <button
-                  key={a.key}
-                  onClick={() => setActivity(a.key)}
-                  className={`flex flex-col items-center gap-1 rounded-2xl border px-2 py-3 transition ${
-                    activity === a.key
-                      ? "border-terra bg-terra/[0.06]"
-                      : "border-line bg-card"
-                  }`}
-                >
-                  <span className="text-[22px]">{a.emoji}</span>
-                  <span className="text-[13px] font-semibold text-ink">
-                    {a.label}
-                  </span>
-                </button>
-              ))}
+              {ACTIVITIES.map((a) => {
+                const on = activities.includes(a.key);
+                return (
+                  <button
+                    key={a.key}
+                    onClick={() => toggleActivity(a.key)}
+                    aria-pressed={on}
+                    className={`relative flex flex-col items-center gap-1 rounded-2xl border px-2 py-3 transition ${
+                      on
+                        ? "border-terra bg-terra/[0.06]"
+                        : "border-line bg-card"
+                    }`}
+                  >
+                    {on && (
+                      <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-terra text-[10px] font-bold text-white">
+                        ✓
+                      </span>
+                    )}
+                    <span className="text-[22px]">{a.emoji}</span>
+                    <span className="text-[13px] font-semibold text-ink">
+                      {a.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             <textarea
@@ -386,7 +405,7 @@ export default function LogSheet({
 
             <button
               onClick={logIt}
-              disabled={saving}
+              disabled={saving || activities.length === 0}
               className="mt-4 w-full rounded-2xl bg-terra py-4 text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
             >
               {saving ? "Logging…" : "Log it"}

@@ -31,6 +31,7 @@ export type FeedItem = {
   initials: string;
   color: string;
   activity: string;
+  activities: string[];
   note: string | null;
   photoUrl: string | null;
   timeLabel: string;
@@ -124,6 +125,10 @@ export default function Feed({
             color: prof?.avatar_color ?? "#c8553d",
             avatarUrl: prof?.avatar_url ?? null,
             activity: s.activity ?? "other",
+            activities:
+              Array.isArray(s.activities) && s.activities.length
+                ? s.activities
+                : [s.activity ?? "other"],
             note: s.note ?? null,
             photoUrl: s.photo_url ?? null,
             timeLabel: "just now",
@@ -380,7 +385,12 @@ export default function Feed({
   return (
     <div className="flex flex-col gap-3">
       {feedItems.map((it) => {
-        const meta = activityMeta(it.activity);
+        const metas = (it.activities?.length ? it.activities : [it.activity]).map(
+          (k) => activityMeta(k)
+        );
+        const activityLabel = metas
+          .map((m) => `${m.emoji} ${m.label.toLowerCase()}`)
+          .join(" + ");
         const comments = cstate[it.id] ?? [];
         const isOpen = open[it.id];
         return (
@@ -397,7 +407,7 @@ export default function Feed({
                   <span className="font-semibold">
                     {it.isMine ? "You" : it.authorName}
                   </span>{" "}
-                  logged {meta.emoji} {meta.label.toLowerCase()}
+                  logged {activityLabel}
                 </div>
                 <div className="text-[13px] text-muted">{it.timeLabel}</div>
               </div>

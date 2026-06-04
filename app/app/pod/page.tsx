@@ -37,7 +37,7 @@ export default async function PodFeed({
   const { data: sessions } = await supabase
     .from("sessions")
     .select(
-      "id, user_id, activity, note, photo_url, logged_at, profiles(display_name, initials, avatar_color, avatar_url)"
+      "id, user_id, activity, activities, note, photo_url, logged_at, profiles(display_name, initials, avatar_color, avatar_url)"
     )
     .eq("pod_id", podId)
     .order("logged_at", { ascending: false })
@@ -119,6 +119,10 @@ export default async function PodFeed({
       color: prof?.avatar_color ?? "#c8553d",
       avatarUrl: prof?.avatar_url ?? null,
       activity: (s.activity as ActivityKey) ?? "other",
+      activities:
+        Array.isArray(s.activities) && s.activities.length
+          ? (s.activities as string[])
+          : [s.activity ?? "other"],
       note: s.note,
       photoUrl: s.photo_url,
       timeLabel: timeAgo(new Date(s.logged_at), now),
