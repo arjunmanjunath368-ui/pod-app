@@ -69,6 +69,7 @@ export default function Feed({
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   // Re-sync to server truth whenever the page re-fetches (e.g. after you log).
   useEffect(() => {
@@ -268,7 +269,6 @@ export default function Feed({
     await supabase.from("comments").update({ body }).eq("id", commentId);
   }
   async function deleteComment(sessionId: string, commentId: string) {
-    if (!window.confirm("Delete this comment?")) return;
     setCstate((c) => ({
       ...c,
       [sessionId]: (c[sessionId] ?? []).filter((x) => x.id !== commentId),
@@ -465,22 +465,44 @@ export default function Feed({
                             <div className="text-[15px] leading-snug text-ink-soft">
                               {c.body}
                             </div>
-                            {c.isMine && (
-                              <div className="mt-0.5 flex gap-3">
-                                <button
-                                  onClick={() => startEdit(c)}
-                                  className="text-[12px] font-semibold text-muted"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => deleteComment(it.id, c.id)}
-                                  className="text-[12px] font-semibold text-muted"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            )}
+                            {c.isMine &&
+                              (confirmDelete === c.id ? (
+                                <div className="mt-1 flex items-center gap-3">
+                                  <span className="text-[12px] text-muted">
+                                    Delete this comment?
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      setConfirmDelete(null);
+                                      deleteComment(it.id, c.id);
+                                    }}
+                                    className="text-[12px] font-semibold text-terra"
+                                  >
+                                    Delete
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDelete(null)}
+                                    className="text-[12px] font-semibold text-muted"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="mt-0.5 flex gap-3">
+                                  <button
+                                    onClick={() => startEdit(c)}
+                                    className="text-[12px] font-semibold text-muted"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDelete(c.id)}
+                                    className="text-[12px] font-semibold text-muted"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              ))}
                           </>
                         )}
                       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Cropper from "react-easy-crop";
 import { createClient } from "@/lib/supabase/client";
@@ -18,11 +18,7 @@ function createImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-// Crop the selected region into a square JPEG (max 512px), with optional flip.
-async function getCroppedBlob(
-  src: string,
-  area: Area
-): Promise<Blob | null> {
+async function getCroppedBlob(src: string, area: Area): Promise<Blob | null> {
   const image = await createImage(src);
   const size = Math.min(512, Math.round(area.width));
   const canvas = document.createElement("canvas");
@@ -36,7 +32,6 @@ async function getCroppedBlob(
   );
 }
 
-// Downscale the original for re-editing later (keeps "Edit" non-lossy).
 async function compressOriginal(file: File): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file);
@@ -81,6 +76,7 @@ export default function AvatarUpload({
   color: string;
 }) {
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [origFile, setOrigFile] = useState<File | null>(null);
@@ -100,7 +96,11 @@ export default function AvatarUpload({
     setError("");
   }
 
-  function pick(e: React.ChangeEvent<HTMLInputElement>) {
+  function pickNew() {
+    fileRef.current?.click();
+  }
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     resetControls();
@@ -123,11 +123,12 @@ export default function AvatarUpload({
       const blob = await res.blob();
       setSrc(URL.createObjectURL(blob));
     } catch {
-      setError("Couldn't load your photo to edit. Try Change photo instead.");
+      setError("Couldn't load your photo. Use Change photo instead.");
+      setSrc(avatarUrl); // fall back so the editor still opens
     }
   }
 
-  function cancel() {
+  function close() {
     if (src && src.startsWith("blob:")) URL.revokeObjectURL(src);
     setSrc(null);
     setError("");
@@ -159,8 +160,6 @@ export default function AvatarUpload({
     const updates: { avatar_url: string; avatar_source_url?: string } = {
       avatar_url: newAvatarUrl,
     };
-
-    // For a brand-new photo, also stash the original so future edits are clean.
     if (isNew && origFile) {
       const srcBlob = await compressOriginal(origFile);
       const srcPath = `${userId}/src-${crypto.randomUUID()}.jpg`;
@@ -186,26 +185,29 @@ export default function AvatarUpload({
       setError(updErr.message);
       return;
     }
-    cancel();
+    close();
     router.refresh();
   }
 
   return (
     <div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onFile}
+      />
+
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          <Avatar
-            url={avatarUrl}
-            initials={initials}
-            color={color}
-            size={56}
-          />
-          {hasPhoto && (
-            <button
-              onClick={editExisting}
-              aria-label="Edit photo"
-              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-paper bg-terra text-white shadow-pod transition active:scale-95"
-            >
+          <Avatar url={avatarUrl} initials={initials} color={color} size={56} />
+          <button
+            onClick={hasPhoto ? editExisting : pickNew}
+            aria-label={hasPhoto ? "Edit photo" : "Add a photo"}
+            className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-paper bg-terra text-white shadow-pod transition active:scale-95"
+          >
+            {hasPhoto ? (
               <svg
                 width="13"
                 height="13"
@@ -219,31 +221,51 @@ export default function AvatarUpload({
                 <path d="M12 20h9" />
                 <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
               </svg>
-            </button>
-          )}
+            ) : (
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            )}
+          </button>
         </div>
         <h1 className="min-w-0 font-serif text-[24px] font-semibold leading-tight text-ink">
           {displayName}
         </h1>
       </div>
 
-      <div className="mt-4">
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-card px-4 py-2 text-[14px] font-semibold text-ink-soft transition active:scale-95">
-          {hasPhoto ? "Change photo" : "Add a photo"}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={pick}
-          />
-        </label>
-      </div>
-
       {src && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-ink/50" onClick={cancel} />
+          <div className="absolute inset-0 bg-ink/50" onClick={close} />
           <div className="sheet-enter relative w-full max-w-[420px] rounded-t-[28px] bg-paper px-6 pb-8 pt-3 shadow-pod-lg">
             <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-line" />
+            <button
+              onClick={close}
+              aria-label="Close"
+              className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-full bg-paper-2 text-ink-soft transition active:scale-95"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              >
+                <line x1="6" y1="6" x2="18" y2="18" />
+                <line x1="18" y1="6" x2="6" y2="18" />
+              </svg>
+            </button>
+
             <h2 className="font-serif text-[20px] font-semibold text-ink">
               Frame your photo
             </h2>
@@ -284,11 +306,11 @@ export default function AvatarUpload({
 
             <div className="mt-5 flex gap-3">
               <button
-                onClick={cancel}
+                onClick={pickNew}
                 disabled={busy}
                 className="flex-1 rounded-2xl border border-line bg-card py-3.5 text-[15px] font-semibold text-ink-soft transition active:scale-[0.98] disabled:opacity-60"
               >
-                Cancel
+                Change photo
               </button>
               <button
                 onClick={save}
