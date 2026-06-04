@@ -79,3 +79,19 @@ export async function sendTestPush(): Promise<boolean> {
     return false;
   }
 }
+
+export async function disablePush(userId: string): Promise<boolean> {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      const endpoint = sub.endpoint;
+      await sub.unsubscribe();
+      const supabase = createClient();
+      await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}

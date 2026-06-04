@@ -1,4 +1,5 @@
-const CACHE = "pod-v1";
+// Bump this name on cache-strategy changes so old caches are purged.
+const CACHE = "pod-static-v2";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -18,21 +19,24 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return; // don't touch Supabase/etc.
-  event.respondWith(
-    (async () => {
-      try {
+  if (url.origin !== self.location.origin) return;
+
+  // Cache ONLY Next's immutable, hashed static assets. HTML pages and
+  // everything else always hit the network, so a new deploy can never serve
+  // a stale app shell (which would reference dead JS and blank out).
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      (async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
         const fresh = await fetch(req);
         const cache = await caches.open(CACHE);
         cache.put(req, fresh.clone());
         return fresh;
-      } catch (err) {
-        const cached = await caches.match(req);
-        if (cached) return cached;
-        throw err;
-      }
-    })()
-  );
+      })()
+    );
+  }
+  // Otherwise: don't intercept — let the browser fetch normally.
 });
 
 // --- Web push ---
