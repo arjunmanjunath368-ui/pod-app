@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
 import PodSettings from "@/components/PodSettings";
 import SignOutButton from "@/components/SignOutButton";
+import NotificationToggle from "@/components/NotificationToggle";
 import { BRAND_NAME } from "@/lib/brand";
 
 export default async function SettingsPage({
@@ -55,6 +56,10 @@ export default async function SettingsPage({
           podName={current.name}
           displayName={displayName}
         />
+
+        <div className="mt-4">
+          <NotificationToggle userId={user.id} />
+        </div>
 
         {/* How it works */}
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
