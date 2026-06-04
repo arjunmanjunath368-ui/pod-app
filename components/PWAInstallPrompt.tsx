@@ -60,7 +60,7 @@ export default function PWAInstallPrompt() {
   if (!show) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[max(16px,env(safe-area-inset-bottom))]">
+    <div className="fixed inset-x-0 top-0 z-[100] flex justify-center px-4 pt-[max(12px,env(safe-area-inset-top))]">
       <div className="w-full max-w-[420px] rounded-2xl border border-line bg-card p-4 shadow-pod-lg">
         <div className="flex items-start gap-3">
           <img
@@ -74,9 +74,9 @@ export default function PWAInstallPrompt() {
             </div>
             {isIOS ? (
               <p className="mt-1 text-[13px] leading-relaxed text-muted">
-                Tap the Share button{" "}
-                <span className="font-semibold text-ink-soft">⎙</span> in
-                Safari, then choose{" "}
+                In Safari, tap the Share button{" "}
+                <span className="font-semibold text-ink-soft">⎙</span> (bottom
+                of the screen), scroll down, then choose{" "}
                 <span className="font-semibold text-ink-soft">
                   Add to Home Screen
                 </span>
@@ -100,7 +100,7 @@ export default function PWAInstallPrompt() {
                 onClick={dismiss}
                 className="rounded-full bg-paper-2 px-4 py-1.5 text-[13px] font-semibold text-muted"
               >
-                Not now
+                {isIOS ? "Got it" : "Not now"}
               </button>
             </div>
           </div>
