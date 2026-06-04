@@ -6,11 +6,9 @@ import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz, monthGrid } from "@/lib/days";
 import BottomNav from "@/components/BottomNav";
 import SignOutButton from "@/components/SignOutButton";
-import Avatar from "@/components/Avatar";
 import AvatarUpload from "@/components/AvatarUpload";
 import MyGoals from "@/components/MyGoals";
 import ShareStatsToggle from "@/components/ShareStatsToggle";
-import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
 
 export default async function YouPage() {
   const supabase = createClient();
@@ -93,26 +91,15 @@ export default async function YouPage() {
   return (
     <>
       <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
-        <div className="flex items-center gap-3">
-          <Avatar
-            url={profile?.avatar_url}
-            initials={profile?.initials ?? "?"}
-            color={profile?.avatar_color ?? "#c8553d"}
-            size={56}
-          />
-          <div className="min-w-0">
-            <h1 className="font-serif text-[24px] font-semibold leading-tight text-ink">
-              {profile?.display_name ?? "You"}
-            </h1>
-            <div className="text-[13px] text-muted">
-              {BRAND_MARK} {BRAND_NAME} member
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <AvatarUpload userId={user.id} hasPhoto={!!profile?.avatar_url} avatarUrl={profile?.avatar_url ?? null} sourceUrl={profile?.avatar_source_url ?? null} />
-        </div>
+        <AvatarUpload
+          userId={user.id}
+          hasPhoto={!!profile?.avatar_url}
+          avatarUrl={profile?.avatar_url ?? null}
+          sourceUrl={profile?.avatar_source_url ?? null}
+          displayName={profile?.display_name ?? "You"}
+          initials={profile?.initials ?? "?"}
+          color={profile?.avatar_color ?? "#c8553d"}
+        />
 
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           My goals

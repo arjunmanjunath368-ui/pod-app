@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Cropper from "react-easy-crop";
 import { createClient } from "@/lib/supabase/client";
+import Avatar from "@/components/Avatar";
 
 type Area = { x: number; y: number; width: number; height: number };
 
@@ -67,11 +68,17 @@ export default function AvatarUpload({
   hasPhoto,
   avatarUrl,
   sourceUrl,
+  displayName,
+  initials,
+  color,
 }: {
   userId: string;
   hasPhoto: boolean;
   avatarUrl: string | null;
   sourceUrl: string | null;
+  displayName: string;
+  initials: string;
+  color: string;
 }) {
   const router = useRouter();
   const [src, setSrc] = useState<string | null>(null);
@@ -185,28 +192,42 @@ export default function AvatarUpload({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2">
-        {hasPhoto && (
-          <button
-            onClick={editExisting}
-            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-4 py-2 text-[14px] font-semibold text-ink-soft transition active:scale-95"
-          >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+      <div className="flex items-center gap-3">
+        <div className="relative shrink-0">
+          <Avatar
+            url={avatarUrl}
+            initials={initials}
+            color={color}
+            size={56}
+          />
+          {hasPhoto && (
+            <button
+              onClick={editExisting}
+              aria-label="Edit photo"
+              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-paper bg-terra text-white shadow-pod transition active:scale-95"
             >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
-            Edit
-          </button>
-        )}
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <h1 className="min-w-0 font-serif text-[24px] font-semibold leading-tight text-ink">
+          {displayName}
+        </h1>
+      </div>
+
+      <div className="mt-4">
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-card px-4 py-2 text-[14px] font-semibold text-ink-soft transition active:scale-95">
           {hasPhoto ? "Change photo" : "Add a photo"}
           <input
