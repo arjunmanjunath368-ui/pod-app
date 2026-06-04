@@ -197,6 +197,43 @@ export default function Feed({
           });
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "comments" },
+        (payload: any) => {
+          const c = payload.new;
+          if (!c?.id || c.user_id === me.userId) return;
+          setCstate((prev) => {
+            const list = prev[c.session_id];
+            if (!list) return prev;
+            return {
+              ...prev,
+              [c.session_id]: list.map((x) =>
+                x.id === c.id ? { ...x, body: c.body } : x
+              ),
+            };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments" },
+        (payload: any) => {
+          const id = payload.old?.id;
+          if (!id) return;
+          // We may not get session_id on delete, so remove the id wherever it is.
+          setCstate((prev) => {
+            let changed = false;
+            const next: Record<string, FeedComment[]> = {};
+            for (const sid of Object.keys(prev)) {
+              const filtered = prev[sid].filter((x) => x.id !== id);
+              if (filtered.length !== prev[sid].length) changed = true;
+              next[sid] = filtered;
+            }
+            return changed ? next : prev;
+          });
+        }
+      )
         .subscribe((status: string) => {
           if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
             console.warn("pod feed realtime:", status);
