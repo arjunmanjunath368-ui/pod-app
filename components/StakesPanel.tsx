@@ -22,6 +22,7 @@ export default function StakesPanel({
   periodWeeks,
   periodStart,
   currentWeekStart,
+  activeView,
 }: {
   podId: string;
   userId: string;
@@ -38,6 +39,17 @@ export default function StakesPanel({
   periodWeeks: number | null;
   periodStart: string | null;
   currentWeekStart: string;
+  activeView?: {
+    stakeAmount: number;
+    periodWeeks: number;
+    displayWeek: number;
+    daysLeft: number;
+    standings: { name: string; net: number }[];
+    lastSettlement: {
+      periodLabel: string;
+      rows: { name: string; net: number }[];
+    } | null;
+  } | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -321,19 +333,92 @@ export default function StakesPanel({
   }
 
   // ---- ACTIVE ----
+  const fmtNet = (n: number) => `${n > 0 ? "+" : ""}${n}`;
   return (
-    <Card>
-      <div className="inline-flex items-center gap-1.5 rounded-full bg-sage/15 px-3 py-1 text-[12px] font-semibold text-ink-soft">
-        ● Stakes active
-      </div>
-      <div className="mt-3 text-[15px] font-semibold text-ink">
-        ${stakeAmount} / week · {periodWeeks}-week settlement
-      </div>
-      <p className="mt-1 text-[14px] text-muted">
-        Period started {periodStart}. Standings and settlement are coming in the
-        next update.
-      </p>
-    </Card>
+    <div className="flex flex-col gap-4">
+      <Card>
+        <div className="flex items-center justify-between">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-sage/15 px-3 py-1 text-[12px] font-semibold text-ink-soft">
+            ● Stakes active
+          </div>
+          {activeView && (
+            <div className="text-[12px] font-semibold text-muted">
+              Week {activeView.displayWeek} of {activeView.periodWeeks}
+            </div>
+          )}
+        </div>
+        <div className="mt-3 text-[15px] font-semibold text-ink">
+          ${stakeAmount} / week · {periodWeeks}-week settlement
+        </div>
+        {activeView && (
+          <p className="mt-1 text-[14px] text-muted">
+            Settles in {activeView.daysLeft}{" "}
+            {activeView.daysLeft === 1 ? "day" : "days"}.
+          </p>
+        )}
+      </Card>
+
+      {activeView && activeView.standings.length > 0 && (
+        <Card>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
+            Standings so far
+          </div>
+          <div className="mt-3 space-y-2">
+            {activeView.standings.map((s, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between text-[15px]"
+              >
+                <span className="text-ink">{s.name}</span>
+                <span
+                  className={`font-semibold ${
+                    s.net > 0
+                      ? "text-sage"
+                      : s.net < 0
+                        ? "text-terra"
+                        : "text-muted"
+                  }`}
+                >
+                  {fmtNet(s.net)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[12px] text-muted">
+            Running total this period — not final until settlement.
+          </p>
+        </Card>
+      )}
+
+      {activeView?.lastSettlement && (
+        <Card>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
+            Last settled · {activeView.lastSettlement.periodLabel}
+          </div>
+          <div className="mt-3 space-y-2">
+            {activeView.lastSettlement.rows.map((s, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between text-[15px]"
+              >
+                <span className="text-ink">{s.name}</span>
+                <span
+                  className={`font-semibold ${
+                    s.net > 0
+                      ? "text-sage"
+                      : s.net < 0
+                        ? "text-terra"
+                        : "text-muted"
+                  }`}
+                >
+                  {fmtNet(s.net)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
   );
 }
 
