@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
 import StakesPanel from "@/components/StakesPanel";
+import StakesSync from "@/components/StakesSync";
 import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz } from "@/lib/days";
 import { computeStakes, periodStartInstant } from "@/lib/stakes";
@@ -120,6 +121,85 @@ export default async function StakesPage({
       });
     }
 
+    // ---- Stage 9: reconcile a pending action (extend / settle) on this period.
+    // The client only records the proposal + consent votes; the server applies
+    // it here once every non-left member agrees, or clears it if anyone declines.
+    if (stake.pending_action && stake.pending_proposal_id) {
+      const { data: pc } = await supabase
+        .from("stake_consents")
+        .select("user_id, agreed")
+        .eq("pod_id", current.podId)
+        .eq("proposal_id", stake.pending_proposal_id);
+      const declined = (pc ?? []).some((c: any) => c.agreed === false);
+      const agreedCount = (pc ?? []).filter((c: any) => c.agreed === true).length;
+      const clearPending = {
+        pending_action: null,
+        pending_proposal_id: null,
+        pending_by: null,
+        pending_weeks: null,
+      };
+      if (declined) {
+        await supabase
+          .from("pod_stakes")
+          .update({ ...clearPending, updated_at: now.toISOString() })
+          .eq("pod_id", current.podId);
+        stake.pending_action = null;
+      } else if (podMembers.length > 0 && agreedCount >= podMembers.length) {
+        if (stake.pending_action === "extend") {
+          const newWeeks = stake.period_weeks + (stake.pending_weeks ?? 0);
+          await supabase
+            .from("pod_stakes")
+            .update({
+              period_weeks: newWeeks,
+              ...clearPending,
+              updated_at: now.toISOString(),
+            })
+            .eq("pod_id", current.podId);
+          stake.period_weeks = newWeeks;
+          stake.pending_action = null;
+          res = computeStakes({
+            stakeAmount: stake.stake_amount,
+            periodStartDate,
+            periodWeeks: newWeeks,
+            tz,
+            weekStartsOn: wso,
+            members: podMembers,
+            sessions,
+            now,
+          });
+        } else if (stake.pending_action === "settle") {
+          // Settle the completed weeks only (firmNet). An in-progress partial
+          // week is voided — nobody forfeits a week that didn't finish.
+          const periodEndDate = dayKeyInTz(now, tz);
+          const results = res.standings.map((s) => ({
+            userId: s.userId,
+            net: s.firmNet,
+          }));
+          await supabase.from("stake_settlements").insert({
+            pod_id: current.podId,
+            period_start: periodStartDate,
+            period_end: periodEndDate,
+            results,
+          });
+          await supabase
+            .from("pod_stakes")
+            .update({
+              status: "off",
+              proposal_id: null,
+              proposed_by: null,
+              prop_amount: null,
+              prop_weeks: null,
+              period_start: null,
+              ...clearPending,
+              updated_at: now.toISOString(),
+            })
+            .eq("pod_id", current.podId);
+          stake.status = "off";
+          stake.pending_action = null;
+        }
+      }
+    }
+
     const { data: setRows } = await supabase
       .from("stake_settlements")
       .select("period_start, period_end, results, settled_at")
@@ -146,6 +226,13 @@ export default async function StakesPage({
       month: "short",
       day: "numeric",
     }).format(new Date(`${stake.period_start}T12:00:00Z`));
+    const startLabel = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(`${stake.period_start}T12:00:00Z`));
+    const notStartedYet = now.getTime() < startInstant0.getTime();
 
     activeView = {
       stakeAmount: stake.stake_amount,
@@ -153,6 +240,8 @@ export default async function StakesPage({
       displayWeek,
       daysLeft,
       startedLabel,
+      startLabel,
+      notStartedYet,
       // Show every member who hasn't left. Active-with-goal show a net; active
       // without a goal show "No goal set"; paused show "Paused" (not in the pot).
       standings: podMembers
@@ -184,10 +273,40 @@ export default async function StakesPage({
     .select("user_id, proposal_id, agreed")
     .eq("pod_id", current.podId);
   const proposalId: string | null = stake?.proposal_id ?? null;
+  const pendingProposalId: string | null = stake?.pending_proposal_id ?? null;
+  // The roster reflects whichever consent round is live: the pending action when
+  // active, otherwise the activation proposal.
+  const relevantProposalId: string | null =
+    stake?.status === "active" && stake?.pending_action
+      ? pendingProposalId
+      : stake?.status === "proposed"
+        ? proposalId
+        : null;
   const consentMap: Record<string, boolean | null> = {};
   (consents ?? []).forEach((c: any) => {
-    if (c.proposal_id === proposalId) consentMap[c.user_id] = c.agreed;
+    if (c.proposal_id === relevantProposalId) consentMap[c.user_id] = c.agreed;
   });
+
+  // Most recent settlement — shown in the OFF state too, so an early-settle
+  // result doesn't vanish the moment stakes turn off.
+  let offLastSettlement: any = null;
+  if (stake?.status !== "active") {
+    const { data: lastSet } = await supabase
+      .from("stake_settlements")
+      .select("period_start, period_end, results")
+      .eq("pod_id", current.podId)
+      .order("settled_at", { ascending: false })
+      .limit(1);
+    const ls = lastSet?.[0];
+    if (ls) {
+      offLastSettlement = {
+        periodLabel: `${ls.period_start} → ${ls.period_end}`,
+        rows: (ls.results as any[])
+          .map((r) => ({ name: nameOf(r.userId), net: r.net }))
+          .sort((a, b) => b.net - a.net),
+      };
+    }
+  }
 
   const ws = weekStartUtc(tz, wso);
   const currentWeekStart = new Intl.DateTimeFormat("en-CA", {
@@ -197,10 +316,23 @@ export default async function StakesPage({
     day: "2-digit",
   }).format(ws);
 
+  // Option A: a stakes period is always whole pod-weeks. Begin this week only if
+  // activating ON the week-start day; otherwise begin next week so Week 1 is a
+  // full week (no half-week shortchange for activating mid-week).
+  const todayKey = dayKeyInTz(new Date(), tz);
+  const nextWeekStart = dayKeyInTz(
+    new Date(ws.getTime() + 7 * 86400000),
+    tz
+  );
+  const firstPeriodStart =
+    todayKey === currentWeekStart ? currentWeekStart : nextWeekStart;
+
   const proposedByName = nameOf(stake?.proposed_by ?? "");
+  const pendingByName = nameOf(stake?.pending_by ?? "");
 
   return (
     <>
+      <StakesSync podId={current.podId} />
       <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
         <h1 className="mb-1 font-serif text-[26px] font-semibold leading-tight text-ink">
           Stakes
@@ -254,8 +386,16 @@ export default async function StakesPage({
           stakeAmount={stake?.stake_amount ?? null}
           periodWeeks={stake?.period_weeks ?? null}
           periodStart={stake?.period_start ?? null}
-          currentWeekStart={currentWeekStart}
+          firstPeriodStart={firstPeriodStart}
           activeView={activeView}
+          pendingAction={
+            stake?.status === "active" ? stake?.pending_action ?? null : null
+          }
+          pendingWeeks={stake?.pending_weeks ?? null}
+          pendingProposalId={pendingProposalId}
+          pendingById={stake?.pending_by ?? null}
+          pendingByName={pendingByName}
+          offLastSettlement={offLastSettlement}
         />
       </main>
       <BottomNav active="settings" podId={current.podId} userId={user.id} />
