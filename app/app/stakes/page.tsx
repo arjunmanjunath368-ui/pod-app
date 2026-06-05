@@ -41,7 +41,7 @@ export default async function StakesPage({
 
   const { data: mems } = await supabase
     .from("pod_members")
-    .select("user_id, status, goal_target_per_week, profiles(display_name)")
+    .select("user_id, status, goal_target_per_week, staked_from, profiles(display_name)")
     .eq("pod_id", current.podId)
     .neq("status", "left");
   // All members who haven't left — includes paused. computeStakes filters the pot
@@ -54,6 +54,7 @@ export default async function StakesPage({
       "Member",
     target: m.goal_target_per_week ?? 0,
     status: m.status as string,
+    stakedFrom: (m.staked_from as string | null) ?? null,
   }));
   const nameOf = (id: string) =>
     podMembers.find((m) => m.userId === id)?.name ?? "Member";
@@ -79,6 +80,18 @@ export default async function StakesPage({
       loggedAt: new Date(s.logged_at),
     }));
 
+    // Frozen per-week rosters (pause fairness): who was staked each week. Once a
+    // week closes, its roster never changes — so resuming can't rewrite history.
+    const { data: wpRows } = await supabase
+      .from("stake_week_participants")
+      .select("week_start, user_id")
+      .eq("pod_id", current.podId)
+      .gte("week_start", stake.period_start);
+    const weekRosters: Record<string, string[]> = {};
+    (wpRows ?? []).forEach((r: any) => {
+      (weekRosters[r.week_start] ??= []).push(r.user_id as string);
+    });
+
     let periodStartDate: string = stake.period_start;
     let res = computeStakes({
       stakeAmount: stake.stake_amount,
@@ -88,6 +101,7 @@ export default async function StakesPage({
       weekStartsOn: wso,
       members: podMembers,
       sessions,
+      weekRosters,
       now,
     });
 
@@ -117,8 +131,59 @@ export default async function StakesPage({
         weekStartsOn: wso,
         members: podMembers,
         sessions,
+        weekRosters,
         now,
       });
+    }
+
+    // Keep the CURRENT (open) week's roster in sync with live status: active
+    // members with a goal whose staked_from is on or before this week. Pausing
+    // drops you from the live week; "start next Monday" on resume keeps you out
+    // until staked_from catches up. Closed weeks are left frozen.
+    if (res.currentWeekStartKey) {
+      const key = res.currentWeekStartKey;
+      const eligible = podMembers
+        .filter(
+          (m) =>
+            m.status === "active" &&
+            m.target >= 1 &&
+            (!m.stakedFrom || m.stakedFrom <= key)
+        )
+        .map((m) => m.userId);
+      const existing = weekRosters[key] ?? [];
+      const toDelete = existing.filter((id) => !eligible.includes(id));
+      const toInsert = eligible.filter((id) => !existing.includes(id));
+      for (const id of toDelete) {
+        await supabase
+          .from("stake_week_participants")
+          .delete()
+          .eq("pod_id", current.podId)
+          .eq("week_start", key)
+          .eq("user_id", id);
+      }
+      if (toInsert.length > 0) {
+        await supabase.from("stake_week_participants").insert(
+          toInsert.map((id) => ({
+            pod_id: current.podId,
+            week_start: key,
+            user_id: id,
+          }))
+        );
+      }
+      if (toDelete.length > 0 || toInsert.length > 0) {
+        weekRosters[key] = eligible;
+        res = computeStakes({
+          stakeAmount: stake.stake_amount,
+          periodStartDate,
+          periodWeeks: stake.period_weeks,
+          tz,
+          weekStartsOn: wso,
+          members: podMembers,
+          sessions,
+          weekRosters,
+          now,
+        });
+      }
     }
 
     // ---- Stage 9: reconcile a pending action (extend / settle) on this period.
@@ -178,6 +243,7 @@ export default async function StakesPage({
             weekStartsOn: wso,
             members: podMembers,
             sessions,
+            weekRosters,
             now,
           });
         } else if (stake.pending_action === "settle") {

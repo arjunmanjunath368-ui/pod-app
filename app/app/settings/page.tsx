@@ -5,6 +5,8 @@ import PodSettings from "@/components/PodSettings";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationToggle from "@/components/NotificationToggle";
 import { BRAND_NAME } from "@/lib/brand";
+import { weekStartUtc } from "@/lib/week";
+import { dayKeyInTz } from "@/lib/days";
 
 export default async function SettingsPage({
   searchParams,
@@ -19,7 +21,7 @@ export default async function SettingsPage({
 
   const { data: memberships } = await supabase
     .from("pod_members")
-    .select("pod_id, status, pods(id, name)")
+    .select("pod_id, status, pods(id, name, timezone, week_starts_on)")
     .eq("user_id", user.id)
     .neq("status", "left");
 
@@ -32,12 +34,32 @@ export default async function SettingsPage({
     .maybeSingle();
   const displayName = profile?.display_name ?? "You";
 
-  const rows = memberships.map((m: any) => ({
-    podId: m.pod_id as string,
-    status: m.status as string,
-    name: (Array.isArray(m.pods) ? m.pods[0] : m.pods)?.name ?? "Pod",
-  }));
+  const rows = memberships.map((m: any) => {
+    const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
+    return {
+      podId: m.pod_id as string,
+      status: m.status as string,
+      name: pod?.name ?? "Pod",
+      tz: pod?.timezone ?? "UTC",
+      wso: pod?.week_starts_on ?? 1,
+    };
+  });
   const current = rows.find((r) => r.podId === searchParams.pod) ?? rows[0];
+
+  // Is a stakes period live? (drives the resume "join now vs. next Monday" choice)
+  const { data: stakeRow } = await supabase
+    .from("pod_stakes")
+    .select("status")
+    .eq("pod_id", current.podId)
+    .maybeSingle();
+  const stakesActive = stakeRow?.status === "active";
+
+  const wsInstant = weekStartUtc(current.tz, current.wso);
+  const currentWeekStart = dayKeyInTz(wsInstant, current.tz);
+  const nextWeekStart = dayKeyInTz(
+    new Date(wsInstant.getTime() + 7 * 86400000),
+    current.tz
+  );
 
   return (
     <>
@@ -55,6 +77,9 @@ export default async function SettingsPage({
           initialStatus={current.status}
           podName={current.name}
           displayName={displayName}
+          stakesActive={stakesActive}
+          currentWeekStart={currentWeekStart}
+          nextWeekStart={nextWeekStart}
         />
 
         <div className="mt-4">

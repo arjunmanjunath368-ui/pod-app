@@ -11,12 +11,18 @@ export default function PodSettings({
   initialStatus,
   podName,
   displayName,
+  stakesActive,
+  currentWeekStart,
+  nextWeekStart,
 }: {
   podId: string;
   userId: string;
   initialStatus: string;
   podName: string;
   displayName: string;
+  stakesActive: boolean;
+  currentWeekStart: string;
+  nextWeekStart: string;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
@@ -40,6 +46,33 @@ export default function PodSettings({
     setStatus(next);
     router.refresh();
   }
+
+  // Resume, choosing when stakes pick you back up: this week ("join now") or the
+  // next full week. staked_from gates the live week in the stakes engine.
+  async function resume(stakedFrom: string | null) {
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("pod_members")
+      .update({ status: "active", staked_from: stakedFrom })
+      .eq("pod_id", podId)
+      .eq("user_id", userId);
+    setBusy(false);
+    if (error) return;
+    setStatus("active");
+    router.refresh();
+  }
+
+  const msPerDay = 86400000;
+  const daysLeftThisWeek = Math.max(
+    1,
+    7 -
+      Math.round(
+        (new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z").getTime() -
+          new Date(currentWeekStart + "T00:00:00Z").getTime()) /
+          msPerDay
+      )
+  );
 
   function leave() {
     if (
@@ -65,17 +98,52 @@ export default function PodSettings({
             ? "You're paused. You don't count toward the pod's perfect-week streak right now — resume when you're back."
             : "Going to be away — travel, illness, a busy week? Pause so a missed week doesn't break the pod's streak."}
         </p>
-        <button
-          onClick={() => setMembership(paused ? "active" : "paused")}
-          disabled={busy}
-          className={`mt-3 w-full rounded-xl py-3 text-[15px] font-semibold transition active:scale-[0.99] disabled:opacity-60 ${
-            paused
-              ? "bg-terra text-white"
-              : "border border-line bg-paper-2/60 text-ink-soft"
-          }`}
-        >
-          {paused ? "Resume participation" : "Pause my participation"}
-        </button>
+
+        {!paused && (
+          <button
+            onClick={() => setMembership("paused")}
+            disabled={busy}
+            className="mt-3 w-full rounded-xl border border-line bg-paper-2/60 py-3 text-[15px] font-semibold text-ink-soft transition active:scale-[0.99] disabled:opacity-60"
+          >
+            Pause my participation
+          </button>
+        )}
+
+        {paused && !stakesActive && (
+          <button
+            onClick={() => resume(null)}
+            disabled={busy}
+            className="mt-3 w-full rounded-xl bg-terra py-3 text-[15px] font-semibold text-white transition active:scale-[0.99] disabled:opacity-60"
+          >
+            Resume participation
+          </button>
+        )}
+
+        {paused && stakesActive && (
+          <div className="mt-3">
+            <p className="text-[13px] leading-relaxed text-muted">
+              Stakes are running. Choose when they pick you back up — whole weeks
+              only, so you're not staked on a week you can't finish.
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              <button
+                onClick={() => resume(nextWeekStart)}
+                disabled={busy}
+                className="w-full rounded-xl bg-terra py-3 text-[15px] font-semibold text-white transition active:scale-[0.99] disabled:opacity-60"
+              >
+                Resume — staked from Monday
+              </button>
+              <button
+                onClick={() => resume(currentWeekStart)}
+                disabled={busy}
+                className="w-full rounded-xl border border-line bg-paper-2/60 py-3 text-[15px] font-semibold text-ink-soft transition active:scale-[0.99] disabled:opacity-60"
+              >
+                Join this week now ({daysLeftThisWeek}{" "}
+                {daysLeftThisWeek === 1 ? "day" : "days"} left)
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Display name */}
