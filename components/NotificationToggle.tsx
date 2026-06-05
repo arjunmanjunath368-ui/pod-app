@@ -68,22 +68,31 @@ export default function NotificationToggle({ userId }: { userId: string }) {
             Get a nudge when your pod needs you.
           </p>
         </div>
-        <button
-          role="switch"
-          aria-checked={on}
-          aria-label="Toggle notifications"
-          onClick={toggle}
-          disabled={busy || !ready || !supported}
-          className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${
-            on ? "bg-terra" : "bg-line"
-          }`}
-        >
-          <span
-            className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${
-              on ? "left-[22px]" : "left-0.5"
+        {!ready ? (
+          <div
+            className="relative h-7 w-12 shrink-0 rounded-full bg-line opacity-50"
+            aria-hidden
+          >
+            <span className="absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white/70" />
+          </div>
+        ) : (
+          <button
+            role="switch"
+            aria-checked={on}
+            aria-label="Toggle notifications"
+            onClick={toggle}
+            disabled={busy || !supported}
+            className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50 ${
+              on ? "bg-terra" : "bg-line"
             }`}
-          />
-        </button>
+          >
+            <span
+              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${
+                on ? "left-[22px]" : "left-0.5"
+              }`}
+            />
+          </button>
+        )}
       </div>
 
       {iosNotInstalled && (
