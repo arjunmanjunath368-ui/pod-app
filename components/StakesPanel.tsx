@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -313,6 +313,7 @@ export default function StakesPanel({
                   set={(v) => setAmount(Math.max(1, Math.min(20, v)))}
                   step={1}
                   prefix="$"
+                  animated
                 />
                 <span className="text-[13px] text-muted">per week (max $20)</span>
               </div>
@@ -328,6 +329,7 @@ export default function StakesPanel({
                   set={(v) => setWeeks(Math.max(1, Math.min(6, v)))}
                   step={1}
                   suffix={weeks === 1 ? " wk" : " wks"}
+                  animated
                 />
                 <span className="text-[13px] text-muted">1–6 weeks</span>
               </div>
@@ -796,12 +798,14 @@ function Stepper({
   step,
   prefix,
   suffix,
+  animated,
 }: {
   value: number;
   set: (v: number) => void;
   step: number;
   prefix?: string;
   suffix?: string;
+  animated?: boolean;
 }) {
   return (
     <div className="inline-flex items-center gap-3 rounded-full border border-line bg-paper-2/40 px-2 py-1">
@@ -812,9 +816,15 @@ function Stepper({
         −
       </button>
       <span className="min-w-[52px] text-center text-[16px] font-semibold text-ink">
-        {prefix}
-        {value}
-        {suffix}
+        {animated ? (
+          <RollingNumber value={value} prefix={prefix} suffix={suffix} />
+        ) : (
+          <>
+            {prefix}
+            {value}
+            {suffix}
+          </>
+        )}
       </span>
       <button
         onClick={() => set(value + step)}
@@ -823,5 +833,41 @@ function Stepper({
         +
       </button>
     </div>
+  );
+}
+
+// Gentle roll-into-place: when the value changes, the new number eases into
+// position — rising up on an increment, settling down on a decrement. No reels,
+// no flash; just a soft settle. Uses the Web Animations API, so no extra deps.
+function RollingNumber({
+  value,
+  prefix = "",
+  suffix = "",
+}: {
+  value: number;
+  prefix?: string;
+  suffix?: string;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const prev = useRef(value);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || prev.current === value) return;
+    const up = value > prev.current;
+    prev.current = value;
+    el.animate(
+      [
+        { transform: `translateY(${up ? "0.5em" : "-0.5em"})`, opacity: 0 },
+        { transform: "translateY(0)", opacity: 1 },
+      ],
+      { duration: 240, easing: "cubic-bezier(.22,.7,.25,1)" }
+    );
+  }, [value]);
+  return (
+    <span ref={ref} className="inline-block tabular-nums">
+      {prefix}
+      {value}
+      {suffix}
+    </span>
   );
 }
