@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Member = { userId: string; name: string };
+type Member = { userId: string; name: string; paused?: boolean };
 
 export default function StakesPanel({
   podId,
@@ -45,7 +45,7 @@ export default function StakesPanel({
     displayWeek: number;
     daysLeft: number;
     startedLabel: string;
-    standings: { name: string; net: number; hasGoal: boolean }[];
+    standings: { name: string; net: number; hasGoal: boolean; paused: boolean }[];
     lastSettlement: {
       periodLabel: string;
       rows: { name: string; net: number }[];
@@ -66,7 +66,7 @@ export default function StakesPanel({
       .from("pod_members")
       .select("user_id")
       .eq("pod_id", podId)
-      .eq("status", "active");
+      .neq("status", "left");
     const n = (mems ?? []).length;
     const { data: cons } = await sb
       .from("stake_consents")
@@ -278,6 +278,9 @@ export default function StakesPanel({
                 <span className="text-ink">
                   {m.name}
                   {m.userId === userId ? " (you)" : ""}
+                  {m.paused ? (
+                    <span className="ml-1.5 text-[12px] text-muted">· paused</span>
+                  ) : null}
                 </span>
                 <span
                   className={
@@ -377,7 +380,9 @@ export default function StakesPanel({
                 className="flex items-center justify-between text-[15px]"
               >
                 <span className="text-ink">{s.name}</span>
-                {s.hasGoal ? (
+                {s.paused ? (
+                  <span className="text-[13px] text-muted">⏸ Paused</span>
+                ) : s.hasGoal ? (
                   <span
                     className={`font-semibold ${
                       s.net > 0

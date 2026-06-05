@@ -42,8 +42,11 @@ export default async function StakesPage({
     .from("pod_members")
     .select("user_id, status, goal_target_per_week, profiles(display_name)")
     .eq("pod_id", current.podId)
-    .eq("status", "active");
-  const activeMembers = (mems ?? []).map((m: any) => ({
+    .neq("status", "left");
+  // All members who haven't left — includes paused. computeStakes filters the pot
+  // down to active-with-goal; paused members still appear in standings + must
+  // consent (they're bound by the bet when they resume).
+  const podMembers = (mems ?? []).map((m: any) => ({
     userId: m.user_id as string,
     name:
       (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles)?.display_name ??
@@ -52,7 +55,7 @@ export default async function StakesPage({
     status: m.status as string,
   }));
   const nameOf = (id: string) =>
-    activeMembers.find((m) => m.userId === id)?.name ?? "Member";
+    podMembers.find((m) => m.userId === id)?.name ?? "Member";
 
   let { data: stake } = await supabase
     .from("pod_stakes")
@@ -82,7 +85,7 @@ export default async function StakesPage({
       periodWeeks: stake.period_weeks,
       tz,
       weekStartsOn: wso,
-      members: activeMembers,
+      members: podMembers,
       sessions,
       now,
     });
@@ -111,7 +114,7 @@ export default async function StakesPage({
         periodWeeks: stake.period_weeks,
         tz,
         weekStartsOn: wso,
-        members: activeMembers,
+        members: podMembers,
         sessions,
         now,
       });
@@ -150,16 +153,19 @@ export default async function StakesPage({
       displayWeek,
       daysLeft,
       startedLabel,
-      // Show every active member — including those with no goal (they're not in
-      // the pot, but the pod should still see them rather than wonder who's missing).
-      standings: activeMembers
+      // Show every member who hasn't left. Active-with-goal show a net; active
+      // without a goal show "No goal set"; paused show "Paused" (not in the pot).
+      standings: podMembers
         .map((m) => ({
           name: m.name,
           net: netByUser[m.userId] ?? 0,
           hasGoal: m.target >= 1,
+          paused: m.status === "paused",
         }))
         .sort((a, b) => {
-          if (a.hasGoal !== b.hasGoal) return a.hasGoal ? -1 : 1;
+          const rank = (x: { paused: boolean; hasGoal: boolean }) =>
+            x.paused ? 2 : x.hasGoal ? 0 : 1;
+          if (rank(a) !== rank(b)) return rank(a) - rank(b);
           return b.net - a.net;
         }),
       lastSettlement: latest
@@ -232,10 +238,11 @@ export default async function StakesPage({
         <StakesPanel
           podId={current.podId}
           userId={user.id}
-          isActiveMember={current.myStatus === "active"}
-          activeMembers={activeMembers.map((m) => ({
+          isActiveMember={current.myStatus !== "left"}
+          activeMembers={podMembers.map((m) => ({
             userId: m.userId,
             name: m.name,
+            paused: m.status === "paused",
           }))}
           consentMap={consentMap}
           status={stake?.status ?? "off"}
