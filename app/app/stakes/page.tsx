@@ -145,8 +145,21 @@ export default async function StakesPage({
           .eq("pod_id", current.podId);
         stake.pending_action = null;
       } else if (podMembers.length > 0 && agreedCount >= podMembers.length) {
-        if (stake.pending_action === "extend") {
-          const newWeeks = stake.period_weeks + (stake.pending_weeks ?? 0);
+        if (
+          stake.pending_action === "reschedule" ||
+          stake.pending_action === "extend"
+        ) {
+          // 'reschedule' = absolute new total weeks (earlier or later);
+          // 'extend' = legacy delta (kept so an in-flight proposal still applies).
+          const minW =
+            res.currentWeekIndex != null
+              ? res.currentWeekIndex + 1
+              : res.weeksCompleted + 1;
+          const target =
+            stake.pending_action === "reschedule"
+              ? stake.pending_weeks ?? stake.period_weeks
+              : stake.period_weeks + (stake.pending_weeks ?? 0);
+          const newWeeks = Math.max(minW, target);
           await supabase
             .from("pod_stakes")
             .update({

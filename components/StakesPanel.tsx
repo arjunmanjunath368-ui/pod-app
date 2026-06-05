@@ -74,8 +74,10 @@ export default function StakesPanel({
   const [amount, setAmount] = useState(5);
   const [weeks, setWeeks] = useState(2);
   const [showForm, setShowForm] = useState(false);
-  const [manageMode, setManageMode] = useState<null | "extend" | "settle">(null);
-  const [extendWeeks, setExtendWeeks] = useState(1);
+  const [manageMode, setManageMode] = useState<null | "reschedule" | "settle">(
+    null
+  );
+  const [rescheduleWeeks, setRescheduleWeeks] = useState(2);
 
   const supabase = () => createClient();
   const fmtNet = (n: number) => `${n > 0 ? "+" : ""}${n}`;
@@ -187,7 +189,10 @@ export default function StakesPanel({
   // ---- Stage 9: extend / settle proposals (consent-gated). The client only
   // records the proposal + the proposer's own yes; the server applies it once
   // everyone agrees. ----
-  async function proposePending(action: "extend" | "settle", addWeeks?: number) {
+  async function proposePending(
+    action: "reschedule" | "settle",
+    weeksValue?: number
+  ) {
     setBusy(true);
     const sb = supabase();
     const pid = crypto.randomUUID();
@@ -197,7 +202,7 @@ export default function StakesPanel({
         pending_action: action,
         pending_proposal_id: pid,
         pending_by: userId,
-        pending_weeks: action === "extend" ? addWeeks ?? 1 : null,
+        pending_weeks: action === "reschedule" ? weeksValue ?? null : null,
         updated_at: new Date().toISOString(),
       })
       .eq("pod_id", podId);
@@ -470,10 +475,19 @@ export default function StakesPanel({
   // ---- ACTIVE ----
   const pendingMine = pendingById === userId;
   const myPendingConsent = consentMap[userId];
+  const pendingWho = pendingMine ? "You" : pendingByName;
   const pendingTitle =
-    pendingAction === "extend"
-      ? `${pendingMine ? "You" : pendingByName} proposed extending by ${pendingWeeks} ${pendingWeeks === 1 ? "week" : "weeks"}`
-      : `${pendingMine ? "You" : pendingByName} proposed settling up & ending`;
+    pendingAction === "settle"
+      ? `${pendingWho} proposed settling up & ending`
+      : pendingWeeks != null &&
+          periodWeeks != null &&
+          pendingWeeks < periodWeeks
+        ? `${pendingWho} proposed wrapping up after week ${pendingWeeks}`
+        : `${pendingWho} proposed extending to ${pendingWeeks} weeks`;
+  const curTotalWeeks = periodWeeks ?? 2;
+  const curWeekNum = activeView?.displayWeek ?? 1;
+  const minReschedule = curWeekNum; // earliest scheduled end = close of the current week
+  const maxReschedule = Math.max(curTotalWeeks, curWeekNum) + 4;
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -512,9 +526,9 @@ export default function StakesPanel({
             {pendingTitle}
           </div>
           <p className="mt-1 text-[14px] leading-relaxed text-muted">
-            {pendingAction === "extend"
-              ? "Adds full weeks to the current run. Everyone in the pod has to agree."
-              : "Settles the completed weeks now and turns stakes off. Everyone in the pod has to agree."}
+            {pendingAction === "settle"
+              ? "Settles the completed weeks now and turns stakes off. Everyone in the pod has to agree."
+              : `Moves the finish line to a ${pendingWeeks}-week period (currently ${periodWeeks}). Everyone in the pod has to agree.`}
           </p>
           <div className="mt-4 space-y-2">
             {activeMembers.map((m) => {
@@ -594,44 +608,52 @@ export default function StakesPanel({
                   Manage stakes
                 </div>
                 <p className="mt-1 text-[14px] leading-relaxed text-muted">
-                  Change of plans? Extend the run, or settle up and end it — both
-                  need the whole pod to agree.
+                  Change of plans? Move the finish line — earlier or later — or
+                  settle up and end now. Each needs the whole pod to agree.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-3">
                   <button
                     onClick={() => {
-                      setExtendWeeks(1);
-                      setManageMode("extend");
+                      setRescheduleWeeks(curTotalWeeks);
+                      setManageMode("reschedule");
                     }}
                     className="rounded-full border border-line bg-card px-4 py-2 text-[14px] font-semibold text-ink-soft active:scale-95"
                   >
-                    Extend period
+                    Move the finish line
                   </button>
                   <button
                     onClick={() => setManageMode("settle")}
                     className="rounded-full border border-line bg-card px-4 py-2 text-[14px] font-semibold text-ink-soft active:scale-95"
                   >
-                    Settle up & end
+                    Settle up & end now
                   </button>
                 </div>
               </>
             )}
-            {manageMode === "extend" && (
+            {manageMode === "reschedule" && (
               <>
                 <div className="text-[15px] font-semibold text-ink">
-                  Extend the period
+                  Move the finish line
                 </div>
-                <p className="mt-1 text-[14px] text-muted">
-                  Add full weeks to the current run.
+                <p className="mt-1 text-[14px] leading-relaxed text-muted">
+                  Set the new length of the period. Lower it to settle sooner,
+                  raise it to extend — the earliest you can land is the end of the
+                  current week.
                 </p>
                 <div className="mt-3 flex items-center gap-3">
                   <Stepper
-                    value={extendWeeks}
-                    set={(v) => setExtendWeeks(Math.max(1, Math.min(4, v)))}
+                    value={rescheduleWeeks}
+                    set={(v) =>
+                      setRescheduleWeeks(
+                        Math.max(minReschedule, Math.min(maxReschedule, v))
+                      )
+                    }
                     step={1}
-                    suffix={extendWeeks === 1 ? " wk" : " wks"}
+                    suffix={rescheduleWeeks === 1 ? " wk" : " wks"}
                   />
-                  <span className="text-[13px] text-muted">+1 to +4 weeks</span>
+                  <span className="text-[13px] text-muted">
+                    currently {curTotalWeeks} {curTotalWeeks === 1 ? "wk" : "wks"}
+                  </span>
                 </div>
                 <div className="mt-5 flex gap-3">
                   <button
@@ -642,11 +664,13 @@ export default function StakesPanel({
                     Back
                   </button>
                   <button
-                    onClick={() => proposePending("extend", extendWeeks)}
-                    disabled={busy}
+                    onClick={() =>
+                      proposePending("reschedule", rescheduleWeeks)
+                    }
+                    disabled={busy || rescheduleWeeks === curTotalWeeks}
                     className="flex-1 rounded-2xl bg-terra py-3 text-[14px] font-semibold text-white disabled:opacity-60"
                   >
-                    {busy ? "Sending…" : "Propose extension"}
+                    {busy ? "Sending…" : "Propose change"}
                   </button>
                 </div>
               </>
@@ -654,12 +678,12 @@ export default function StakesPanel({
             {manageMode === "settle" && (
               <>
                 <div className="text-[15px] font-semibold text-ink">
-                  Settle up & end
+                  Settle up & end now
                 </div>
                 <p className="mt-1 text-[14px] leading-relaxed text-muted">
                   Settles the completed weeks at where they stand and turns stakes
-                  off. The current unfinished week is voided — no one forfeits a
-                  week that didn't finish.
+                  off immediately. The current unfinished week is voided — no one
+                  forfeits a week that didn't finish.
                 </p>
                 <div className="mt-5 flex gap-3">
                   <button
