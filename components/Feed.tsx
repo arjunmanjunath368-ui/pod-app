@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { activityMeta } from "@/lib/activities";
+import SessionEditSheet from "@/components/SessionEditSheet";
 import Avatar from "@/components/Avatar";
 
 const REACTIONS: { kind: string; emoji: string }[] = [
@@ -71,6 +72,7 @@ export default function Feed({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editing, setEditing] = useState<FeedItem | null>(null);
 
   // Re-sync to server truth whenever the page re-fetches (e.g. after you log).
   useEffect(() => {
@@ -144,6 +146,30 @@ export default function Feed({
             p[s.id] ? p : { ...p, [s.id]: { counts: {}, mine: {} } }
           );
           setCstate((c) => (c[s.id] ? c : { ...c, [s.id]: [] }));
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "sessions" },
+        (payload: any) => {
+          const s = payload.new;
+          if (!s?.id || s.user_id === me.userId) return; // ours updates locally
+          setFeedItems((prev) =>
+            prev.map((p) =>
+              p.id === s.id
+                ? {
+                    ...p,
+                    activity: s.activity ?? "other",
+                    activities:
+                      Array.isArray(s.activities) && s.activities.length
+                        ? s.activities
+                        : [s.activity ?? "other"],
+                    note: s.note ?? null,
+                    photoUrl: s.photo_url ?? null,
+                  }
+                : p
+            )
+          );
         }
       )
       .on(
@@ -411,6 +437,14 @@ export default function Feed({
                 </div>
                 <div className="text-[13px] text-muted">{it.timeLabel}</div>
               </div>
+              {it.isMine && (
+                <button
+                  onClick={() => setEditing(it)}
+                  className="shrink-0 self-start text-[13px] font-semibold text-muted"
+                >
+                  Edit
+                </button>
+              )}
             </div>
 
             {it.note && (
@@ -581,6 +615,37 @@ export default function Feed({
           </div>
         );
       })}
+
+      {editing && (
+        <SessionEditSheet
+          session={{
+            id: editing.id,
+            activities: editing.activities?.length
+              ? editing.activities
+              : [editing.activity],
+            note: editing.note,
+            photoUrl: editing.photoUrl,
+          }}
+          podId={podId}
+          userId={me.userId}
+          onClose={() => setEditing(null)}
+          onSaved={(fields) => {
+            setFeedItems((prev) =>
+              prev.map((p) =>
+                p.id === editing.id
+                  ? {
+                      ...p,
+                      activities: fields.activities,
+                      activity: fields.activities[0] ?? p.activity,
+                      note: fields.note,
+                      photoUrl: fields.photoUrl,
+                    }
+                  : p
+              )
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
