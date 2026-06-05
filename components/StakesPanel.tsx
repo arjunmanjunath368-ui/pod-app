@@ -44,7 +44,8 @@ export default function StakesPanel({
     periodWeeks: number;
     displayWeek: number;
     daysLeft: number;
-    standings: { name: string; net: number }[];
+    startedLabel: string;
+    standings: { name: string; net: number; hasGoal: boolean }[];
     lastSettlement: {
       periodLabel: string;
       rows: { name: string; net: number }[];
@@ -205,11 +206,11 @@ export default function StakesPanel({
               <div className="mt-2 flex items-center gap-3">
                 <Stepper
                   value={amount}
-                  set={(v) => setAmount(Math.max(1, Math.min(10, v)))}
+                  set={(v) => setAmount(Math.max(1, Math.min(20, v)))}
                   step={1}
                   prefix="$"
                 />
-                <span className="text-[13px] text-muted">per week (max $10)</span>
+                <span className="text-[13px] text-muted">per week (max $20)</span>
               </div>
             </div>
 
@@ -220,11 +221,11 @@ export default function StakesPanel({
               <div className="mt-2 flex items-center gap-3">
                 <Stepper
                   value={weeks}
-                  set={(v) => setWeeks(Math.max(2, Math.min(6, v)))}
+                  set={(v) => setWeeks(Math.max(1, Math.min(6, v)))}
                   step={1}
                   suffix={weeks === 1 ? " wk" : " wks"}
                 />
-                <span className="text-[13px] text-muted">2–6 weeks</span>
+                <span className="text-[13px] text-muted">1–6 weeks</span>
               </div>
             </div>
 
@@ -338,8 +339,9 @@ export default function StakesPanel({
     <div className="flex flex-col gap-4">
       <Card>
         <div className="flex items-center justify-between">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-sage/15 px-3 py-1 text-[12px] font-semibold text-ink-soft">
-            ● Stakes active
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-sage/15 px-3 py-1 text-[12px] font-semibold text-sage">
+            <span className="h-1.5 w-1.5 rounded-full bg-sage" />
+            Stakes active
           </div>
           {activeView && (
             <div className="text-[12px] font-semibold text-muted">
@@ -363,6 +365,11 @@ export default function StakesPanel({
           <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
             Standings so far
           </div>
+          <p className="mt-1 text-[12px] text-muted">
+            Week {activeView.displayWeek} of {activeView.periodWeeks} · started{" "}
+            {activeView.startedLabel} · {activeView.daysLeft}{" "}
+            {activeView.daysLeft === 1 ? "day" : "days"} left
+          </p>
           <div className="mt-3 space-y-2">
             {activeView.standings.map((s, i) => (
               <div
@@ -370,17 +377,21 @@ export default function StakesPanel({
                 className="flex items-center justify-between text-[15px]"
               >
                 <span className="text-ink">{s.name}</span>
-                <span
-                  className={`font-semibold ${
-                    s.net > 0
-                      ? "text-sage"
-                      : s.net < 0
-                        ? "text-terra"
-                        : "text-muted"
-                  }`}
-                >
-                  {fmtNet(s.net)}
-                </span>
+                {s.hasGoal ? (
+                  <span
+                    className={`font-semibold ${
+                      s.net > 0
+                        ? "text-sage"
+                        : s.net < 0
+                          ? "text-terra"
+                          : "text-muted"
+                    }`}
+                  >
+                    {fmtNet(s.net)}
+                  </span>
+                ) : (
+                  <span className="text-[13px] text-muted">No goal set</span>
+                )}
               </div>
             ))}
           </div>

@@ -134,14 +134,34 @@ export default async function StakesPage({
       Math.ceil((res.periodEndInstant.getTime() - now.getTime()) / 86400000)
     );
 
+    const netByUser: Record<string, number> = {};
+    res.standings.forEach((s) => {
+      netByUser[s.userId] = s.provNet;
+    });
+    const startedLabel = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      month: "short",
+      day: "numeric",
+    }).format(new Date(`${stake.period_start}T12:00:00Z`));
+
     activeView = {
       stakeAmount: stake.stake_amount,
       periodWeeks: stake.period_weeks,
       displayWeek,
       daysLeft,
-      standings: res.standings
-        .map((s) => ({ name: nameOf(s.userId), net: s.provNet }))
-        .sort((a, b) => b.net - a.net),
+      startedLabel,
+      // Show every active member — including those with no goal (they're not in
+      // the pot, but the pod should still see them rather than wonder who's missing).
+      standings: activeMembers
+        .map((m) => ({
+          name: m.name,
+          net: netByUser[m.userId] ?? 0,
+          hasGoal: m.target >= 1,
+        }))
+        .sort((a, b) => {
+          if (a.hasGoal !== b.hasGoal) return a.hasGoal ? -1 : 1;
+          return b.net - a.net;
+        }),
       lastSettlement: latest
         ? {
             periodLabel: `${latest.period_start} → ${latest.period_end}`,
@@ -176,16 +196,38 @@ export default async function StakesPage({
   return (
     <>
       <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
-        <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
-          Stakes · {current.name}
-        </div>
         <h1 className="mb-1 font-serif text-[26px] font-semibold leading-tight text-ink">
           Stakes
         </h1>
-        <p className="mb-5 text-[14px] leading-relaxed text-muted">
-          Put a number on the line each week. Pod keeps score — who's up, who's
-          behind. How you settle is between you.
+        <p className="mb-4 text-[14px] leading-relaxed text-muted">
+          Put a number on the line each week. Hit your goal, stay in the green —
+          the pod keeps score, and how you settle is up to you.
         </p>
+
+        {rows.length === 1 ? (
+          <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-line bg-paper-2/50 px-3 py-1.5 text-[13px] font-semibold text-ink-soft">
+            {current.name}
+          </div>
+        ) : (
+          <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+            {rows.map((r) => {
+              const isCurrent = r.podId === current.podId;
+              return (
+                <a
+                  key={r.podId}
+                  href={`/app/stakes?pod=${r.podId}`}
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-semibold transition ${
+                    isCurrent
+                      ? "bg-ink text-paper"
+                      : "border border-line bg-card text-ink-soft active:scale-95"
+                  }`}
+                >
+                  {r.name}
+                </a>
+              );
+            })}
+          </div>
+        )}
 
         <StakesPanel
           podId={current.podId}
