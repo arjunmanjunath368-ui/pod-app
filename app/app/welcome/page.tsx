@@ -4,6 +4,30 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
+import WalkthroughCards, { type WalkCard } from "@/components/WalkthroughCards";
+
+const ONBOARD_CARDS: WalkCard[] = [
+  {
+    emoji: "🫛",
+    title: "Fitness with your people",
+    body: "A pod is a small, trusted circle — family or friends — who each chase their own goal and keep each other honest, week to week.",
+  },
+  {
+    emoji: "🎯",
+    title: "Your goal, your way",
+    body: "Everyone picks their own weekly goal — runs, lifts, walks, whatever moves you. You're never compared on who does the most.",
+  },
+  {
+    emoji: "🔥",
+    title: "Win by showing up",
+    body: "The only scoreboard is consistency. Log your sessions, build your streak, and watch the pod's perfect weeks stack up.",
+  },
+  {
+    emoji: "💪",
+    title: "Better together",
+    body: "Quiet week? Get a nudge. Crushing it? Get cheers. Want real skin in the game? The pod can agree to friendly weekly stakes.",
+  },
+];
 
 const PALETTE = ["#c8553d", "#7a9471", "#d9a441", "#4e8d7c", "#2f4a37"];
 
@@ -27,11 +51,14 @@ export default function WelcomePage() {
   const [pod, setPod] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [phase, setPhase] = useState<"intro" | "name">("intro");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setFrom(params.get("from"));
     setPod(params.get("pod"));
+    // Editing your name from settings shouldn't replay the intro.
+    if (params.get("from") === "settings") setPhase("name");
     (async () => {
       const supabase = createClient();
       const {
@@ -85,6 +112,24 @@ export default function WelcomePage() {
   }
 
   const editing = current.length > 0;
+
+  if (phase === "intro") {
+    return (
+      <div className="flex flex-1 flex-col justify-center px-7 py-12">
+        <div className="mb-1 text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
+          {BRAND_MARK} {BRAND_NAME}
+        </div>
+        <h1 className="mb-6 font-serif text-[26px] font-semibold leading-tight text-ink">
+          Welcome to {BRAND_NAME}.
+        </h1>
+        <WalkthroughCards
+          cards={ONBOARD_CARDS}
+          onDone={() => setPhase("name")}
+          doneLabel="Let's go"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col justify-center px-7 py-12">

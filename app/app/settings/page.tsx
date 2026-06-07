@@ -7,6 +7,30 @@ import NotificationToggle from "@/components/NotificationToggle";
 import { BRAND_NAME } from "@/lib/brand";
 import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz } from "@/lib/days";
+import WalkthroughCards, { type WalkCard } from "@/components/WalkthroughCards";
+
+const ABOUT_CARDS: WalkCard[] = [
+  {
+    emoji: "🫛",
+    title: "What a pod is",
+    body: "A handful of people you trust, each working toward their own goal and keeping each other honest, week to week.",
+  },
+  {
+    emoji: "🎯",
+    title: "Different goals, same game",
+    body: "Your goal is yours alone — nobody's ranked on who lifts more or runs farther. You're measured only on showing up.",
+  },
+  {
+    emoji: "🔥",
+    title: "Streaks & perfect weeks",
+    body: "Hit your number on any days you like — order doesn't matter. When everyone hits theirs, that's a perfect week, and perfect weeks build the pod's streak.",
+  },
+  {
+    emoji: "💪",
+    title: "Nudges, cheers & stakes",
+    body: "Quiet teammate? Send a nudge. Someone on fire? Cheer them on. Pausing protects the streak when life gets in the way — and the pod can add weekly stakes for extra fire.",
+  },
+];
 
 export default async function SettingsPage({
   searchParams,
@@ -103,22 +127,8 @@ export default async function SettingsPage({
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           How {BRAND_NAME} works
         </div>
-        <div className="mt-3 rounded-2xl border border-line bg-card p-4 text-[15px] leading-relaxed text-ink-soft">
-          <p>
-            Everyone sets their own weekly goal — how many times they'll show
-            up. You're scored together on consistency, not on who does the most.
-          </p>
-          <p className="mt-2.5">
-            Hit your number any days you like; the order doesn't matter. A week
-            you complete is a streak of one — string them together to build your
-            run.
-          </p>
-          <p className="mt-2.5">
-            A <b className="text-ink">perfect week</b> is when everyone hits
-            their goal. Consecutive perfect weeks build the pod's streak — so
-            one person slacking shows. Pausing protects the streak when life
-            gets in the way.
-          </p>
+        <div className="mt-3">
+          <WalkthroughCards cards={ABOUT_CARDS} />
         </div>
 
         <div className="mt-7 flex justify-end">
