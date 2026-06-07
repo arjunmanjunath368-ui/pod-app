@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function configure(): boolean {
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
@@ -58,7 +62,18 @@ export async function POST(req: Request) {
       .maybeSingle();
     const name = me?.display_name || "Someone in your pod";
     const label = body.activityLabel ? ` ${body.activityLabel}` : " a workout";
-    message = body.body || `${name} logged${label} 💪 — your turn?`;
+    message =
+      body.body ||
+      pick([
+        `${name} just logged${label} — your move.`,
+        `${name} showed up today. Your turn to make it count.`,
+        `${name} got${label} in. The pod's rolling — hop in?`,
+        `${name} just put in the work 💪 You in?`,
+        `${name} checked in. A quick one keeps you in the game.`,
+        `${name} trained today — even five honest minutes counts.`,
+        `${name} logged${label}. Don't leave 'em out there solo.`,
+        `${name} showed up. Future-you will thank you.`,
+      ]);
   } else {
     const toUserId: string | undefined = body.toUserId;
     if (!toUserId) {
@@ -80,6 +95,16 @@ export async function POST(req: Request) {
       }
     }
     recipientIds = [toUserId];
+    if (body.kind === "nudge") {
+      const from = body.fromName || "Someone in your pod";
+      message = pick([
+        `${from} nudged you 👋 Your pod's waiting.`,
+        `${from} is rooting for you — time to show up?`,
+        `${from} gave you a nudge. A small one today counts.`,
+        `${from} says it's your turn.`,
+        `${from} noticed you've been quiet — get one in?`,
+      ]);
+    }
   }
 
   if (recipientIds.length === 0) {

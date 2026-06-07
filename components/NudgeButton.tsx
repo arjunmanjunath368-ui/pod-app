@@ -31,8 +31,8 @@ export default function NudgeButton({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         toUserId,
-        title: "Pod",
-        body: `${fromName || "Someone in your pod"} nudged you — your pod's waiting 👋`,
+        kind: "nudge",
+        fromName,
         url: "/app",
       }),
     }).catch(() => {});
