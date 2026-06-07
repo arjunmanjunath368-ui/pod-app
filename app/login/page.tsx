@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
 
@@ -9,6 +9,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const [next, setNext] = useState("/app");
+
+  useEffect(() => {
+    const n = new URLSearchParams(window.location.search).get("next");
+    if (n && n.startsWith("/")) setNext(n);
+  }, []);
 
   async function sendLink() {
     const trimmed = email.trim();
@@ -18,7 +24,11 @@ export default function LoginPage() {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: { emailRedirectTo: `${location.origin}/auth/confirm` },
+      options: {
+        emailRedirectTo: `${location.origin}/auth/confirm?next=${encodeURIComponent(
+          next
+        )}`,
+      },
     });
     setLoading(false);
     if (error) setError(error.message);

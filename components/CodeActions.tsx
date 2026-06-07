@@ -20,9 +20,11 @@ export default function CodeActions({
   function buildMessage() {
     const appUrl =
       typeof window !== "undefined" ? window.location.origin : "";
+    const joinUrl = `${appUrl}/app/start/join?code=${code}`;
     return (
       `Join my pod "${podName}" on ${BRAND_NAME} ${BRAND_MARK}\n` +
-      `Open ${appUrl} and sign in, then enter invite code ${code}.`
+      `Tap to join: ${joinUrl}\n` +
+      `(Already on ${BRAND_NAME}? Just open the app and enter code ${code}.)`
     );
   }
 

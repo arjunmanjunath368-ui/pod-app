@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = searchParams.get("next") ?? "/app";
+  const nextRaw = searchParams.get("next") ?? "/app";
+  const next = nextRaw.startsWith("/") ? nextRaw : "/app";
 
   if (token_hash && type) {
     // The response we'll return — we attach the session cookies directly to it.

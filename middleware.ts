@@ -43,8 +43,15 @@ export async function middleware(request: NextRequest) {
     return r;
   };
 
-  if (!user && isProtected) return redirectTo("/login");
-  if (user && (path === "/" || path === "/login")) return redirectTo("/app");
+  if (!user && isProtected) {
+    const next = path + request.nextUrl.search;
+    return redirectTo(`/login?next=${encodeURIComponent(next)}`);
+  }
+  if (user && (path === "/" || path === "/login")) {
+    const nextParam = request.nextUrl.searchParams.get("next");
+    const dest = nextParam && nextParam.startsWith("/") ? nextParam : "/app";
+    return redirectTo(dest);
+  }
 
   return response;
 }
