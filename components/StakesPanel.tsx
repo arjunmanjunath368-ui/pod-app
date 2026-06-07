@@ -290,12 +290,19 @@ export default function StakesPanel({
               Propose a weekly stake. Everyone in the pod has to agree before it
               turns on.
             </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="mt-3 rounded-full bg-terra px-4 py-2 text-[14px] font-semibold text-white transition active:scale-95"
-            >
-              Propose stakes
-            </button>
+            {activeMembers.length < 2 ? (
+              <p className="mt-3 rounded-xl border border-line bg-paper-2/50 px-3 py-2.5 text-[13px] leading-relaxed text-muted">
+                Stakes need at least one teammate — add someone to your pod first.
+                A bet with yourself isn't much of a bet.
+              </p>
+            ) : (
+              <button
+                onClick={() => setShowForm(true)}
+                className="mt-3 rounded-full bg-terra px-4 py-2 text-[14px] font-semibold text-white transition active:scale-95"
+              >
+                Propose stakes
+              </button>
+            )}
           </>
         ) : (
           <>

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
 import StakesPanel from "@/components/StakesPanel";
 import StakesSync from "@/components/StakesSync";
+import Link from "next/link";
 import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz } from "@/lib/days";
 import { computeStakes, periodStartInstant } from "@/lib/stakes";
@@ -413,7 +414,13 @@ export default async function StakesPage({
     <>
       <StakesSync podId={current.podId} />
       <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
-        <h1 className="mb-1 font-serif text-[26px] font-semibold leading-tight text-ink">
+        <Link
+          href={`/app?pod=${current.podId}`}
+          className="text-[15px] font-semibold text-muted"
+        >
+          ← Back
+        </Link>
+        <h1 className="mb-1 mt-6 font-serif text-[26px] font-semibold leading-tight text-ink">
           Stakes
         </h1>
         <p className="mb-4 text-[14px] leading-relaxed text-muted">
