@@ -79,6 +79,10 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
       const goal = parseGoal(m);
       const mine = weekSess[m.user_id] ?? [];
       const { done, target, ratio } = goalProgress(goal, mine);
+      const joinedAt = m.joined_at ? new Date(m.joined_at) : podCreatedAt;
+      // Joined after this week's Monday → weekly goal hasn't started yet.
+      const goalNotStarted =
+        goal.hasGoal && joinedAt.getTime() > weekStart.getTime();
       return {
         userId: m.user_id,
         name: prof?.display_name ?? "Member",
@@ -100,12 +104,15 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
         shareStats: prof?.share_stats ?? false,
         paused: m.status === "paused",
         pauseUntil: shortDate(m.pause_until as string | null),
+        goalNotStarted,
         isMe: m.user_id === userId,
       };
     })
     .sort((a: any, b: any) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
 
-  const goalRows = rows.filter((r: any) => r.hasGoal && !r.paused);
+  const goalRows = rows.filter(
+    (r: any) => r.hasGoal && !r.paused && !r.goalNotStarted
+  );
   const podPct = goalRows.length
     ? Math.round(
         (goalRows.reduce((acc: number, r: any) => acc + r.ratio, 0) /
@@ -347,7 +354,11 @@ export default async function Home({
                 {sec.rows.map((r: any) => {
                   const meta = activityMeta(r.activity);
                   const behind =
-                    !r.isMe && r.hasGoal && !r.paused && r.done < r.target;
+                    !r.isMe &&
+                    r.hasGoal &&
+                    !r.paused &&
+                    !r.goalNotStarted &&
+                    r.done < r.target;
                   return (
                     <div
                       key={r.userId}
@@ -380,6 +391,10 @@ export default async function Home({
                             <div className="mt-0.5 text-[15px] font-medium text-muted">
                               ⏸ Paused
                               {r.pauseUntil ? ` · back ~${r.pauseUntil}` : " this week"}
+                            </div>
+                          ) : r.goalNotStarted ? (
+                            <div className="mt-0.5 text-[15px] text-muted">
+                              🌱 Goal starts Monday
                             </div>
                           ) : r.hasGoal ? (
                             r.mode === "split" ? (
@@ -417,7 +432,7 @@ export default async function Home({
                             </div>
                           )}
                         </div>
-                        {r.hasGoal && !r.paused && (
+                        {r.hasGoal && !r.paused && !r.goalNotStarted && (
                           <div className="shrink-0 text-right">
                             <div className="font-serif text-[18px] font-semibold text-ink">
                               {r.done}
@@ -432,7 +447,7 @@ export default async function Home({
                         )}
                       </div>
 
-                      {r.hasGoal && !r.paused && (
+                      {r.hasGoal && !r.paused && !r.goalNotStarted && (
                         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-paper-2">
                           <div
                             className="h-full rounded-full"

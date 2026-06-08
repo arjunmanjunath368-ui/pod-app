@@ -86,25 +86,30 @@ export function computeStreaks(opts: {
     (m) => m.hasGoal && m.status === "active"
   );
 
+  // A week "belongs" to a member only if they were in the pod at its start
+  // (its Monday). Joining mid-week means that partial week doesn't count for or
+  // against them — their weekly goal effectively begins the following Monday.
+  const belongs = (m: StreakMember, i: number): boolean =>
+    m.joinedAt.getTime() <= weekStarts[i].getTime();
+
   // Individual streaks
   const memberStreak: Record<string, number> = {};
   for (const m of eligible) {
-    const isComplete = (i: number) =>
-      m.joinedAt.getTime() < weekUpper(i) && hitWeek(m, i);
+    const isComplete = (i: number) => belongs(m, i) && hitWeek(m, i);
 
     let streak = 0;
     const start = isComplete(0) ? 0 : 1; // in-progress week doesn't break
     for (let i = start; i < N; i++) {
-      if (m.joinedAt.getTime() >= weekUpper(i)) break; // before they joined
+      if (!belongs(m, i)) break; // before their first full week
       if (isComplete(i)) streak++;
       else break;
     }
     memberStreak[m.userId] = streak;
   }
 
-  // Pod perfect-week: every member who had joined by that week completed it
+  // Pod perfect-week: every member whose week this is completed it
   const perfectWeek = (i: number): boolean => {
-    const elig = eligible.filter((m) => m.joinedAt.getTime() < weekUpper(i));
+    const elig = eligible.filter((m) => belongs(m, i));
     if (elig.length === 0) return false;
     return elig.every((m) => hitWeek(m, i));
   };

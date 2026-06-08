@@ -52,12 +52,14 @@ async function computeCelebration(
 
   const tz = pod.timezone || "UTC";
   const weekStartsOn = pod.week_starts_on ?? 1;
-  const weekStart = weekStartUtc(tz, weekStartsOn).toISOString();
+  const weekStartInstant = weekStartUtc(tz, weekStartsOn);
+  const weekStart = weekStartInstant.toISOString();
+  const weekStartMs = weekStartInstant.getTime();
 
   const { data: meMem } = await supabase
     .from("pod_members")
     .select(
-      "goal_activity, goal_target_per_week, goal_mode, goal_activities, goal_splits"
+      "joined_at, goal_activity, goal_target_per_week, goal_mode, goal_activities, goal_splits"
     )
     .eq("pod_id", podId)
     .eq("user_id", userId)
@@ -65,6 +67,9 @@ async function computeCelebration(
   if (!meMem) return null;
   const myGoal = parseGoal(meMem);
   if (!myGoal.hasGoal) return null;
+  // Mid-week joiner: weekly goal hasn't started yet, so no weekly celebration.
+  if (meMem.joined_at && new Date(meMem.joined_at).getTime() > weekStartMs)
+    return null;
 
   const { data: weekSessions } = await supabase
     .from("sessions")
@@ -89,12 +94,15 @@ async function computeCelebration(
   const { data: members } = await supabase
     .from("pod_members")
     .select(
-      "user_id, goal_activity, goal_target_per_week, goal_mode, goal_activities, goal_splits, status"
+      "user_id, joined_at, goal_activity, goal_target_per_week, goal_mode, goal_activities, goal_splits, status"
     )
     .eq("pod_id", podId)
     .neq("status", "left");
   const goalMembers = (members ?? []).filter(
-    (m: any) => m.status === "active" && parseGoal(m).hasGoal
+    (m: any) =>
+      m.status === "active" &&
+      parseGoal(m).hasGoal &&
+      !(m.joined_at && new Date(m.joined_at).getTime() > weekStartMs)
   );
   const allHit =
     goalMembers.length > 1 &&

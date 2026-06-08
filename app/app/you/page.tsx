@@ -27,7 +27,7 @@ export default async function YouPage() {
   const { data: memberships } = await supabase
     .from("pod_members")
     .select(
-      "pod_id, goal_activity, goal_label, goal_target_per_week, goal_detail, goal_mode, goal_activities, goal_splits, pods(id, name, timezone, week_starts_on)"
+      "pod_id, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, goal_mode, goal_activities, goal_splits, pods(id, name, timezone, week_starts_on)"
     )
     .eq("user_id", user.id)
     .neq("status", "left");
@@ -76,6 +76,9 @@ export default async function YouPage() {
       )
       .map((s: any) => ({ activity: s.activity ?? null }));
     const { done, target, ratio } = goalProgress(goal, mine);
+    const joinedAt = m.joined_at ? new Date(m.joined_at) : null;
+    const goalNotStarted =
+      goal.hasGoal && !!joinedAt && joinedAt.getTime() > weekStart.getTime();
     return {
       podId: m.pod_id as string,
       name: pod?.name ?? "Pod",
@@ -85,6 +88,7 @@ export default async function YouPage() {
       detail: m.goal_detail as string | null,
       done,
       hasGoal: goal.hasGoal,
+      goalNotStarted,
       remaining: Math.max(target - done, 0),
       ratio,
     };
@@ -208,36 +212,45 @@ export default async function YouPage() {
                     : "No weekly goal set yet"}
                 </div>
 
-                {p.hasGoal && (
-                  <>
-                    <div className="mt-3 flex items-center justify-between text-[13px]">
-                      <span className="font-semibold text-ink">
-                        {p.done}
-                        <span className="text-muted">/{p.target} this week</span>
-                      </span>
-                      <span
-                        className={
-                          p.remaining === 0
-                            ? "font-semibold text-sage"
-                            : "text-muted"
-                        }
-                      >
-                        {p.remaining === 0
-                          ? "Goal hit ✓"
-                          : `${p.remaining} to go`}
-                      </span>
-                    </div>
-                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-paper-2">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.round(p.ratio * 100)}%`,
-                          backgroundColor:
-                            p.ratio >= 1 ? "#7a9471" : "#c8553d",
-                        }}
-                      />
-                    </div>
-                  </>
+                {p.goalNotStarted ? (
+                  <div className="mt-3 text-[13px] font-medium text-muted">
+                    🌱 Your weekly goal starts Monday — today's logs still build
+                    your day streak.
+                  </div>
+                ) : (
+                  p.hasGoal && (
+                    <>
+                      <div className="mt-3 flex items-center justify-between text-[13px]">
+                        <span className="font-semibold text-ink">
+                          {p.done}
+                          <span className="text-muted">
+                            /{p.target} this week
+                          </span>
+                        </span>
+                        <span
+                          className={
+                            p.remaining === 0
+                              ? "font-semibold text-sage"
+                              : "text-muted"
+                          }
+                        >
+                          {p.remaining === 0
+                            ? "Goal hit ✓"
+                            : `${p.remaining} to go`}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-paper-2">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${Math.round(p.ratio * 100)}%`,
+                            backgroundColor:
+                              p.ratio >= 1 ? "#7a9471" : "#c8553d",
+                          }}
+                        />
+                      </div>
+                    </>
+                  )
                 )}
               </div>
             );
