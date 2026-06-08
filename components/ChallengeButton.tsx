@@ -6,25 +6,41 @@ import { createClient } from "@/lib/supabase/client";
 
 // Quick-fill presets for the "barely has 30 min" teammate. Links are robust
 // YouTube searches so they never rot; the sender can swap in their own.
-const PRESETS: { label: string; title: string; link: string }[] = [
+const PRESETS: { label: string; emoji: string; title: string; link: string }[] = [
   {
     label: "20-min full body",
+    emoji: "🏋️",
     title: "20-min full body",
     link: "https://www.youtube.com/results?search_query=20+minute+full+body+workout+no+equipment",
   },
   {
+    label: "30-min full body",
+    emoji: "🏋️",
+    title: "30-min full body",
+    link: "https://www.youtube.com/results?search_query=30+minute+full+body+workout",
+  },
+  {
+    label: "20-min cardio",
+    emoji: "🫀",
+    title: "20-min cardio",
+    link: "https://www.youtube.com/results?search_query=20+minute+cardio+workout+at+home",
+  },
+  {
     label: "15-min mobility",
+    emoji: "🧘",
     title: "15-min mobility flow",
     link: "https://www.youtube.com/results?search_query=15+minute+mobility+routine",
   },
   {
     label: "10-min core",
+    emoji: "🔥",
     title: "10-min core",
     link: "https://www.youtube.com/results?search_query=10+minute+core+workout",
   },
   {
-    label: "20-min walk",
-    title: "20-min brisk walk",
+    label: "Play a sport",
+    emoji: "🎾",
+    title: "Play a sport today",
     link: "",
   },
 ];
@@ -159,25 +175,57 @@ export default function ChallengeButton({
                         : "bg-card text-ink-soft ring-1 ring-line"
                     }`}
                   >
-                    {p.label}
+                    {p.emoji} {p.label}
                   </button>
                 );
               })}
+              <button
+                onClick={() => {
+                  setTitle("");
+                  setLink("");
+                  setError("");
+                }}
+                className="rounded-full px-3 py-1.5 text-[13px] font-semibold text-ink-soft ring-1 ring-line transition active:scale-95"
+              >
+                ✏️ Write your own
+              </button>
             </div>
 
             <div className="mt-4 space-y-3">
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Challenge (e.g. 20-min full body)"
-                className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none placeholder:text-muted focus:border-terra"
-              />
-              <input
-                value={link}
-                onChange={(e) => setLink(e.target.value)}
-                placeholder="Link (optional) — paste a YouTube or IG workout"
-                className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none placeholder:text-muted focus:border-terra"
-              />
+              <div className="relative">
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Challenge (e.g. 20-min full body)"
+                  className="w-full rounded-2xl border border-line bg-card px-4 py-3 pr-10 text-[15px] text-ink outline-none placeholder:text-muted focus:border-terra"
+                />
+                {title && (
+                  <button
+                    onClick={() => setTitle("")}
+                    aria-label="Clear challenge"
+                    className="absolute right-2.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-paper-2 text-[13px] text-muted active:scale-90"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  placeholder="Link (optional) — paste your own YouTube or IG workout"
+                  className="w-full rounded-2xl border border-line bg-card px-4 py-3 pr-10 text-[15px] text-ink outline-none placeholder:text-muted focus:border-terra"
+                />
+                {link && (
+                  <button
+                    onClick={() => setLink("")}
+                    aria-label="Clear link"
+                    className="absolute right-2.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-paper-2 text-[13px] text-muted active:scale-90"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
               <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
