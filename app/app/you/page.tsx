@@ -98,7 +98,7 @@ export default async function YouPage() {
 
   return (
     <>
-      <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
+      <main className="px-5 pb-28 pt-9">
         <AvatarUpload
           userId={user.id}
           hasPhoto={!!profile?.avatar_url}

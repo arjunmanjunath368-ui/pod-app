@@ -235,7 +235,7 @@ export default async function Home({
 
   return (
     <>
-      <main className="flex-1 overflow-y-auto px-5 pb-28 pt-8">
+      <main className="px-5 pb-28 pt-8">
         {/* Header */}
         <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
           {weekday} · {twist}

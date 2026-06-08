@@ -135,7 +135,7 @@ export default async function PodFeed({
 
   return (
     <>
-      <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
+      <main className="px-5 pb-28 pt-9">
         {podsList.length > 1 && (
           <div className="mb-4 flex flex-wrap gap-2">
             {podsList.map((p: any) => (

@@ -88,7 +88,7 @@ export default async function SettingsPage({
 
   return (
     <>
-      <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
+      <main className="px-5 pb-28 pt-9">
         <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
           Settings · {current.name}
         </div>

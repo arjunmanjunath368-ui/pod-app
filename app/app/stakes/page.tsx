@@ -422,7 +422,7 @@ export default async function StakesPage({
   return (
     <>
       <StakesSync podId={current.podId} />
-      <main className="flex-1 overflow-y-auto px-5 pb-28 pt-9">
+      <main className="px-5 pb-28 pt-9">
         <Link
           href={`/app?pod=${current.podId}`}
           className="text-[15px] font-semibold text-muted"

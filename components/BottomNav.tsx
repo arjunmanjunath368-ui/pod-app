@@ -64,7 +64,7 @@ export default function BottomNav({
 
   return (
     <>
-      <nav className="podnav border-t border-line bg-paper/95 backdrop-blur">
+      <nav className="podnav border-t border-line bg-paper shadow-[0_-2px_14px_rgba(26,46,31,0.05)]">
         <div className="flex items-end px-2 pb-6 pt-2.5">
           <Link href={`/app?pod=${podId}`} className={itemCls(active === "home")}>
             <HomeIcon />
