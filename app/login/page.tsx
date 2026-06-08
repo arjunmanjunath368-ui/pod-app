@@ -79,20 +79,20 @@ export default function LoginPage() {
             your people.
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-sage-soft">
-            Everyone in your pod chases their own goal. You only compete on one
-            thing — who shows up.
+            Everyone chases their own goal — let's get each other moving. The
+            only thing you compete on is showing up.
           </p>
         </div>
 
         {!sent ? (
           <div>
             <h2 className="font-serif text-[22px] font-semibold text-ink">
-              {isSignup ? "Create your account" : "Welcome back"}
+              {isSignup ? "Create your account" : "Sign in to Pod"}
             </h2>
             <p className="mt-1 text-[14px] text-muted">
               {isSignup
                 ? "Set up your account to start a pod or join one."
-                : "Sign in to get back to your pod."}
+                : "Enter your email and we'll send you a link."}
             </p>
 
             <label className="mb-2 mt-6 block text-[13px] font-semibold text-muted">
@@ -148,7 +148,7 @@ export default function LoginPage() {
                     onClick={() => switchMode("signup")}
                     className="font-semibold text-terra"
                   >
-                    Create a free account today
+                    Create an account today
                   </button>
                 </>
               )}
