@@ -126,6 +126,21 @@ export default async function YouPage() {
           color={profile?.avatar_color ?? "#c8553d"}
         />
 
+        <Link
+          href="/app/highlight"
+          className="mt-6 flex items-center justify-between gap-3 rounded-2xl bg-ink p-4 text-paper transition active:scale-[0.99]"
+        >
+          <div className="min-w-0">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-sage-soft">
+              ✨ Monthly highlight
+            </div>
+            <div className="mt-0.5 text-[15px] font-semibold">
+              See how your month's going →
+            </div>
+          </div>
+          <span className="text-[24px] leading-none">🏆</span>
+        </Link>
+
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           My goals
         </div>
