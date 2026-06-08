@@ -11,12 +11,13 @@ export type PrCelebration = {
 
 const DISMISS_KEY = "pod_pr_dismissed";
 
-function loadDismissed(): Set<string> {
-  if (typeof window === "undefined") return new Set();
+function loadDismissed(): string[] {
+  if (typeof window === "undefined") return [];
   try {
-    return new Set(JSON.parse(localStorage.getItem(DISMISS_KEY) || "[]"));
+    const v = JSON.parse(localStorage.getItem(DISMISS_KEY) || "[]");
+    return Array.isArray(v) ? v : [];
   } catch {
-    return new Set();
+    return [];
   }
 }
 
@@ -25,20 +26,19 @@ export default function PrCelebrations({
 }: {
   events: PrCelebration[];
 }) {
-  const [dismissed, setDismissed] = useState<Set<string>>(loadDismissed);
+  const [dismissed, setDismissed] = useState<string[]>(loadDismissed);
 
   function dismiss(id: string) {
     setDismissed((prev) => {
-      const next = new Set(prev);
-      next.add(id);
+      const next = prev.includes(id) ? prev : [...prev, id];
       try {
-        localStorage.setItem(DISMISS_KEY, JSON.stringify([...next]));
+        localStorage.setItem(DISMISS_KEY, JSON.stringify(next));
       } catch {}
       return next;
     });
   }
 
-  const visible = events.filter((e) => !dismissed.has(e.id));
+  const visible = events.filter((e) => !dismissed.includes(e.id));
   if (visible.length === 0) return null;
 
   return (
