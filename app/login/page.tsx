@@ -14,12 +14,21 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendNote, setResendNote] = useState("");
+  const [cooldown, setCooldown] = useState(0);
   const [next, setNext] = useState("/app");
 
   useEffect(() => {
     const n = new URLSearchParams(window.location.search).get("next");
     if (n && n.startsWith("/")) setNext(n);
   }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   function switchMode(m: Mode) {
     setMode(m);
@@ -82,7 +91,11 @@ export default function LoginPage() {
         type: "email",
       });
       if (error) {
-        setError(error.message);
+        setError(
+          /expired|invalid|token/i.test(error.message)
+            ? "That code's expired or already used — tap Resend for a fresh one."
+            : error.message
+        );
         return;
       }
       // Full navigation so the middleware picks up the freshly-set cookies.
@@ -91,6 +104,37 @@ export default function LoginPage() {
       setError(e?.message || "Couldn't verify that code. Please try again.");
     } finally {
       setVerifying(false);
+    }
+  }
+
+  // Request a brand-new code without leaving the code screen.
+  async function resend() {
+    if (cooldown > 0 || resending) return;
+    setResending(true);
+    setError("");
+    setResendNote("");
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          shouldCreateUser: mode === "signup",
+          emailRedirectTo: `${location.origin}/auth/confirm?next=${encodeURIComponent(
+            next
+          )}`,
+        },
+      });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setCode("");
+      setResendNote("New code sent — check your email.");
+      setCooldown(30);
+    } catch (e: any) {
+      setError(e?.message || "Couldn't resend. Please try again.");
+    } finally {
+      setResending(false);
     }
   }
 
@@ -214,6 +258,11 @@ export default function LoginPage() {
             {error && (
               <p className="mt-3 text-center text-[13px] text-terra">{error}</p>
             )}
+            {resendNote && !error && (
+              <p className="mt-3 text-center text-[13px] text-sage">
+                {resendNote}
+              </p>
+            )}
 
             <button
               onClick={verify}
@@ -223,8 +272,22 @@ export default function LoginPage() {
               {verifying ? "Verifying…" : isSignup ? "Create my account" : "Sign in"}
             </button>
 
+            <button
+              onClick={resend}
+              disabled={resending || cooldown > 0}
+              className="mt-3 w-full text-center text-[14px] font-semibold text-terra disabled:opacity-50"
+            >
+              {resending
+                ? "Sending…"
+                : cooldown > 0
+                  ? `Resend code in ${cooldown}s`
+                  : "Resend code"}
+            </button>
+
             <p className="mt-4 text-center text-[13px] leading-relaxed text-muted">
-              On a computer? The link in the same email works too.
+              Using the app? Enter the code here — don't tap the email link, as
+              that opens the browser instead. On a computer, the link works
+              fine.
             </p>
             <button
               onClick={() => {
@@ -232,8 +295,9 @@ export default function LoginPage() {
                 setEmail("");
                 setCode("");
                 setError("");
+                setResendNote("");
               }}
-              className="mt-3 w-full text-center text-[14px] font-semibold text-terra"
+              className="mt-3 w-full text-center text-[14px] font-semibold text-muted"
             >
               Use a different email
             </button>
