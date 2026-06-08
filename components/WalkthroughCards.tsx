@@ -82,7 +82,11 @@ export default function WalkthroughCards({
         >
           {doneLabel}
         </button>
-      ) : null}
+      ) : (
+        // Info carousel: keep the same footprint on the last card so nothing
+        // below (e.g. Sign out) shifts up into the tap path.
+        <div className="mt-6 h-[56px]" aria-hidden="true" />
+      )}
 
       {onDone && !last && (
         <button
