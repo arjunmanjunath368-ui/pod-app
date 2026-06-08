@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { weekStartUtc, weekRangeLabel } from "@/lib/week";
 import { computeStreaks } from "@/lib/streaks";
-import { dayKeyInTz } from "@/lib/days";
+import { dayKeyInTz, shortDate } from "@/lib/days";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
 import { parseGoal, goalProgress, splitBreakdown } from "@/lib/goals";
 import BottomNav from "@/components/BottomNav";
@@ -21,7 +21,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
   const { data: members } = await supabase
     .from("pod_members")
     .select(
-      "user_id, status, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, goal_mode, goal_activities, goal_splits, profiles(display_name, initials, avatar_color, avatar_url, share_stats)"
+      "user_id, status, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, goal_mode, goal_activities, goal_splits, pause_until, profiles(display_name, initials, avatar_color, avatar_url, share_stats)"
     )
     .eq("pod_id", podId)
     .neq("status", "left");
@@ -99,6 +99,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
         total: allDays[m.user_id]?.size ?? 0,
         shareStats: prof?.share_stats ?? false,
         paused: m.status === "paused",
+        pauseUntil: shortDate(m.pause_until as string | null),
         isMe: m.user_id === userId,
       };
     })
@@ -377,7 +378,8 @@ export default async function Home({
                           </div>
                           {r.paused ? (
                             <div className="mt-0.5 text-[15px] font-medium text-muted">
-                              ⏸ Paused this week
+                              ⏸ Paused
+                              {r.pauseUntil ? ` · back ~${r.pauseUntil}` : " this week"}
                             </div>
                           ) : r.hasGoal ? (
                             r.mode === "split" ? (

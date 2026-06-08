@@ -45,7 +45,7 @@ export default async function SettingsPage({
 
   const { data: memberships } = await supabase
     .from("pod_members")
-    .select("pod_id, status, pods(id, name, timezone, week_starts_on)")
+    .select("pod_id, status, pause_until, pods(id, name, timezone, week_starts_on)")
     .eq("user_id", user.id)
     .neq("status", "left");
 
@@ -63,6 +63,7 @@ export default async function SettingsPage({
     return {
       podId: m.pod_id as string,
       status: m.status as string,
+      pauseUntil: (m.pause_until as string | null) ?? null,
       name: pod?.name ?? "Pod",
       tz: pod?.timezone ?? "UTC",
       wso: pod?.week_starts_on ?? 1,
@@ -104,6 +105,7 @@ export default async function SettingsPage({
           stakesActive={stakesActive}
           currentWeekStart={currentWeekStart}
           nextWeekStart={nextWeekStart}
+          initialPauseUntil={current.pauseUntil}
         />
 
         <div className="mt-4">

@@ -10,6 +10,18 @@ export function dayKeyInTz(date: Date, tz: string): string {
   }).format(date);
 }
 
+// "Jun 15" from a "YYYY-MM-DD" string (null/garbage -> null).
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+export function shortDate(d?: string | null): string | null {
+  if (!d) return null;
+  const [, m, day] = d.split("-").map(Number);
+  if (!m || !day || m < 1 || m > 12) return null;
+  return `${MONTHS[m - 1]} ${day}`;
+}
+
 export type DayCell = { day: number | null; key: string | null; isToday: boolean };
 
 // Current month as a Sunday-first grid of cells (leading blanks for alignment).
