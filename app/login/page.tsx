@@ -93,7 +93,7 @@ export default function LoginPage() {
       if (error) {
         setError(
           /expired|invalid|token/i.test(error.message)
-            ? "That code's expired or already used — tap Resend for a fresh one."
+            ? "Incorrect or expired code. Please re-enter it, or request a new one."
             : error.message
         );
         return;
