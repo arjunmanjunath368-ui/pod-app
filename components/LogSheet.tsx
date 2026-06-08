@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ACTIVITIES, activityMeta, type ActivityKey } from "@/lib/activities";
 import { parseGoal, goalHit } from "@/lib/goals";
 import { weekStartUtc } from "@/lib/week";
+import { enablePush, pushSupported, isIOS, isStandalone } from "@/lib/push";
 
 type Celebration = { tier: "perfect" | "goal"; detail: string };
 
@@ -152,6 +153,30 @@ export default function LogSheet({
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
+  const [primer, setPrimer] = useState(false);
+  const [primerBusy, setPrimerBusy] = useState(false);
+
+  // Soft pre-permission prompt: only worth showing where push can actually work
+  // and the user hasn't decided yet (granted/denied → never re-ask here), and
+  // not again for a few days after they've seen it.
+  function shouldPrime(): boolean {
+    if (typeof window === "undefined") return false;
+    if (!pushSupported()) return false;
+    if (isIOS() && !isStandalone()) return false;
+    if (typeof Notification === "undefined") return false;
+    if (Notification.permission !== "default") return false;
+    try {
+      const last = Number(localStorage.getItem("pod_notif_primer_at") || 0);
+      if (last && Date.now() - last < 3 * 24 * 60 * 60 * 1000) return false;
+    } catch {}
+    return true;
+  }
+
+  function markPrimerSeen() {
+    try {
+      localStorage.setItem("pod_notif_primer_at", String(Date.now()));
+    } catch {}
+  }
   const [pods, setPods] = useState<{ id: string; name: string }[]>([]);
   const [selectedPods, setSelectedPods] = useState<string[]>([podId]);
 
@@ -202,10 +227,33 @@ export default function LogSheet({
   function finishCelebration() {
     setCelebration(null);
     setDone(false);
+    if (shouldPrime()) {
+      markPrimerSeen();
+      setPrimer(true);
+      return; // primer handles closing
+    }
     setNote("");
     clearPhoto();
     onClose();
     router.refresh();
+  }
+
+  function closeAfterPrimer() {
+    setPrimer(false);
+    setNote("");
+    clearPhoto();
+    onClose();
+    router.refresh();
+  }
+
+  async function primerTurnOn() {
+    if (primerBusy) return;
+    setPrimerBusy(true);
+    try {
+      await enablePush(userId);
+    } catch {}
+    setPrimerBusy(false);
+    closeAfterPrimer();
   }
 
   async function logIt() {
@@ -283,6 +331,12 @@ export default function LogSheet({
       return;
     }
 
+    if (shouldPrime()) {
+      markPrimerSeen();
+      setPrimer(true); // primer handles closing
+      return;
+    }
+
     setDone(true);
     setTimeout(() => {
       setDone(false);
@@ -297,7 +351,7 @@ export default function LogSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
         className="absolute inset-0 bg-ink/40"
-        onClick={() => !saving && !celebration && onClose()}
+        onClick={() => !saving && !celebration && !primer && onClose()}
       />
       <div className="sheet-enter relative w-full max-w-[420px] rounded-t-[28px] bg-paper px-6 pb-9 pt-3 shadow-pod-lg">
         <div className="mx-auto mb-5 h-1.5 w-10 rounded-full bg-line" />
@@ -354,6 +408,31 @@ export default function LogSheet({
             <p className="mt-1 text-[15px] text-muted">
               Your pod sees you showed up.
             </p>
+          </div>
+        ) : primer ? (
+          <div className="py-6 text-center">
+            <div className="text-[44px]">🔔</div>
+            <h2 className="mt-2 font-serif text-[23px] font-semibold leading-tight text-ink">
+              Want your pod to cheer you on?
+            </h2>
+            <p className="mx-auto mt-2 max-w-[300px] text-[15px] leading-relaxed text-muted">
+              Turn on notifications and you'll know the moment a teammate shows
+              up or cheers your workout — and they'll feel it when you do.
+            </p>
+            <button
+              onClick={primerTurnOn}
+              disabled={primerBusy}
+              className="mt-6 w-full rounded-2xl bg-terra py-4 text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+            >
+              {primerBusy ? "Turning on…" : "Turn on notifications"}
+            </button>
+            <button
+              onClick={closeAfterPrimer}
+              disabled={primerBusy}
+              className="mt-3 w-full text-center text-[14px] font-semibold text-muted disabled:opacity-60"
+            >
+              Maybe later
+            </button>
           </div>
         ) : (
           <>
