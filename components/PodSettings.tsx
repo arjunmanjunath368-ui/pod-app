@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { shortDate } from "@/lib/days";
 
@@ -11,7 +10,6 @@ export default function PodSettings({
   userId,
   initialStatus,
   podName,
-  displayName,
   stakesActive,
   currentWeekStart,
   nextWeekStart,
@@ -21,7 +19,6 @@ export default function PodSettings({
   userId: string;
   initialStatus: string;
   podName: string;
-  displayName: string;
   stakesActive: boolean;
   currentWeekStart: string;
   nextWeekStart: string;
@@ -238,29 +235,6 @@ export default function PodSettings({
             </div>
           </div>
         )}
-      </div>
-
-      {/* Display name */}
-      <div className="rounded-2xl border border-line bg-card p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[15px] font-semibold text-ink">
-              Display name
-            </div>
-            <div className="mt-0.5 truncate text-[16px] text-ink-soft">
-              {displayName}
-            </div>
-            <p className="mt-0.5 text-[13px] text-muted">
-              How your pods see you.
-            </p>
-          </div>
-          <Link
-            href={`/app/welcome?from=settings&pod=${podId}`}
-            className="shrink-0 text-[13px] font-semibold text-terra"
-          >
-            Edit
-          </Link>
-        </div>
       </div>
 
       {/* Leave pod */}

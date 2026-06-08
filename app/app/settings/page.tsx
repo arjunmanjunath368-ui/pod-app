@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
-import PodSettings from "@/components/PodSettings";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationToggle from "@/components/NotificationToggle";
 import { BRAND_NAME } from "@/lib/brand";
-import { weekStartUtc } from "@/lib/week";
-import { dayKeyInTz } from "@/lib/days";
 import WalkthroughCards, { type WalkCard } from "@/components/WalkthroughCards";
 
 const ABOUT_CARDS: WalkCard[] = [
@@ -32,24 +30,23 @@ const ABOUT_CARDS: WalkCard[] = [
   },
 ];
 
-export default async function SettingsPage({
-  searchParams,
-}: {
-  searchParams: { pod?: string };
-}) {
+export default async function SettingsPage() {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Account settings aren't pod-scoped, but the bottom nav still needs a pod
+  // for its other tabs.
   const { data: memberships } = await supabase
     .from("pod_members")
-    .select("pod_id, status, pause_until, pods(id, name, timezone, week_starts_on)")
+    .select("pod_id")
     .eq("user_id", user.id)
-    .neq("status", "left");
-
+    .neq("status", "left")
+    .limit(1);
   if (!memberships || memberships.length === 0) redirect("/app/start");
+  const navPodId = memberships[0].pod_id as string;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -58,72 +55,39 @@ export default async function SettingsPage({
     .maybeSingle();
   const displayName = profile?.display_name ?? "You";
 
-  const rows = memberships.map((m: any) => {
-    const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
-    return {
-      podId: m.pod_id as string,
-      status: m.status as string,
-      pauseUntil: (m.pause_until as string | null) ?? null,
-      name: pod?.name ?? "Pod",
-      tz: pod?.timezone ?? "UTC",
-      wso: pod?.week_starts_on ?? 1,
-    };
-  });
-  const current = rows.find((r) => r.podId === searchParams.pod) ?? rows[0];
-
-  // Is a stakes period live? (drives the resume "join now vs. next Monday" choice)
-  const { data: stakeRow } = await supabase
-    .from("pod_stakes")
-    .select("status")
-    .eq("pod_id", current.podId)
-    .maybeSingle();
-  const stakesActive = stakeRow?.status === "active";
-
-  const wsInstant = weekStartUtc(current.tz, current.wso);
-  const currentWeekStart = dayKeyInTz(wsInstant, current.tz);
-  const nextWeekStart = dayKeyInTz(
-    new Date(wsInstant.getTime() + 7 * 86400000),
-    current.tz
-  );
-
   return (
     <>
       <main className="px-5 pb-28 pt-9">
-        <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
-          Settings · {current.name}
-        </div>
         <h1 className="mb-5 font-serif text-[26px] font-semibold leading-tight text-ink">
           Settings
         </h1>
 
-        <PodSettings
-          podId={current.podId}
-          userId={user.id}
-          initialStatus={current.status}
-          podName={current.name}
-          displayName={displayName}
-          stakesActive={stakesActive}
-          currentWeekStart={currentWeekStart}
-          nextWeekStart={nextWeekStart}
-          initialPauseUntil={current.pauseUntil}
-        />
+        {/* Display name (account-level) */}
+        <div className="rounded-2xl border border-line bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold text-ink">
+                Display name
+              </div>
+              <div className="mt-0.5 truncate text-[16px] text-ink-soft">
+                {displayName}
+              </div>
+              <p className="mt-0.5 text-[13px] text-muted">
+                How your pods see you.
+              </p>
+            </div>
+            <Link
+              href={`/app/welcome?from=settings&pod=${navPodId}`}
+              className="shrink-0 text-[13px] font-semibold text-terra"
+            >
+              Edit
+            </Link>
+          </div>
+        </div>
 
         <div className="mt-4">
           <NotificationToggle userId={user.id} />
         </div>
-
-        <a
-          href={`/app/stakes?pod=${current.podId}`}
-          className="mt-4 flex items-center justify-between rounded-2xl border border-line bg-card p-4 transition active:scale-[0.99]"
-        >
-          <div className="min-w-0">
-            <div className="text-[15px] font-semibold text-ink">Stakes</div>
-            <p className="mt-1 text-[14px] text-muted">
-              Put a number on the line each week.
-            </p>
-          </div>
-          <span className="ml-3 text-muted">→</span>
-        </a>
 
         {/* How it works */}
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
@@ -138,7 +102,7 @@ export default async function SettingsPage({
         </div>
       </main>
 
-      <BottomNav active="settings" podId={current.podId} userId={user.id} />
+      <BottomNav active="settings" podId={navPodId} userId={user.id} />
     </>
   );
 }
