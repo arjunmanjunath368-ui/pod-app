@@ -131,7 +131,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
           totalRemaining === 1 ? "session" : "sessions"
         } from a perfect week.`;
 
-  return { pod, rows, goalRows, podPct, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso) };
+  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso) };
 }
 
 export default async function Home({
@@ -312,7 +312,7 @@ export default async function Home({
                     </div>
                   ) : (
                     <div className="text-[12px] text-sage-soft">
-                      {sec.goalRows.length} of {sec.rows.length} have goals set
+                      {sec.goalsSet} of {sec.rows.length} have goals set
                     </div>
                   )}
                 </div>
@@ -341,6 +341,11 @@ export default async function Home({
                       everyone shows up to their own goal.
                     </p>
                   </>
+                ) : sec.goalsSet > 0 ? (
+                  <p className="mt-3 text-[15px] leading-relaxed text-sage-soft">
+                    Goals are set 🌱 Your pod's week kicks off Monday — tracking
+                    starts then.
+                  </p>
                 ) : (
                   <p className="mt-3 text-[15px] leading-relaxed text-sage-soft">
                     Once people set their weekly goals, you'll see how the pod is

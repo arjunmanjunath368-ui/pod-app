@@ -148,13 +148,20 @@ export default function PodSettings({
                 (optional — your pod will see this)
               </span>
             </label>
-            <input
-              type="date"
-              value={pauseUntil}
-              min={today}
-              onChange={(e) => setPauseUntil(e.target.value)}
-              className="rounded-xl border border-line bg-paper-2/60 px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
-            />
+            <div className="relative">
+              <input
+                type="date"
+                value={pauseUntil}
+                min={today}
+                onChange={(e) => setPauseUntil(e.target.value)}
+                className="peer w-full rounded-xl border border-line bg-paper-2/60 px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
+              />
+              {!pauseUntil && (
+                <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[15px] text-muted peer-focus:hidden">
+                  MM / DD / YYYY
+                </span>
+              )}
+            </div>
             <button
               onClick={pause}
               disabled={busy}
@@ -171,13 +178,20 @@ export default function PodSettings({
               Expected back
             </label>
             <div className="flex gap-2">
-              <input
-                type="date"
-                value={pauseUntil}
-                min={today}
-                onChange={(e) => setPauseUntil(e.target.value)}
-                className="flex-1 rounded-xl border border-line bg-paper-2/60 px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
-              />
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={pauseUntil}
+                  min={today}
+                  onChange={(e) => setPauseUntil(e.target.value)}
+                  className="peer w-full rounded-xl border border-line bg-paper-2/60 px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
+                />
+                {!pauseUntil && (
+                  <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[15px] text-muted peer-focus:hidden">
+                    MM / DD / YYYY
+                  </span>
+                )}
+              </div>
               <button
                 onClick={updateEta}
                 disabled={busy || !etaDirty}

@@ -133,7 +133,7 @@ export default async function SettingsPage({
           <WalkthroughCards cards={ABOUT_CARDS} />
         </div>
 
-        <div className="mt-7 flex justify-end">
+        <div className="mt-8">
           <SignOutButton />
         </div>
       </main>
