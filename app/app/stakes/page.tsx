@@ -7,6 +7,7 @@ import Link from "next/link";
 import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz } from "@/lib/days";
 import { computeStakes, periodStartInstant } from "@/lib/stakes";
+import { parseGoal } from "@/lib/goals";
 
 export default async function StakesPage({
   searchParams,
@@ -42,21 +43,28 @@ export default async function StakesPage({
 
   const { data: mems } = await supabase
     .from("pod_members")
-    .select("user_id, status, goal_target_per_week, staked_from, profiles(display_name)")
+    .select(
+      "user_id, status, goal_activity, goal_target_per_week, goal_mode, goal_activities, goal_splits, staked_from, profiles(display_name)"
+    )
     .eq("pod_id", current.podId)
     .neq("status", "left");
   // All members who haven't left — includes paused. computeStakes filters the pot
   // down to active-with-goal; paused members still appear in standings + must
   // consent (they're bound by the bet when they resume).
-  const podMembers = (mems ?? []).map((m: any) => ({
-    userId: m.user_id as string,
-    name:
-      (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles)?.display_name ??
-      "Member",
-    target: m.goal_target_per_week ?? 0,
-    status: m.status as string,
-    stakedFrom: (m.staked_from as string | null) ?? null,
-  }));
+  const podMembers = (mems ?? []).map((m: any) => {
+    const g = parseGoal(m);
+    return {
+      userId: m.user_id as string,
+      name:
+        (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles)
+          ?.display_name ?? "Member",
+      target: g.target,
+      status: m.status as string,
+      stakedFrom: (m.staked_from as string | null) ?? null,
+      mode: g.mode,
+      splits: g.splits,
+    };
+  });
   const nameOf = (id: string) =>
     podMembers.find((m) => m.userId === id)?.name ?? "Member";
 
@@ -73,12 +81,13 @@ export default async function StakesPage({
     const startInstant0 = periodStartInstant(stake.period_start, tz, wso);
     const { data: sess } = await supabase
       .from("sessions")
-      .select("user_id, logged_at")
+      .select("user_id, logged_at, activity")
       .eq("pod_id", current.podId)
       .gte("logged_at", startInstant0.toISOString());
     const sessions = (sess ?? []).map((s: any) => ({
       userId: s.user_id as string,
       loggedAt: new Date(s.logged_at),
+      activity: (s.activity as string | null) ?? null,
     }));
 
     // Frozen per-week rosters (pause fairness): who was staked each week. Once a

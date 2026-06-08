@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ACTIVITIES, activityMeta, type ActivityKey } from "@/lib/activities";
+import { parseGoal, goalHit } from "@/lib/goals";
 import { weekStartUtc } from "@/lib/week";
 
 type Celebration = { tier: "perfect" | "goal"; detail: string };
@@ -39,7 +40,8 @@ async function compressToJpeg(file: File): Promise<Blob> {
 async function computeCelebration(
   supabase: ReturnType<typeof createClient>,
   podId: string,
-  userId: string
+  userId: string,
+  loggedActivity: string | null
 ): Promise<Celebration | null> {
   const { data: pod } = await supabase
     .from("pods")
@@ -54,40 +56,49 @@ async function computeCelebration(
 
   const { data: meMem } = await supabase
     .from("pod_members")
-    .select("goal_target_per_week")
+    .select(
+      "goal_activity, goal_target_per_week, goal_mode, goal_activities, goal_splits"
+    )
     .eq("pod_id", podId)
     .eq("user_id", userId)
     .maybeSingle();
-  const myTarget = meMem?.goal_target_per_week ?? 0;
-  if (!myTarget || myTarget < 1) return null;
+  if (!meMem) return null;
+  const myGoal = parseGoal(meMem);
+  if (!myGoal.hasGoal) return null;
 
   const { data: weekSessions } = await supabase
     .from("sessions")
-    .select("user_id")
+    .select("user_id, activity")
     .eq("pod_id", podId)
     .gte("logged_at", weekStart);
-  const counts: Record<string, number> = {};
+  const byUser: Record<string, { activity: string | null }[]> = {};
   (weekSessions ?? []).forEach((s: any) => {
-    counts[s.user_id] = (counts[s.user_id] ?? 0) + 1;
+    (byUser[s.user_id] ??= []).push({ activity: s.activity ?? null });
   });
+  const mine = byUser[userId] ?? [];
 
-  // Only the exact crossing celebrates (one per goal, per week).
-  if ((counts[userId] ?? 0) !== myTarget) return null;
+  // Celebrate only on the session that tips you over: hit now, but not hit if
+  // you back out the one we just logged. Works for combined and split alike.
+  if (!goalHit(myGoal, mine)) return null;
+  const idx = mine.findIndex((s) => s.activity === loggedActivity);
+  const without =
+    idx >= 0 ? mine.filter((_, i) => i !== idx) : mine.slice(0, -1);
+  if (goalHit(myGoal, without)) return null;
 
   // Perfect week: every active member with a goal has met it.
   const { data: members } = await supabase
     .from("pod_members")
-    .select("user_id, goal_target_per_week, status")
+    .select(
+      "user_id, goal_activity, goal_target_per_week, goal_mode, goal_activities, goal_splits, status"
+    )
     .eq("pod_id", podId)
     .neq("status", "left");
   const goalMembers = (members ?? []).filter(
-    (m: any) => (m.goal_target_per_week ?? 0) >= 1 && m.status === "active"
+    (m: any) => m.status === "active" && parseGoal(m).hasGoal
   );
   const allHit =
     goalMembers.length > 1 &&
-    goalMembers.every(
-      (m: any) => (counts[m.user_id] ?? 0) >= m.goal_target_per_week
-    );
+    goalMembers.every((m: any) => goalHit(parseGoal(m), byUser[m.user_id] ?? []));
 
   if (allHit) {
     return {
@@ -97,7 +108,10 @@ async function computeCelebration(
   }
   return {
     tier: "goal",
-    detail: `That's ${myTarget} of ${myTarget} this week. You showed up.`,
+    detail:
+      myGoal.mode === "split"
+        ? "You hit every target this week. You showed up."
+        : `That's ${myGoal.target} of ${myGoal.target} this week. You showed up.`,
   };
 }
 
@@ -232,7 +246,7 @@ export default function LogSheet({
     // Did this one cross a milestone?
     let cel: Celebration | null = null;
     try {
-      cel = await computeCelebration(supabase, selected, userId);
+      cel = await computeCelebration(supabase, selected, userId, activities[0] ?? null);
     } catch {
       cel = null;
     }

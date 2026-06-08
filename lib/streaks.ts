@@ -13,15 +13,18 @@ import { weekStartUtc } from "./week";
 
 export type StreakMember = {
   userId: string;
-  target: number; // 0 if no goal
+  target: number; // 0 if no goal (combined total, or sum of split targets)
   hasGoal: boolean;
   status: string; // 'active' | 'paused' | 'left'
   joinedAt: Date;
+  mode?: "combined" | "split";
+  splits?: { activity: string; target: number }[];
 };
 
 export type StreakSession = {
   userId: string;
   loggedAt: Date;
+  activity?: string | null;
 };
 
 export function computeStreaks(opts: {
@@ -55,16 +58,28 @@ export function computeStreaks(opts: {
   const weekUpper = (i: number): number =>
     i === 0 ? now.getTime() + 1 : weekStarts[i - 1].getTime();
 
-  const countInWeek = (userId: string, i: number): number => {
+  const countInWeek = (userId: string, i: number, activity?: string): number => {
     const lo = weekStarts[i].getTime();
     const hi = weekUpper(i);
     let c = 0;
     for (const s of sessions) {
       if (s.userId !== userId) continue;
+      if (activity !== undefined && s.activity !== activity) continue;
       const t = s.loggedAt.getTime();
       if (t >= lo && t < hi) c++;
     }
     return c;
+  };
+
+  // Did this member hit their goal in week i? Combined => total >= target;
+  // split => every per-activity target met.
+  const hitWeek = (m: StreakMember, i: number): boolean => {
+    if (m.mode === "split" && m.splits && m.splits.length > 0) {
+      return m.splits.every(
+        (s) => countInWeek(m.userId, i, s.activity) >= s.target
+      );
+    }
+    return countInWeek(m.userId, i) >= m.target;
   };
 
   const eligible = opts.members.filter(
@@ -75,8 +90,7 @@ export function computeStreaks(opts: {
   const memberStreak: Record<string, number> = {};
   for (const m of eligible) {
     const isComplete = (i: number) =>
-      m.joinedAt.getTime() < weekUpper(i) &&
-      countInWeek(m.userId, i) >= m.target;
+      m.joinedAt.getTime() < weekUpper(i) && hitWeek(m, i);
 
     let streak = 0;
     const start = isComplete(0) ? 0 : 1; // in-progress week doesn't break
@@ -92,7 +106,7 @@ export function computeStreaks(opts: {
   const perfectWeek = (i: number): boolean => {
     const elig = eligible.filter((m) => m.joinedAt.getTime() < weekUpper(i));
     if (elig.length === 0) return false;
-    return elig.every((m) => countInWeek(m.userId, i) >= m.target);
+    return elig.every((m) => hitWeek(m, i));
   };
 
   const perfectThisWeek = perfectWeek(0);

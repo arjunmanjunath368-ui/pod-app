@@ -8,8 +8,14 @@ export type StakeMember = {
   // Week-start (YYYY-MM-DD) this member is staked from since their last resume.
   // null/undefined = staked from the period start.
   stakedFrom?: string | null;
+  mode?: "combined" | "split";
+  splits?: { activity: string; target: number }[];
 };
-export type StakeSession = { userId: string; loggedAt: Date };
+export type StakeSession = {
+  userId: string;
+  loggedAt: Date;
+  activity?: string | null;
+};
 
 export type Standing = { userId: string; firmNet: number; provNet: number };
 
@@ -85,9 +91,13 @@ export function computeStakes(opts: {
   const nowMs = now.getTime();
 
   const targetOf: Record<string, number> = {};
+  const splitOf: Record<string, { activity: string; target: number }[]> = {};
   const memberIds = new Set<string>();
   members.forEach((m) => {
     targetOf[m.userId] = m.target;
+    if (m.mode === "split" && m.splits && m.splits.length > 0) {
+      splitOf[m.userId] = m.splits;
+    }
     memberIds.add(m.userId);
   });
 
@@ -145,17 +155,27 @@ export function computeStakes(opts: {
     const { start, end } = weekBounds(tz, weekStartsOn, startInstant, i);
     const isComplete = end.getTime() <= nowMs;
 
-    const counts: Record<string, number> = {};
-    roster.forEach((id) => (counts[id] = 0));
+    // Gather each roster member's sessions for this week (with activity), so a
+    // split goal can be checked per activity and a combined goal by total.
+    const weekSess: Record<string, (string | null | undefined)[]> = {};
+    roster.forEach((id) => (weekSess[id] = []));
     for (const s of sessions) {
-      if (counts[s.userId] === undefined) continue;
+      if (weekSess[s.userId] === undefined) continue;
       const t = s.loggedAt.getTime();
-      if (t >= start.getTime() && t < end.getTime()) counts[s.userId]++;
+      if (t >= start.getTime() && t < end.getTime())
+        weekSess[s.userId].push(s.activity);
     }
 
-    const hitters = roster.filter(
-      (id) => counts[id] >= (targetOf[id] ?? Infinity)
-    );
+    const hitters = roster.filter((id) => {
+      const splits = splitOf[id];
+      if (splits) {
+        return splits.every(
+          (sp) =>
+            weekSess[id].filter((a) => a === sp.activity).length >= sp.target
+        );
+      }
+      return weekSess[id].length >= (targetOf[id] ?? Infinity);
+    });
     const pot = roster.length * stakeAmount;
     const weekNet: Record<string, number> = {};
     roster.forEach((id) => (weekNet[id] = 0));

@@ -6,6 +6,7 @@ import { weekStartUtc, weekRangeLabel } from "@/lib/week";
 import { computeStreaks } from "@/lib/streaks";
 import { dayKeyInTz } from "@/lib/days";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
+import { parseGoal, goalProgress, splitBreakdown } from "@/lib/goals";
 import BottomNav from "@/components/BottomNav";
 import PodSync from "@/components/PodSync";
 import InviteButton from "@/components/InviteButton";
@@ -20,7 +21,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
   const { data: members } = await supabase
     .from("pod_members")
     .select(
-      "user_id, status, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, profiles(display_name, initials, avatar_color, avatar_url, share_stats)"
+      "user_id, status, joined_at, goal_activity, goal_label, goal_target_per_week, goal_detail, goal_mode, goal_activities, goal_splits, profiles(display_name, initials, avatar_color, avatar_url, share_stats)"
     )
     .eq("pod_id", podId)
     .neq("status", "left");
@@ -32,33 +33,39 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
 
   const { data: sessions } = await supabase
     .from("sessions")
-    .select("user_id, logged_at")
+    .select("user_id, logged_at, activity")
     .eq("pod_id", podId)
     .gte("logged_at", podCreatedAt.toISOString());
 
-  const counts: Record<string, number> = {};
+  const weekSess: Record<string, { activity: string | null }[]> = {};
   const monthPrefix = dayKeyInTz(now, tz).slice(0, 7);
   const monthDays: Record<string, Set<string>> = {};
   const allDays: Record<string, Set<string>> = {};
   (sessions ?? []).forEach((s: any) => {
     if (new Date(s.logged_at) >= weekStart)
-      counts[s.user_id] = (counts[s.user_id] ?? 0) + 1;
+      (weekSess[s.user_id] ??= []).push({ activity: s.activity ?? null });
     const k = dayKeyInTz(new Date(s.logged_at), tz);
     (allDays[s.user_id] ??= new Set()).add(k);
     if (k.startsWith(monthPrefix)) (monthDays[s.user_id] ??= new Set()).add(k);
   });
 
   const { podStreak } = computeStreaks({
-    members: (members ?? []).map((m: any) => ({
-      userId: m.user_id,
-      target: m.goal_target_per_week ?? 0,
-      hasGoal: !!m.goal_target_per_week,
-      status: m.status,
-      joinedAt: m.joined_at ? new Date(m.joined_at) : podCreatedAt,
-    })),
+    members: (members ?? []).map((m: any) => {
+      const g = parseGoal(m);
+      return {
+        userId: m.user_id,
+        target: g.target,
+        hasGoal: g.hasGoal,
+        status: m.status,
+        joinedAt: m.joined_at ? new Date(m.joined_at) : podCreatedAt,
+        mode: g.mode,
+        splits: g.splits,
+      };
+    }),
     sessions: (sessions ?? []).map((s: any) => ({
       userId: s.user_id,
       loggedAt: new Date(s.logged_at),
+      activity: s.activity ?? null,
     })),
     tz,
     weekStartsOn: wso,
@@ -69,9 +76,9 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     .filter((m: any) => m.status === "active" || m.status === "paused")
     .map((m: any) => {
       const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-      const target = m.goal_target_per_week ?? 0;
-      const done = counts[m.user_id] ?? 0;
-      const hasGoal = !!m.goal_target_per_week;
+      const goal = parseGoal(m);
+      const mine = weekSess[m.user_id] ?? [];
+      const { done, target, ratio } = goalProgress(goal, mine);
       return {
         userId: m.user_id,
         name: prof?.display_name ?? "Member",
@@ -83,8 +90,11 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
         target,
         detail: m.goal_detail as string | null,
         done,
-        hasGoal,
-        ratio: hasGoal ? Math.min(done / target, 1) : 0,
+        hasGoal: goal.hasGoal,
+        ratio,
+        mode: goal.mode,
+        breakdown:
+          goal.mode === "split" ? splitBreakdown(goal, mine) : [],
         fire: monthDays[m.user_id]?.size ?? 0,
         total: allDays[m.user_id]?.size ?? 0,
         shareStats: prof?.share_stats ?? false,
@@ -370,11 +380,28 @@ export default async function Home({
                               ⏸ Paused this week
                             </div>
                           ) : r.hasGoal ? (
-                            <div className="mt-0.5 text-[15px] text-muted">
-                              {meta.emoji} {r.label ?? meta.label} ·{" "}
-                              {r.target}×/week
-                              {r.detail ? ` · ${r.detail}` : ""}
-                            </div>
+                            r.mode === "split" ? (
+                              <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[15px] text-muted">
+                                {r.breakdown.map((b: any) => {
+                                  const bm = activityMeta(b.activity);
+                                  const met = b.done >= b.target;
+                                  return (
+                                    <span
+                                      key={b.activity}
+                                      className={met ? "text-sage" : ""}
+                                    >
+                                      {bm.emoji} {b.done}/{b.target}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="mt-0.5 text-[15px] text-muted">
+                                {meta.emoji} {r.label ?? meta.label} ·{" "}
+                                {r.target}×/week
+                                {r.detail ? ` · ${r.detail}` : ""}
+                              </div>
+                            )
                           ) : r.isMe ? (
                             <Link
                               href={`/app/goal?pod=${sec.pod.id}`}

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
+import { parseGoal, goalProgress } from "@/lib/goals";
 import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz, monthGrid } from "@/lib/days";
 import BottomNav from "@/components/BottomNav";
@@ -26,7 +27,7 @@ export default async function YouPage() {
   const { data: memberships } = await supabase
     .from("pod_members")
     .select(
-      "pod_id, goal_activity, goal_label, goal_target_per_week, goal_detail, pods(id, name, timezone, week_starts_on)"
+      "pod_id, goal_activity, goal_label, goal_target_per_week, goal_detail, goal_mode, goal_activities, goal_splits, pods(id, name, timezone, week_starts_on)"
     )
     .eq("user_id", user.id)
     .neq("status", "left");
@@ -35,7 +36,7 @@ export default async function YouPage() {
   const since = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
   const { data: mySessions } = await supabase
     .from("sessions")
-    .select("pod_id, logged_at")
+    .select("pod_id, logged_at, activity")
     .eq("user_id", user.id)
     .gte("logged_at", since);
 
@@ -68,10 +69,13 @@ export default async function YouPage() {
     const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
     const tz = pod?.timezone ?? "America/Chicago";
     const weekStart = weekStartUtc(tz, pod?.week_starts_on ?? 1);
-    const done = (mySessions ?? []).filter(
-      (s: any) => s.pod_id === m.pod_id && new Date(s.logged_at) >= weekStart
-    ).length;
-    const target = (m.goal_target_per_week as number | null) ?? 0;
+    const goal = parseGoal(m);
+    const mine = (mySessions ?? [])
+      .filter(
+        (s: any) => s.pod_id === m.pod_id && new Date(s.logged_at) >= weekStart
+      )
+      .map((s: any) => ({ activity: s.activity ?? null }));
+    const { done, target, ratio } = goalProgress(goal, mine);
     return {
       podId: m.pod_id as string,
       name: pod?.name ?? "Pod",
@@ -80,9 +84,9 @@ export default async function YouPage() {
       target,
       detail: m.goal_detail as string | null,
       done,
-      hasGoal: !!m.goal_target_per_week,
+      hasGoal: goal.hasGoal,
       remaining: Math.max(target - done, 0),
-      ratio: target ? Math.min(done / target, 1) : 0,
+      ratio,
     };
   });
 
