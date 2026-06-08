@@ -114,6 +114,7 @@ export default async function PodFeed({
 
     return {
       id: s.id,
+      authorUserId: s.user_id as string,
       authorName: prof?.display_name ?? "Member",
       initials: prof?.initials ?? "?",
       color: prof?.avatar_color ?? "#c8553d",

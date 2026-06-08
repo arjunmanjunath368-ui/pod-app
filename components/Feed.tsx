@@ -27,6 +27,7 @@ export type FeedComment = {
 
 export type FeedItem = {
   id: string;
+  authorUserId: string;
   avatarUrl: string | null;
   authorName: string;
   initials: string;
@@ -122,6 +123,7 @@ export default function Feed({
             .maybeSingle();
           const item: FeedItem = {
             id: s.id,
+            authorUserId: s.user_id,
             authorName: prof?.display_name ?? "Member",
             initials: prof?.initials ?? "?",
             color: prof?.avatar_color ?? "#c8553d",
@@ -312,6 +314,22 @@ export default function Feed({
       await supabase
         .from("reactions")
         .insert({ session_id: id, user_id: me.userId, kind });
+      // Ping the pod about the cheer (skip your own logs; only on new cheers).
+      const item = items.find((x) => x.id === id);
+      if (item && !item.isMine) {
+        const emoji = REACTIONS.find((r) => r.kind === kind)?.emoji ?? "👏";
+        fetch("/api/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: "reaction",
+            podId,
+            authorUserId: item.authorUserId,
+            emoji,
+            url: "/app",
+          }),
+        }).catch(() => {});
+      }
     }
   }
 
@@ -391,6 +409,20 @@ export default function Feed({
           x.id === tempId ? { ...x, id: data.id } : x
         ),
       }));
+    }
+    // Ping the pod about the comment (skip your own logs).
+    const item = items.find((x) => x.id === id);
+    if (item && !item.isMine) {
+      fetch("/api/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "comment",
+          podId,
+          authorUserId: item.authorUserId,
+          url: "/app",
+        }),
+      }).catch(() => {});
     }
   }
 

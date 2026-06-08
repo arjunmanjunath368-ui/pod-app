@@ -17,6 +17,43 @@ function configure(): boolean {
   return true;
 }
 
+// Send one composed message to a set of users (prunes dead subscriptions).
+async function deliver(
+  supabase: any,
+  recipientIds: string[],
+  title: string,
+  message: string,
+  url: string
+): Promise<number> {
+  if (recipientIds.length === 0) return 0;
+  const { data: subs } = await supabase
+    .from("push_subscriptions")
+    .select("endpoint, p256dh, auth")
+    .in("user_id", recipientIds);
+  if (!subs || subs.length === 0) return 0;
+  const payload = JSON.stringify({ title, body: message, url });
+  let sent = 0;
+  await Promise.all(
+    subs.map(async (s: any) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          payload
+        );
+        sent++;
+      } catch (err: any) {
+        if (err?.statusCode === 404 || err?.statusCode === 410) {
+          await supabase
+            .from("push_subscriptions")
+            .delete()
+            .eq("endpoint", s.endpoint);
+        }
+      }
+    })
+  );
+  return sent;
+}
+
 export async function POST(req: Request) {
   if (!configure()) {
     return NextResponse.json({ error: "Push not configured" }, { status: 500 });
@@ -32,6 +69,52 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}) as any);
   const self = !!body.self;
   const podId: string | undefined = body.podId;
+
+  // Reactions & comments: the author gets a direct ping, the rest of the pod
+  // gets a warm third-person one so the whole group feels the momentum.
+  if (body.kind === "reaction" || body.kind === "comment") {
+    const authorId: string | undefined = body.authorUserId;
+    if (!podId || !authorId) {
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+    const { data: members } = await supabase
+      .from("pod_members")
+      .select("user_id")
+      .eq("pod_id", podId)
+      .eq("status", "active");
+    const ids = (members ?? []).map((m: any) => m.user_id as string);
+    if (!ids.includes(user.id)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", [user.id, authorId]);
+    const nameOf = (id: string) =>
+      (profs ?? []).find((p: any) => p.id === id)?.display_name || "Someone";
+    const sender = nameOf(user.id);
+    const author = nameOf(authorId);
+    const emoji = body.emoji || "👏";
+    const url = body.url || "/app";
+
+    const directMsg =
+      body.kind === "reaction"
+        ? `${sender} cheered ${emoji} your workout`
+        : `${sender} commented on your workout 💬`;
+    const genericMsg =
+      body.kind === "reaction"
+        ? `${sender} cheered ${emoji} on ${author}'s workout — keep each other going! 💪`
+        : `${sender} commented on ${author}'s workout — the pod's buzzing 💬`;
+
+    let total = 0;
+    if (authorId !== user.id) {
+      total += await deliver(supabase, [authorId], "Pod", directMsg, url);
+    }
+    const others = ids.filter((id) => id !== user.id && id !== authorId);
+    total += await deliver(supabase, others, "Pod", genericMsg, url);
+    return NextResponse.json({ sent: total });
+  }
 
   let recipientIds: string[] = [];
   let title = body.title || "Pod";
