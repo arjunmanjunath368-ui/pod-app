@@ -11,22 +11,22 @@ const ABOUT_CARDS: WalkCard[] = [
   {
     emoji: "🫛",
     title: "What a pod is",
-    body: "A handful of people you trust, each working toward their own goal and keeping each other honest, week to week.",
+    body: "A handful of people you trust, each chasing their own goal and keeping each other honest, week to week. No randoms, no global leaderboard.",
   },
   {
     emoji: "🎯",
     title: "Different goals, same game",
-    body: "Your goal is yours alone — nobody's ranked on who lifts more or runs farther. You're measured only on showing up.",
+    body: "Your goal is yours alone — nobody's ranked on who lifts more or runs farther. You're measured on one thing: showing up.",
   },
   {
     emoji: "🔥",
     title: "Streaks & perfect weeks",
-    body: "Hit your number on any days you like — order doesn't matter. When everyone hits theirs, that's a perfect week, and perfect weeks build the pod's streak.",
+    body: "Hit your number on whatever days you like — order doesn't matter. When everyone hits theirs, that's a perfect week, and perfect weeks build the pod's streak.",
   },
   {
     emoji: "💪",
-    title: "Nudges, cheers & stakes",
-    body: "Quiet teammate? Send a nudge. Someone on fire? Cheer them on. Pausing protects the streak when life gets in the way — and the pod can add weekly stakes for extra fire.",
+    title: "Cheer, nudge, challenge",
+    body: "Cheer the wins. Nudge the no-shows. Short on time? Send a teammate a quick challenge — it clears the moment they show up. Keeping each other going is the whole point.",
   },
 ];
 

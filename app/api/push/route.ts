@@ -187,6 +187,18 @@ export async function POST(req: Request) {
         `${from} says it's your turn.`,
         `${from} noticed you've been quiet — get one in?`,
       ]);
+    } else if (body.kind === "challenge" || body.kind === "challenge_done") {
+      // Use the sender's real name (the authenticated user doing the action).
+      const { data: meProf } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      const from = meProf?.display_name || "Someone in your pod";
+      message =
+        body.kind === "challenge"
+          ? `${from} challenged you: ${body.challengeTitle || "a workout"} 💪`
+          : `${from} rose to your challenge — they showed up! 💪`;
     }
   }
 

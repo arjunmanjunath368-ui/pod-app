@@ -9,23 +9,23 @@ import WalkthroughCards, { type WalkCard } from "@/components/WalkthroughCards";
 const ONBOARD_CARDS: WalkCard[] = [
   {
     emoji: "🫛",
-    title: "Fitness with your people",
-    body: "A pod is a small, trusted circle — family or friends — who each chase their own goal and keep each other honest, week to week.",
+    title: "Your circle, not the world",
+    body: "A pod is your people — family, friends, the group chat that keeps threatening to work out. Small, trusted, all in together.",
   },
   {
     emoji: "🎯",
-    title: "Your goal, your way",
-    body: "Everyone picks their own weekly goal — runs, lifts, walks, whatever moves you. You're never compared on who does the most.",
+    title: "Your goal. Not theirs.",
+    body: "Everyone sets their own weekly goal — lift, run, walk the dog like you mean it. Nobody's ranked on who sweats the most.",
   },
   {
     emoji: "🔥",
-    title: "Win by showing up",
-    body: "The only scoreboard is consistency. Log your sessions, build your streak, and watch the pod's perfect weeks stack up.",
+    title: "Showing up is the whole game",
+    body: "The only scoreboard is consistency. Hit your number, build your streak, stack perfect weeks together. Outrunning the couch counts.",
   },
   {
     emoji: "💪",
-    title: "Better together",
-    body: "Quiet week? Get a nudge. Crushing it? Get cheers. Want real skin in the game? The pod can agree to friendly weekly stakes.",
+    title: "You carry each other",
+    body: "Cheer the wins, nudge the no-shows, and challenge a busy teammate with a quick one: \u201Chere's 20 minutes — show up today.\u201D That's the part no other app has.",
   },
 ];
 

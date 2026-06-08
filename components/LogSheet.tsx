@@ -313,6 +313,48 @@ export default function LogSheet({
       }).catch(() => {});
     });
 
+    // Clear any open challenges these logs answer, and ping whoever sent them.
+    try {
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}-${String(d.getDate()).padStart(2, "0")}`;
+      const { data: openCh } = await supabase
+        .from("challenges")
+        .select("id, from_user")
+        .eq("to_user", userId)
+        .eq("status", "active")
+        .gte("due_date", todayStr)
+        .in("pod_id", selectedPods);
+      if (openCh && openCh.length) {
+        await supabase
+          .from("challenges")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+          })
+          .in(
+            "id",
+            openCh.map((c: any) => c.id)
+          );
+        const senders = Array.from(
+          new Set(openCh.map((c: any) => c.from_user))
+        );
+        senders.forEach((sid) => {
+          fetch("/api/push", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              toUserId: sid,
+              kind: "challenge_done",
+              url: "/app",
+            }),
+          }).catch(() => {});
+        });
+      }
+    } catch {}
+
     // Celebrate against the pod you opened the log from (or the first selected).
     const primaryPod = selectedPods.includes(podId) ? podId : selectedPods[0];
     let cel: Celebration | null = null;

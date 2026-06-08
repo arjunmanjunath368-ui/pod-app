@@ -12,6 +12,10 @@ import PodSync from "@/components/PodSync";
 import InviteButton from "@/components/InviteButton";
 import NudgeButton from "@/components/NudgeButton";
 import NudgeBanner from "@/components/NudgeBanner";
+import ChallengeButton from "@/components/ChallengeButton";
+import ChallengeInbox, {
+  type IncomingChallenge,
+} from "@/components/ChallengeInbox";
 
 async function buildSection(supabase: any, pod: any, userId: string, now: Date) {
   const podId = pod.id as string;
@@ -227,6 +231,47 @@ export default async function Home({
     fromName: nameMap[n.from_user] ?? "Someone",
   }));
 
+  // Challenges sent to me that are still open (due today or later).
+  const todayTz = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const podNameById: Record<string, string> = {};
+  podsList.forEach((p: any) => (podNameById[p.id] = p.name));
+  const { data: rawCh } = await supabase
+    .from("challenges")
+    .select("id, from_user, title, link, note, pod_id, due_date")
+    .eq("to_user", user.id)
+    .eq("status", "active")
+    .gte("due_date", todayTz)
+    .in(
+      "pod_id",
+      podsList.map((p: any) => p.id)
+    )
+    .order("created_at", { ascending: false });
+  const challengeFromIds = Array.from(
+    new Set((rawCh ?? []).map((c: any) => c.from_user))
+  );
+  const chNameMap: Record<string, string> = {};
+  if (challengeFromIds.length) {
+    const { data: cprofs } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", challengeFromIds);
+    (cprofs ?? []).forEach((p: any) => (chNameMap[p.id] = p.display_name));
+  }
+  const incomingChallenges: IncomingChallenge[] = (rawCh ?? []).map((c: any) => ({
+    id: c.id,
+    fromName: chNameMap[c.from_user] ?? "Someone",
+    title: c.title,
+    link: c.link,
+    note: c.note,
+    podId: c.pod_id,
+    podName: podNameById[c.pod_id] ?? "your pod",
+  }));
+
   const navPodId = podsList[0].id as string;
 
   const welcomePod =
@@ -245,6 +290,8 @@ export default async function Home({
         </h1>
 
         <NudgeBanner nudges={nudgeList} userId={user.id} />
+
+        <ChallengeInbox challenges={incomingChallenges} userId={user.id} />
 
         {searchParams.welcome === "1" && (
           <div className="mt-4 rounded-2xl border border-terra/30 bg-terra/[0.08] p-4">
@@ -486,14 +533,24 @@ export default async function Home({
                         </div>
                       )}
 
-                      {behind && (
-                        <div className="mt-3 flex justify-end">
-                          <NudgeButton
-                            podId={sec.pod.id}
-                            fromUserId={user.id}
-                            toUserId={r.userId}
-                            fromName={myProfile?.display_name ?? "Someone"}
-                          />
+                      {(!r.isMe || behind) && (
+                        <div className="mt-3 flex justify-end gap-2">
+                          {!r.isMe && (
+                            <ChallengeButton
+                              podId={sec.pod.id}
+                              fromUserId={user.id}
+                              toUserId={r.userId}
+                              toName={r.name}
+                            />
+                          )}
+                          {behind && (
+                            <NudgeButton
+                              podId={sec.pod.id}
+                              fromUserId={user.id}
+                              toUserId={r.userId}
+                              fromName={myProfile?.display_name ?? "Someone"}
+                            />
+                          )}
                         </div>
                       )}
                     </div>
