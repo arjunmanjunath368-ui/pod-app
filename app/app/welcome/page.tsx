@@ -27,6 +27,11 @@ const ONBOARD_CARDS: WalkCard[] = [
     title: "You carry each other",
     body: "Cheer the wins, nudge the no-shows, and challenge a busy teammate with a quick one: \u201Chere's 20 minutes — show up today.\u201D That's the part no other app has.",
   },
+  {
+    emoji: "🏆",
+    title: "Chase your own bests",
+    body: "Log a personal best — your longest plank, your heaviest lift, that incline walk — and beat it next month. The only person you're racing is past-you.",
+  },
 ];
 
 const PALETTE = ["#c8553d", "#7a9471", "#d9a441", "#4e8d7c", "#2f4a37"];

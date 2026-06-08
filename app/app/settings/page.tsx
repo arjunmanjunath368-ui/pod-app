@@ -28,6 +28,11 @@ const ABOUT_CARDS: WalkCard[] = [
     title: "Cheer, nudge, challenge",
     body: "Cheer the wins. Nudge the no-shows. Short on time? Send a teammate a quick challenge — it clears the moment they show up. Keeping each other going is the whole point.",
   },
+  {
+    emoji: "🏆",
+    title: "Chase your own bests",
+    body: "Log a personal best — your longest plank, your heaviest lift, that incline walk — and beat it next month. The only person you're racing is past-you.",
+  },
 ];
 
 export default async function SettingsPage() {
