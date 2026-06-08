@@ -49,9 +49,13 @@ type Group = {
 export default function PersonalBests({
   userId,
   entries,
+  podIds,
+  shareStats,
 }: {
   userId: string;
   entries: PBEntry[];
+  podIds: string[];
+  shareStats: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -172,6 +176,16 @@ export default function PersonalBests({
           ? `Logged your first “${nm}” 🌱 Now go beat it.`
           : `🎉 New best for “${nm}”! That's one to be proud of.`
       );
+    }
+    // Let the pod cheer a genuine new record (name only — never the number).
+    // First-ever entries are just a baseline, so we don't broadcast those.
+    if (beat && shareStats && podIds.length) {
+      supabase
+        .from("pod_pr_events")
+        .insert(
+          podIds.map((pid) => ({ pod_id: pid, user_id: userId, pb_name: nm }))
+        )
+        .then(() => {});
     }
     router.refresh();
   }

@@ -202,10 +202,15 @@ export default async function YouPage() {
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           Personal bests
         </div>
-        <PersonalBests userId={user.id} entries={personalBests} />
+        <PersonalBests
+          userId={user.id}
+          entries={personalBests}
+          podIds={(memberships ?? []).map((m: any) => m.pod_id)}
+          shareStats={(profile as any)?.share_stats ?? true}
+        />
 
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
-          Your weekly challenges
+          Your weekly goals
         </div>
         <div className="mt-3 flex flex-col gap-2.5">
           {pods.map((p: any) => {

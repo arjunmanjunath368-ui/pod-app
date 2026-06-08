@@ -16,6 +16,9 @@ import ChallengeButton from "@/components/ChallengeButton";
 import ChallengeInbox, {
   type IncomingChallenge,
 } from "@/components/ChallengeInbox";
+import PrCelebrations, {
+  type PrCelebration,
+} from "@/components/PrCelebrations";
 
 async function buildSection(supabase: any, pod: any, userId: string, now: Date) {
   const podId = pod.id as string;
@@ -272,6 +275,37 @@ export default async function Home({
     podName: podNameById[c.pod_id] ?? "your pod",
   }));
 
+  // Recent PR milestones from pod-mates (last ~36h, not mine) — a gentle cheer.
+  const prSince = new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString();
+  const { data: rawPrs } = await supabase
+    .from("pod_pr_events")
+    .select("id, user_id, pb_name, pod_id, created_at")
+    .in(
+      "pod_id",
+      podsList.map((p: any) => p.id)
+    )
+    .neq("user_id", user.id)
+    .gte("created_at", prSince)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const prUserIds = Array.from(
+    new Set((rawPrs ?? []).map((e: any) => e.user_id))
+  );
+  const prNameMap: Record<string, string> = {};
+  if (prUserIds.length) {
+    const { data: pprofs } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", prUserIds);
+    (pprofs ?? []).forEach((p: any) => (prNameMap[p.id] = p.display_name));
+  }
+  const prEvents: PrCelebration[] = (rawPrs ?? []).map((e: any) => ({
+    id: e.id,
+    name: prNameMap[e.user_id] ?? "Someone",
+    pbName: e.pb_name,
+    podName: podNameById[e.pod_id] ?? "your pod",
+  }));
+
   const navPodId = podsList[0].id as string;
 
   const welcomePod =
@@ -292,6 +326,8 @@ export default async function Home({
         <NudgeBanner nudges={nudgeList} userId={user.id} />
 
         <ChallengeInbox challenges={incomingChallenges} userId={user.id} />
+
+        <PrCelebrations events={prEvents} />
 
         {searchParams.welcome === "1" && (
           <div className="mt-4 rounded-2xl border border-terra/30 bg-terra/[0.08] p-4">
