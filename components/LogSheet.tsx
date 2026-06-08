@@ -153,11 +153,11 @@ export default function LogSheet({
   const [done, setDone] = useState(false);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
   const [pods, setPods] = useState<{ id: string; name: string }[]>([]);
-  const [selected, setSelected] = useState(podId);
+  const [selectedPods, setSelectedPods] = useState<string[]>([podId]);
 
   useEffect(() => {
     if (!open) return;
-    setSelected(podId);
+    setSelectedPods([podId]);
     (async () => {
       const supabase = createClient();
       const { data } = await supabase
@@ -190,6 +190,15 @@ export default function LogSheet({
     setPreview(null);
   }
 
+  function togglePod(id: string) {
+    setSelectedPods((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id];
+      return next.length ? next : prev; // always at least one
+    });
+  }
+
   function finishCelebration() {
     setCelebration(null);
     setDone(false);
@@ -211,7 +220,7 @@ export default function LogSheet({
     let photoUrl: string | null = null;
     if (photo) {
       const blob = await compressToJpeg(photo);
-      const path = `${selected}/${userId}/${crypto.randomUUID()}.jpg`;
+      const path = `${selectedPods[0]}/${userId}/${crypto.randomUUID()}.jpg`;
       const { error: upErr } = await supabase.storage
         .from("session-photos")
         .upload(path, blob, {
@@ -227,34 +236,45 @@ export default function LogSheet({
         .data.publicUrl;
     }
 
-    const { error } = await supabase.from("sessions").insert({
-      pod_id: selected,
-      user_id: userId,
-      activity: activities[0],
-      activities,
-      note: note.trim() || null,
-      photo_url: photoUrl,
-    });
+    // One session row per pod the log applies to.
+    const { error } = await supabase.from("sessions").insert(
+      selectedPods.map((pid) => ({
+        pod_id: pid,
+        user_id: userId,
+        activity: activities[0],
+        activities,
+        note: note.trim() || null,
+        photo_url: photoUrl,
+      }))
+    );
     setSaving(false);
     if (error) {
       setError(error.message);
       return;
     }
 
-    // Tell the pod someone showed up (best-effort; never blocks the log).
+    // Tell each pod someone showed up (best-effort; never blocks the log).
     const activityLabel = activities
       .map((k) => activityMeta(k).label.toLowerCase())
       .join(" + ");
-    fetch("/api/push", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ podId: selected, activityLabel, url: "/app" }),
-    }).catch(() => {});
+    selectedPods.forEach((pid) => {
+      fetch("/api/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ podId: pid, activityLabel, url: "/app" }),
+      }).catch(() => {});
+    });
 
-    // Did this one cross a milestone?
+    // Celebrate against the pod you opened the log from (or the first selected).
+    const primaryPod = selectedPods.includes(podId) ? podId : selectedPods[0];
     let cel: Celebration | null = null;
     try {
-      cel = await computeCelebration(supabase, selected, userId, activities[0] ?? null);
+      cel = await computeCelebration(
+        supabase,
+        primaryPod,
+        userId,
+        activities[0] ?? null
+      );
     } catch {
       cel = null;
     }
@@ -347,23 +367,33 @@ export default function LogSheet({
             {pods.length > 1 && (
               <div className="mt-4">
                 <div className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-muted">
-                  Which pod?
+                  Log to
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {pods.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelected(p.id)}
-                      className={`rounded-full border px-3 py-1.5 text-[14px] font-semibold transition active:scale-95 ${
-                        selected === p.id
-                          ? "border-terra bg-terra/[0.08] text-terra"
-                          : "border-line bg-card text-ink-soft"
-                      }`}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
+                  {pods.map((p) => {
+                    const on = selectedPods.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => togglePod(p.id)}
+                        aria-pressed={on}
+                        className={`rounded-full border px-3 py-1.5 text-[14px] font-semibold transition active:scale-95 ${
+                          on
+                            ? "border-terra bg-terra/[0.08] text-terra"
+                            : "border-line bg-card text-ink-soft"
+                        }`}
+                      >
+                        {on ? "✓ " : ""}
+                        {p.name}
+                      </button>
+                    );
+                  })}
                 </div>
+                {selectedPods.length > 1 && (
+                  <p className="mt-2 text-[12px] text-muted">
+                    This session will count in {selectedPods.length} pods.
+                  </p>
+                )}
               </div>
             )}
 

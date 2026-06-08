@@ -257,10 +257,10 @@ export default async function YouPage() {
           })}
         </div>
 
-        <div className="mt-8 flex items-center justify-between">
+        <div className="mt-8 flex flex-col gap-3">
           <Link
             href="/app/start/join?from=you"
-            className="text-[15px] font-semibold text-terra"
+            className="w-full rounded-2xl bg-terra py-3.5 text-center text-[15px] font-semibold text-white transition active:scale-[0.99]"
           >
             Join another pod
           </Link>

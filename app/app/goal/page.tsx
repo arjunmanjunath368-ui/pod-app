@@ -26,6 +26,9 @@ function GoalForm() {
   const [detail, setDetail] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [otherGoals, setOtherGoals] = useState<
+    { podId: string; name: string; data: any }[]
+  >([]);
 
   useEffect(() => {
     (async () => {
@@ -40,53 +43,76 @@ function GoalForm() {
       setUserId(user.id);
 
       if (podId) {
+        const cols =
+          "goal_activity, goal_label, goal_target_per_week, goal_detail, goal_mode, goal_activities, goal_splits";
         const { data } = await supabase
           .from("pod_members")
-          .select(
-            "goal_activity, goal_label, goal_target_per_week, goal_detail, goal_mode, goal_activities, goal_splits"
-          )
+          .select(cols)
           .eq("pod_id", podId)
           .eq("user_id", user.id)
           .maybeSingle();
 
         if (data && (data.goal_target_per_week || data.goal_splits)) {
-          const splits: { activity?: string; target?: number }[] = Array.isArray(
-            data.goal_splits
-          )
-            ? (data.goal_splits as any[])
-            : [];
-          if (data.goal_mode === "split" && splits.length > 0) {
-            setMode("split");
-            const sel = splits
-              .map((s) => s.activity as ActivityKey)
-              .filter(Boolean);
-            setSelected(sel.length ? sel : ["strength" as ActivityKey]);
-            const st: Partial<Record<ActivityKey, number>> = {};
-            splits.forEach((s) => {
-              if (s.activity) st[s.activity as ActivityKey] = Number(s.target) || 1;
-            });
-            setSplitTargets(st);
-          } else {
-            setMode("combined");
-            const sel =
-              Array.isArray(data.goal_activities) && data.goal_activities.length
-                ? (data.goal_activities as ActivityKey[])
-                : data.goal_activity
-                  ? [data.goal_activity as ActivityKey]
-                  : ["strength" as ActivityKey];
-            setSelected(sel);
-            setCombinedTarget(data.goal_target_per_week || 3);
-          }
-          setLabel(
-            data.goal_label ?? activityMeta(data.goal_activity).label
-          );
-          setLabelTouched(true);
-          setDetail(data.goal_detail ?? "");
+          hydrate(data);
         }
+
+        // Other pods where you've already set a goal — offer to copy it.
+        const { data: others } = await supabase
+          .from("pod_members")
+          .select(`pod_id, ${cols}, pods(name)`)
+          .eq("user_id", user.id)
+          .neq("pod_id", podId)
+          .neq("status", "left");
+        const withGoals = (others ?? [])
+          .filter(
+            (o: any) =>
+              o.goal_target_per_week ||
+              (Array.isArray(o.goal_splits) && o.goal_splits.length)
+          )
+          .map((o: any) => ({
+            podId: o.pod_id as string,
+            name: (Array.isArray(o.pods) ? o.pods[0] : o.pods)?.name ?? "Pod",
+            data: o,
+          }));
+        setOtherGoals(withGoals);
       }
       setLoading(false);
     })();
   }, [podId, router]);
+
+  // Fill the form from a goal row (used on load and when copying another pod).
+  function hydrate(data: any) {
+    const splits: { activity?: string; target?: number }[] = Array.isArray(
+      data.goal_splits
+    )
+      ? (data.goal_splits as any[])
+      : [];
+    if (data.goal_mode === "split" && splits.length > 0) {
+      setMode("split");
+      const sel = splits
+        .map((s) => s.activity as ActivityKey)
+        .filter(Boolean);
+      setSelected(sel.length ? sel : ["strength" as ActivityKey]);
+      const st: Partial<Record<ActivityKey, number>> = {};
+      splits.forEach((s) => {
+        if (s.activity) st[s.activity as ActivityKey] = Number(s.target) || 1;
+      });
+      setSplitTargets(st);
+    } else {
+      setMode("combined");
+      const sel =
+        Array.isArray(data.goal_activities) && data.goal_activities.length
+          ? (data.goal_activities as ActivityKey[])
+          : data.goal_activity
+            ? [data.goal_activity as ActivityKey]
+            : ["strength" as ActivityKey];
+      setSelected(sel);
+      setCombinedTarget(data.goal_target_per_week || 3);
+    }
+    setLabel(data.goal_label ?? activityMeta(data.goal_activity).label);
+    setLabelTouched(true);
+    setDetail(data.goal_detail ?? "");
+  }
 
   function toggleActivity(k: ActivityKey) {
     setSelected((prev) => {
@@ -189,6 +215,25 @@ function GoalForm() {
         This is yours alone — pick what you'll commit to. The pod is scored on
         everyone showing up to their own goal, not on matching each other.
       </p>
+
+      {otherGoals.length > 0 && (
+        <div className="mt-5 rounded-2xl border border-line bg-paper-2/50 p-3.5">
+          <div className="text-[13px] font-medium text-muted">
+            Reuse a goal you've already set
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {otherGoals.map((o) => (
+              <button
+                key={o.podId}
+                onClick={() => hydrate(o.data)}
+                className="rounded-full border border-line bg-card px-3.5 py-1.5 text-[13px] font-semibold text-ink-soft transition active:scale-95"
+              >
+                Same as {o.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mode toggle */}
       <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl border border-line bg-paper-2 p-1">
