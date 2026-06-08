@@ -12,7 +12,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
-  const [notFound, setNotFound] = useState(false);
   const [next, setNext] = useState("/app");
 
   useEffect(() => {
@@ -23,7 +22,6 @@ export default function LoginPage() {
   function switchMode(m: Mode) {
     setMode(m);
     setError("");
-    setNotFound(false);
   }
 
   async function sendLink() {
@@ -31,31 +29,42 @@ export default function LoginPage() {
     if (!trimmed) return;
     setLoading(true);
     setError("");
-    setNotFound(false);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: trimmed,
-      options: {
-        // Sign in = existing accounts only; Sign up = create if new.
-        shouldCreateUser: mode === "signup",
-        emailRedirectTo: `${location.origin}/auth/confirm?next=${encodeURIComponent(
-          next
-        )}`,
-      },
-    });
-    setLoading(false);
-    if (error) {
-      // In sign-in mode the common failure is "no account for this email".
-      if (mode === "signin") {
-        setNotFound(true);
-        setError("We couldn't find an account for that email.");
-      } else {
-        setError(error.message);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: {
+          // Sign in = existing accounts only; Sign up = create if new.
+          shouldCreateUser: mode === "signup",
+          emailRedirectTo: `${location.origin}/auth/confirm?next=${encodeURIComponent(
+            next
+          )}`,
+        },
+      });
+      if (error) {
+        // Only call it "not found" when the error actually says so — otherwise
+        // surface the real reason (e.g. email delivery / rate limit).
+        const looksMissing =
+          mode === "signin" &&
+          /not allowed|not found|no .*user|sign ?up|does not exist/i.test(
+            error.message
+          );
+        setError(
+          looksMissing
+            ? "We couldn't find an account for that email."
+            : error.message
+        );
+        return;
       }
-      return;
+      setSent(true);
+    } catch (e: any) {
+      setError(e?.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setSent(true);
   }
+
+  const isSignup = mode === "signup";
 
   return (
     <div className="phone">
@@ -77,29 +86,14 @@ export default function LoginPage() {
 
         {!sent ? (
           <div>
-            {/* Sign in / Sign up toggle */}
-            <div className="grid grid-cols-2 gap-1 rounded-2xl border border-line bg-paper-2 p-1">
-              <button
-                onClick={() => switchMode("signin")}
-                className={`rounded-xl py-2.5 text-[14px] font-semibold transition ${
-                  mode === "signin"
-                    ? "bg-card text-ink shadow-sm"
-                    : "text-muted"
-                }`}
-              >
-                Sign in
-              </button>
-              <button
-                onClick={() => switchMode("signup")}
-                className={`rounded-xl py-2.5 text-[14px] font-semibold transition ${
-                  mode === "signup"
-                    ? "bg-card text-ink shadow-sm"
-                    : "text-muted"
-                }`}
-              >
-                Sign up
-              </button>
-            </div>
+            <h2 className="font-serif text-[22px] font-semibold text-ink">
+              {isSignup ? "Create your account" : "Welcome back"}
+            </h2>
+            <p className="mt-1 text-[14px] text-muted">
+              {isSignup
+                ? "Set up your account to start a pod or join one."
+                : "Sign in to get back to your pod."}
+            </p>
 
             <label className="mb-2 mt-6 block text-[13px] font-semibold text-muted">
               Email
@@ -115,22 +109,7 @@ export default function LoginPage() {
               className="w-full rounded-2xl border border-line bg-card px-4 py-4 text-[16px] text-ink outline-none focus:border-terra"
             />
 
-            {error && (
-              <p className="mt-3 text-[13px] text-terra">
-                {error}
-                {notFound && (
-                  <>
-                    {" "}
-                    <button
-                      onClick={() => switchMode("signup")}
-                      className="font-semibold underline"
-                    >
-                      Sign up instead
-                    </button>
-                  </>
-                )}
-              </p>
-            )}
+            {error && <p className="mt-3 text-[13px] text-terra">{error}</p>}
 
             <button
               onClick={sendLink}
@@ -139,32 +118,22 @@ export default function LoginPage() {
             >
               {loading
                 ? "Sending…"
-                : mode === "signin"
-                  ? "Send sign-in link"
-                  : "Create my account"}
+                : isSignup
+                  ? "Create my account"
+                  : "Send me a sign-in link"}
             </button>
 
             <p className="mt-5 text-center text-[13px] leading-relaxed text-muted">
               No passwords —{" "}
-              {mode === "signin"
-                ? "we'll email you a link that signs you straight in."
-                : "we'll email you a link to finish setting up your account."}
+              {isSignup
+                ? "we'll email you a link to finish setting up."
+                : "we'll email you a link that signs you straight in."}
             </p>
 
-            <p className="mt-4 text-center text-[14px] text-muted">
-              {mode === "signin" ? (
+            <div className="mt-6 border-t border-line pt-5 text-center text-[14px] text-muted">
+              {isSignup ? (
                 <>
-                  New to {BRAND_NAME}?{" "}
-                  <button
-                    onClick={() => switchMode("signup")}
-                    className="font-semibold text-terra"
-                  >
-                    Create an account
-                  </button>
-                </>
-              ) : (
-                <>
-                  Already have an account?{" "}
+                  Already an existing user?{" "}
                   <button
                     onClick={() => switchMode("signin")}
                     className="font-semibold text-terra"
@@ -172,8 +141,18 @@ export default function LoginPage() {
                     Sign in
                   </button>
                 </>
+              ) : (
+                <>
+                  New to {BRAND_NAME}?{" "}
+                  <button
+                    onClick={() => switchMode("signup")}
+                    className="font-semibold text-terra"
+                  >
+                    Create a free account today
+                  </button>
+                </>
               )}
-            </p>
+            </div>
           </div>
         ) : (
           <div className="rounded-2xl border border-line bg-card p-6 text-center shadow-pod">
@@ -182,9 +161,9 @@ export default function LoginPage() {
               Check your email
             </h2>
             <p className="mt-2 text-[15px] leading-relaxed text-muted">
-              We sent {mode === "signin" ? "a sign-in" : "a sign-up"} link to{" "}
+              We sent {isSignup ? "a sign-up" : "a sign-in"} link to{" "}
               <b className="text-ink">{email}</b>. Tap it on this device to{" "}
-              {mode === "signin" ? "get into your pod." : "set up your account."}
+              {isSignup ? "set up your account." : "get into your pod."}
             </p>
             <button
               onClick={() => {
