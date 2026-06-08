@@ -10,6 +10,7 @@ import SignOutButton from "@/components/SignOutButton";
 import AvatarUpload from "@/components/AvatarUpload";
 import MyGoals from "@/components/MyGoals";
 import ShareStatsToggle from "@/components/ShareStatsToggle";
+import PersonalBests, { type PBEntry } from "@/components/PersonalBests";
 
 export default async function YouPage() {
   const supabase = createClient();
@@ -31,6 +32,22 @@ export default async function YouPage() {
     )
     .eq("user_id", user.id)
     .neq("status", "left");
+
+  // Personal bests (private to this user).
+  const { data: rawPbs } = await supabase
+    .from("personal_bests")
+    .select("id, name, value, unit, higher_is_better, details, achieved_on")
+    .eq("user_id", user.id)
+    .order("achieved_on", { ascending: false });
+  const personalBests: PBEntry[] = (rawPbs ?? []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    value: Number(p.value),
+    unit: p.unit,
+    higherIsBetter: p.higher_is_better,
+    details: p.details,
+    achievedOn: p.achieved_on,
+  }));
 
   // This user's sessions over the last ~40 days (covers the current month + week boundaries)
   const since = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
@@ -181,6 +198,11 @@ export default async function YouPage() {
             initial={(profile as any)?.share_stats ?? true}
           />
         </div>
+
+        <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
+          Personal bests
+        </div>
+        <PersonalBests userId={user.id} entries={personalBests} />
 
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           Your weekly challenges
