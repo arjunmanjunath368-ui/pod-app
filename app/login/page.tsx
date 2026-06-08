@@ -12,6 +12,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
   const [next, setNext] = useState("/app");
 
   useEffect(() => {
@@ -61,6 +63,34 @@ export default function LoginPage() {
       setError(e?.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Verifying the 6-digit code completes sign-in INSIDE whatever context the
+  // user is in — crucially, the installed PWA, which has its own cookie jar the
+  // emailed magic link can't reach.
+  async function verify() {
+    const token = code.trim();
+    if (token.length < 6) return;
+    setVerifying(true);
+    setError("");
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token,
+        type: "email",
+      });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      // Full navigation so the middleware picks up the freshly-set cookies.
+      window.location.href = next;
+    } catch (e: any) {
+      setError(e?.message || "Couldn't verify that code. Please try again.");
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -155,22 +185,55 @@ export default function LoginPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-line bg-card p-6 text-center shadow-pod">
-            <div className="text-[34px]">📬</div>
-            <h2 className="mt-2 font-serif text-[21px] font-semibold text-ink">
-              Check your email
-            </h2>
-            <p className="mt-2 text-[15px] leading-relaxed text-muted">
-              We sent {isSignup ? "a sign-up" : "a sign-in"} link to{" "}
-              <b className="text-ink">{email}</b>. Tap it on this device to{" "}
-              {isSignup ? "set up your account." : "get into your pod."}
+          <div className="rounded-2xl border border-line bg-card p-6 shadow-pod">
+            <div className="text-center">
+              <div className="text-[34px]">📬</div>
+              <h2 className="mt-2 font-serif text-[21px] font-semibold text-ink">
+                Enter your code
+              </h2>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted">
+                We emailed a 6-digit code to{" "}
+                <b className="text-ink">{email}</b>. Enter it here to{" "}
+                {isSignup ? "set up your account" : "sign in"} — that keeps you
+                in the app.
+              </p>
+            </div>
+
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              onKeyDown={(e) => e.key === "Enter" && verify()}
+              placeholder="123456"
+              className="mt-5 w-full rounded-2xl border border-line bg-paper-2/60 px-4 py-4 text-center text-[24px] font-semibold tracking-[0.4em] text-ink outline-none focus:border-terra"
+            />
+
+            {error && (
+              <p className="mt-3 text-center text-[13px] text-terra">{error}</p>
+            )}
+
+            <button
+              onClick={verify}
+              disabled={verifying || code.trim().length < 6}
+              className="mt-4 w-full rounded-2xl bg-terra py-4 text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
+            >
+              {verifying ? "Verifying…" : isSignup ? "Create my account" : "Sign in"}
+            </button>
+
+            <p className="mt-4 text-center text-[13px] leading-relaxed text-muted">
+              On a computer? The link in the same email works too.
             </p>
             <button
               onClick={() => {
                 setSent(false);
                 setEmail("");
+                setCode("");
+                setError("");
               }}
-              className="mt-5 text-[15px] font-semibold text-terra"
+              className="mt-3 w-full text-center text-[14px] font-semibold text-terra"
             >
               Use a different email
             </button>
