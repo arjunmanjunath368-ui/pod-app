@@ -38,7 +38,8 @@ async function deliver(
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          payload
+          payload,
+          { urgency: "high" }
         );
         sent++;
       } catch (err: any) {
@@ -223,7 +224,8 @@ export async function POST(req: Request) {
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          payload
+          payload,
+          { urgency: "high" }
         );
         sent++;
       } catch (err: any) {

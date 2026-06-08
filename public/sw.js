@@ -1,5 +1,5 @@
 // Bump this name on cache-strategy changes so old caches are purged.
-const CACHE = "pod-static-v2";
+const CACHE = "pod-static-v3";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -53,6 +53,9 @@ self.addEventListener("push", (event) => {
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     data: { url: data.url || "/app" },
+    requireInteraction: true,
+    vibrate: [120, 60, 120],
+    timestamp: Date.now(),
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
