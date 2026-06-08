@@ -75,7 +75,7 @@ export default function LoginPage() {
     }
   }
 
-  // Verifying the 6-digit code completes sign-in INSIDE whatever context the
+  // Verifying the emailed code completes sign-in INSIDE whatever context the
   // user is in — crucially, the installed PWA, which has its own cookie jar the
   // emailed magic link can't reach.
   async function verify() {
@@ -193,15 +193,15 @@ export default function LoginPage() {
               {loading
                 ? "Sending…"
                 : isSignup
-                  ? "Create my account"
-                  : "Send me a sign-in link"}
+                  ? "Email me a code to sign up"
+                  : "Email me a sign-in code"}
             </button>
 
             <p className="mt-5 text-center text-[13px] leading-relaxed text-muted">
               No passwords —{" "}
               {isSignup
-                ? "we'll email you a link to finish setting up."
-                : "we'll email you a link that signs you straight in."}
+                ? "we'll email you a one-time code to set up your account."
+                : "we'll email you a one-time code to sign in."}
             </p>
 
             <div className="mt-6 border-t border-line pt-5 text-center text-[14px] text-muted">
@@ -236,7 +236,7 @@ export default function LoginPage() {
                 Enter your code
               </h2>
               <p className="mt-2 text-[15px] leading-relaxed text-muted">
-                We emailed a 6-digit code to{" "}
+                We emailed a code to{" "}
                 <b className="text-ink">{email}</b>. Enter it here to{" "}
                 {isSignup ? "set up your account" : "sign in"} — that keeps you
                 in the app.
@@ -247,12 +247,12 @@ export default function LoginPage() {
               inputMode="numeric"
               autoComplete="one-time-code"
               pattern="[0-9]*"
-              maxLength={6}
+              maxLength={8}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && verify()}
-              placeholder="123456"
-              className="mt-5 w-full rounded-2xl border border-line bg-paper-2/60 px-4 py-4 text-center text-[24px] font-semibold tracking-[0.4em] text-ink outline-none focus:border-terra"
+              placeholder="Enter code"
+              className="mt-5 w-full rounded-2xl border border-line bg-paper-2/60 px-4 py-4 text-center text-[22px] font-semibold tracking-[0.28em] text-ink outline-none placeholder:text-[16px] placeholder:tracking-normal placeholder:font-normal focus:border-terra"
             />
 
             {error && (
@@ -285,9 +285,8 @@ export default function LoginPage() {
             </button>
 
             <p className="mt-4 text-center text-[13px] leading-relaxed text-muted">
-              Using the app? Enter the code here — don't tap the email link, as
-              that opens the browser instead. On a computer, the link works
-              fine.
+              Only the most recent code works — if you tap Resend, use the new
+              one.
             </p>
             <button
               onClick={() => {
