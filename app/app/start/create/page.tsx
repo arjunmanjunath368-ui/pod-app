@@ -6,7 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 const SIZES = [
-  { label: "Couple", value: 2, hint: "Just the two of you" },
+  { label: "Duo", value: 2, hint: "Just the two of you" },
   { label: "Up to 4", value: 4, hint: "Small circle" },
   { label: "Up to 8", value: 8, hint: "Bigger crew" },
 ];
