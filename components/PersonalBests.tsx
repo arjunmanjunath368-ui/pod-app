@@ -367,12 +367,12 @@ export default function PersonalBests({
                 className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none placeholder:text-muted focus:border-terra"
               />
 
-              <div className="relative">
+              <div className="relative w-full min-w-0">
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="peer w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
+                  className="peer w-full min-w-0 box-border appearance-none rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
                 />
               </div>
             </div>

@@ -74,18 +74,12 @@ async function computeCelebration(
 
   const { data: weekSessions } = await supabase
     .from("sessions")
-    .select("user_id, activity, activities")
+    .select("user_id, activity")
     .eq("pod_id", podId)
     .gte("logged_at", weekStart);
-  const byUser: Record<
-    string,
-    { activity: string | null; activities: string[] | null }[]
-  > = {};
+  const byUser: Record<string, { activity: string | null }[]> = {};
   (weekSessions ?? []).forEach((s: any) => {
-    (byUser[s.user_id] ??= []).push({
-      activity: s.activity ?? null,
-      activities: s.activities ?? null,
-    });
+    (byUser[s.user_id] ??= []).push({ activity: s.activity ?? null });
   });
   const mine = byUser[userId] ?? [];
 
@@ -584,7 +578,7 @@ export default function LogSheet({
                       }
                       maxLength={140}
                       placeholder={`${meta.emoji} ${meta.label} — how'd it go?`}
-                      className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none placeholder:text-muted focus:border-terra"
+                      className="w-full min-w-0 box-border rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none placeholder:text-muted focus:border-terra"
                     />
                   );
                 })}
