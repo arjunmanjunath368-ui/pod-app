@@ -6,9 +6,9 @@ type Props = {
   monthLabel: string;
   name: string;
   activeDays: number;
-  sessions: number;
-  dayStreak: number;
-  goalWeeks: number;
+  weekStreak: number;
+  consistency: number | null;
+  onTrackWeeks: number;
   pbCount: number;
   challenges: number;
 };
@@ -70,9 +70,21 @@ export default function ShareMonthButton(props: Props) {
 
     const tiles: { value: string; label: string; color: string }[] = [
       { value: String(props.activeDays), label: "active days", color: PAPER },
-      { value: String(props.sessions), label: "sessions", color: PAPER },
-      { value: `🔥${props.dayStreak}`, label: "day streak", color: TERRA },
-      { value: `🎯${props.goalWeeks}`, label: "goal weeks", color: SAGE },
+      {
+        value: `🔥${props.weekStreak}`,
+        label: "week streak",
+        color: TERRA,
+      },
+      {
+        value: props.consistency === null ? "—" : `${props.consistency}%`,
+        label: "consistency",
+        color: SAGE,
+      },
+      {
+        value: `🎯${props.onTrackWeeks}`,
+        label: "weeks on track",
+        color: PAPER,
+      },
       { value: `🏆${props.pbCount}`, label: "new bests", color: GOLD },
       { value: `💪${props.challenges}`, label: "challenges", color: PAPER },
     ];

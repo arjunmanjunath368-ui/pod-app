@@ -63,15 +63,24 @@ export default async function HighlightPage() {
     activities: (s.activities ?? null) as string[] | null,
   }));
 
-  // Active days this month + sessions logged this month.
+  // A workout logged into several pods is stored once per pod (same instant).
+  // For *your* personal recap, collapse those copies so your counts aren't
+  // doubled by pod membership. (Active days already de-dupe by calendar day.)
+  const seenTs = new Set<number>();
+  const myUnique = myAll.filter((s) => {
+    const t = s.loggedAt.getTime();
+    if (seenTs.has(t)) return false;
+    seenTs.add(t);
+    return true;
+  });
+
+  // Active days this month + workouts logged this month.
   const monthDayKeys = new Set<string>();
-  let sessionsThisMonth = 0;
   const activityCounts: Record<string, number> = {};
-  for (const s of myAll) {
+  for (const s of myUnique) {
     const k = dayKeyInTz(s.loggedAt, tz);
     if (inMonth(k)) {
       monthDayKeys.add(k);
-      sessionsThisMonth++;
       const acts =
         s.activities && s.activities.length
           ? s.activities
@@ -86,55 +95,70 @@ export default async function HighlightPage() {
     .sort((a, b) => b[1] - a[1])
     .map(([key, count]) => ({ meta: activityMeta(key as any), count }));
 
-  // Current day streak (consecutive days up to today with at least one session).
-  const allDayKeys = new Set(myAll.map((s) => dayKeyInTz(s.loggedAt, tz)));
-  let dayStreak = 0;
-  let cursor = new Date(now);
-  if (!allDayKeys.has(dayKeyInTz(cursor, tz))) {
-    cursor = new Date(cursor.getTime() - 86400000); // today not logged yet — start at yesterday
-  }
-  while (allDayKeys.has(dayKeyInTz(cursor, tz))) {
-    dayStreak++;
-    cursor = new Date(cursor.getTime() - 86400000);
-  }
-
-  // Weeks you hit your goal this month (per pod, weeks whose start falls in the
-  // month and where you were already in the pod). Summed across pods.
-  let goalWeeks = 0;
-  for (const m of memberships) {
-    const goal = parseGoal(m);
-    if (!goal.hasGoal) continue;
-    const pod = podOf(m);
-    if (!pod) continue;
-    const ptz = pod.timezone ?? tz;
-    const wso = pod.week_starts_on ?? 1;
-    const joinedAt = m.joined_at ? new Date(m.joined_at) : null;
-    const podMine = myAll.filter((s) => s.podId === m.pod_id);
-    let prevStart: number | null = null;
-    for (let i = 0; i < 6; i++) {
-      const ref = new Date(now.getTime() - i * 7 * 86400000);
-      const ws = weekStartUtc(ptz, wso, ref);
-      const wsKey = dayKeyInTz(ws, ptz);
-      const upper = prevStart ?? now.getTime() + 1;
-      prevStart = ws.getTime();
-      if (!inMonth(wsKey)) {
-        // Once we've walked back past the month, older weeks won't qualify.
-        if (ws.getTime() < new Date(`${monthPrefix}-01T00:00:00Z`).getTime())
-          break;
-        continue;
-      }
-      if (joinedAt && joinedAt.getTime() > ws.getTime()) continue; // not in pod at week start
-      const weekSessions = podMine
+  // Personal weekly metrics on one grid (your timezone, Monday start),
+  // aggregated across pods: a week is "on track" only if you hit your goal in
+  // every pod where you had an active goal that week. personalWeeks[0] is the
+  // current week, [1] last week, and so on.
+  const WSO = 1;
+  type Wk = { onTrack: boolean; hasGoal: boolean; completed: boolean };
+  const personalWeeks: Wk[] = [];
+  for (let i = 0; i < 6; i++) {
+    const ref = new Date(now.getTime() - i * 7 * 86400000);
+    const ws = weekStartUtc(tz, WSO, ref);
+    const wsKey = dayKeyInTz(ws, tz);
+    if (!inMonth(wsKey)) {
+      if (ws.getTime() < new Date(`${monthPrefix}-01T00:00:00Z`).getTime()) break;
+      continue;
+    }
+    const weekEnd = ws.getTime() + 7 * 86400000;
+    let goalPods = 0;
+    let hitPods = 0;
+    for (const m of memberships) {
+      const goal = parseGoal(m);
+      if (!goal.hasGoal) continue;
+      const joinedAt = m.joined_at ? new Date(m.joined_at) : null;
+      if (joinedAt && joinedAt.getTime() > ws.getTime()) continue; // not in yet
+      goalPods++;
+      const podMine = myAll
         .filter(
-          (s) => s.loggedAt.getTime() >= ws.getTime() && s.loggedAt.getTime() < upper
+          (s) =>
+            s.podId === m.pod_id &&
+            s.loggedAt.getTime() >= ws.getTime() &&
+            s.loggedAt.getTime() < weekEnd
         )
         .map((s) => ({
           activity: (s.activity ?? "other") as any,
           activities: s.activities ?? null,
         }));
-      if (goalHit(goal, weekSessions)) goalWeeks++;
+      if (goalHit(goal, podMine)) hitPods++;
     }
+    personalWeeks.push({
+      hasGoal: goalPods > 0,
+      onTrack: goalPods > 0 && hitPods === goalPods,
+      completed: weekEnd <= now.getTime(),
+    });
   }
+
+  // Week streak: consecutive on-track weeks from now back. An in-progress week
+  // that you haven't hit yet doesn't break it; a finished, missed week does.
+  let weekStreak = 0;
+  for (const w of personalWeeks) {
+    if (!w.hasGoal) continue;
+    if (w.onTrack) {
+      weekStreak++;
+      continue;
+    }
+    if (!w.completed) continue; // current week still open — no penalty
+    break;
+  }
+
+  // Consistency: share of this month's *finished* goal-weeks you hit.
+  const finishedGoalWeeks = personalWeeks.filter((w) => w.hasGoal && w.completed);
+  const onTrackFinished = finishedGoalWeeks.filter((w) => w.onTrack).length;
+  const consistencyPct =
+    finishedGoalWeeks.length > 0
+      ? Math.round((100 * onTrackFinished) / finishedGoalWeeks.length)
+      : null; // no finished weeks yet (e.g. first week) → empty state
 
   // Personal bests set this month.
   const { data: rawPbs } = await supabase
@@ -195,12 +219,12 @@ export default async function HighlightPage() {
   const stats: { label: string; value: string }[] = [
     { label: activeDays === 1 ? "active day" : "active days", value: String(activeDays) },
     {
-      label: sessionsThisMonth === 1 ? "session" : "sessions",
-      value: String(sessionsThisMonth),
+      label: "week streak",
+      value: weekStreak > 0 ? `🔥${weekStreak}` : "0",
     },
     {
-      label: dayStreak === 1 ? "day streak" : "day streak",
-      value: dayStreak > 0 ? `🔥${dayStreak}` : "0",
+      label: "consistency",
+      value: consistencyPct === null ? "—" : `${consistencyPct}%`,
     },
   ];
 
@@ -265,12 +289,13 @@ export default async function HighlightPage() {
             ))}
           </div>
 
-          {goalWeeks > 0 && (
+          {finishedGoalWeeks.length > 0 && (
             <div className="mt-2.5 rounded-2xl border border-line bg-card p-4">
               <span className="text-[15px] text-ink">
-                🎯 You hit your weekly goal{" "}
+                🎯 You stayed on track{" "}
                 <span className="font-semibold text-terra">
-                  {goalWeeks} {goalWeeks === 1 ? "week" : "weeks"}
+                  {onTrackFinished} of {finishedGoalWeeks.length}{" "}
+                  {finishedGoalWeeks.length === 1 ? "week" : "weeks"}
                 </span>{" "}
                 this month.
               </span>
@@ -381,9 +406,9 @@ export default async function HighlightPage() {
             monthLabel={monthLabel}
             name={firstName}
             activeDays={activeDays}
-            sessions={sessionsThisMonth}
-            dayStreak={dayStreak}
-            goalWeeks={goalWeeks}
+            weekStreak={weekStreak}
+            consistency={consistencyPct}
+            onTrackWeeks={onTrackFinished}
             pbCount={monthPbs.length}
             challenges={challengesAnswered + challengesSent}
           />
