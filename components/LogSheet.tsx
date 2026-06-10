@@ -74,12 +74,18 @@ async function computeCelebration(
 
   const { data: weekSessions } = await supabase
     .from("sessions")
-    .select("user_id, activity")
+    .select("user_id, activity, activities")
     .eq("pod_id", podId)
     .gte("logged_at", weekStart);
-  const byUser: Record<string, { activity: string | null }[]> = {};
+  const byUser: Record<
+    string,
+    { activity: string | null; activities: string[] | null }[]
+  > = {};
   (weekSessions ?? []).forEach((s: any) => {
-    (byUser[s.user_id] ??= []).push({ activity: s.activity ?? null });
+    (byUser[s.user_id] ??= []).push({
+      activity: s.activity ?? null,
+      activities: s.activities ?? null,
+    });
   });
   const mine = byUser[userId] ?? [];
 
@@ -147,6 +153,8 @@ export default function LogSheet({
     );
   }
   const [note, setNote] = useState("");
+  // Per-activity detail when more than one activity is logged together.
+  const [actNotes, setActNotes] = useState<Record<string, string>>({});
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -233,6 +241,7 @@ export default function LogSheet({
       return; // primer handles closing
     }
     setNote("");
+    setActNotes({});
     clearPhoto();
     onClose();
     router.refresh();
@@ -241,6 +250,7 @@ export default function LogSheet({
   function closeAfterPrimer() {
     setPrimer(false);
     setNote("");
+    setActNotes({});
     clearPhoto();
     onClose();
     router.refresh();
@@ -285,13 +295,24 @@ export default function LogSheet({
     }
 
     // One session row per pod the log applies to.
+    const multi = activities.length > 1;
+    const activityNotes: Record<string, string> = {};
+    if (multi) {
+      for (const a of activities) {
+        const v = (actNotes[a] ?? "").trim();
+        if (v) activityNotes[a] = v;
+      }
+    }
+    const hasActNotes = Object.keys(activityNotes).length > 0;
+
     const { error } = await supabase.from("sessions").insert(
       selectedPods.map((pid) => ({
         pod_id: pid,
         user_id: userId,
         activity: activities[0],
         activities,
-        note: note.trim() || null,
+        note: multi ? null : note.trim() || null,
+        activity_notes: hasActNotes ? activityNotes : null,
         photo_url: photoUrl,
       }))
     );
@@ -383,6 +404,7 @@ export default function LogSheet({
     setTimeout(() => {
       setDone(false);
       setNote("");
+    setActNotes({});
       clearPhoto();
       onClose();
       router.refresh();
@@ -546,14 +568,37 @@ export default function LogSheet({
               })}
             </div>
 
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Add a note (optional) — how'd it go?"
-              rows={2}
-              maxLength={140}
-              className="mt-4 w-full resize-none rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
-            />
+            {activities.length > 1 ? (
+              <div className="mt-4 space-y-2.5">
+                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
+                  Notes per activity (optional)
+                </div>
+                {activities.map((a) => {
+                  const meta = activityMeta(a);
+                  return (
+                    <input
+                      key={a}
+                      value={actNotes[a] ?? ""}
+                      onChange={(e) =>
+                        setActNotes((prev) => ({ ...prev, [a]: e.target.value }))
+                      }
+                      maxLength={140}
+                      placeholder={`${meta.emoji} ${meta.label} — how'd it go?`}
+                      className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none placeholder:text-muted focus:border-terra"
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Add a note (optional) — how'd it go?"
+                rows={2}
+                maxLength={140}
+                className="mt-4 w-full resize-none rounded-2xl border border-line bg-card px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
+              />
+            )}
 
             {preview ? (
               <div className="mt-3 flex items-center gap-3 rounded-2xl border border-line bg-card p-2.5">

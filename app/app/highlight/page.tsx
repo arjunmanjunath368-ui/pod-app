@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { parseGoal, goalHit } from "@/lib/goals";
 import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz } from "@/lib/days";
+import { activityMeta } from "@/lib/activities";
+import ShareMonthButton from "@/components/ShareMonthButton";
 
 export default async function HighlightPage() {
   const supabase = createClient();
@@ -51,26 +53,38 @@ export default async function HighlightPage() {
   const since = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
   const { data: rawMine } = await supabase
     .from("sessions")
-    .select("pod_id, logged_at, activity")
+    .select("pod_id, logged_at, activity, activities")
     .eq("user_id", user.id)
     .gte("logged_at", since);
   const myAll = (rawMine ?? []).map((s: any) => ({
     podId: s.pod_id as string,
     loggedAt: new Date(s.logged_at),
     activity: (s.activity ?? null) as string | null,
+    activities: (s.activities ?? null) as string[] | null,
   }));
 
   // Active days this month + sessions logged this month.
   const monthDayKeys = new Set<string>();
   let sessionsThisMonth = 0;
+  const activityCounts: Record<string, number> = {};
   for (const s of myAll) {
     const k = dayKeyInTz(s.loggedAt, tz);
     if (inMonth(k)) {
       monthDayKeys.add(k);
       sessionsThisMonth++;
+      const acts =
+        s.activities && s.activities.length
+          ? s.activities
+          : s.activity
+            ? [s.activity]
+            : [];
+      for (const a of acts) activityCounts[a] = (activityCounts[a] ?? 0) + 1;
     }
   }
   const activeDays = monthDayKeys.size;
+  const loggedBreakdown = Object.entries(activityCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, count]) => ({ meta: activityMeta(key as any), count }));
 
   // Current day streak (consecutive days up to today with at least one session).
   const allDayKeys = new Set(myAll.map((s) => dayKeyInTz(s.loggedAt, tz)));
@@ -114,7 +128,10 @@ export default async function HighlightPage() {
         .filter(
           (s) => s.loggedAt.getTime() >= ws.getTime() && s.loggedAt.getTime() < upper
         )
-        .map((s) => ({ activity: (s.activity ?? "other") as any }));
+        .map((s) => ({
+          activity: (s.activity ?? "other") as any,
+          activities: s.activities ?? null,
+        }));
       if (goalHit(goal, weekSessions)) goalWeeks++;
     }
   }
@@ -260,6 +277,32 @@ export default async function HighlightPage() {
             </div>
           )}
 
+          {/* What you actually logged */}
+          {loggedBreakdown.length > 0 && (
+            <div className="mt-6">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
+                What you logged
+              </div>
+              <div className="mt-3 rounded-2xl border border-line bg-card p-4">
+                <div className="flex flex-col gap-2.5">
+                  {loggedBreakdown.map((b) => (
+                    <div
+                      key={b.meta.label}
+                      className="flex items-center justify-between"
+                    >
+                      <span className="text-[15px] text-ink">
+                        {b.meta.emoji} {b.meta.label}
+                      </span>
+                      <span className="text-[15px] font-semibold text-ink">
+                        {b.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Bests */}
           {monthPbs.length > 0 && (
             <div className="mt-6">
@@ -333,6 +376,17 @@ export default async function HighlightPage() {
               ))}
             </div>
           </div>
+
+          <ShareMonthButton
+            monthLabel={monthLabel}
+            name={firstName}
+            activeDays={activeDays}
+            sessions={sessionsThisMonth}
+            dayStreak={dayStreak}
+            goalWeeks={goalWeeks}
+            pbCount={monthPbs.length}
+            challenges={challengesAnswered + challengesSent}
+          />
 
           <p className="mt-7 text-center text-[14px] leading-relaxed text-muted">
             Every session is a vote for the person you're becoming. Keep showing

@@ -53,7 +53,7 @@ export default async function YouPage() {
   const since = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
   const { data: mySessions } = await supabase
     .from("sessions")
-    .select("pod_id, logged_at, activity")
+    .select("pod_id, logged_at, activity, activities")
     .eq("user_id", user.id)
     .gte("logged_at", since);
 
@@ -91,7 +91,10 @@ export default async function YouPage() {
       .filter(
         (s: any) => s.pod_id === m.pod_id && new Date(s.logged_at) >= weekStart
       )
-      .map((s: any) => ({ activity: s.activity ?? null }));
+      .map((s: any) => ({
+        activity: s.activity ?? null,
+        activities: s.activities ?? null,
+      }));
     const { done, target, ratio } = goalProgress(goal, mine);
     const joinedAt = m.joined_at ? new Date(m.joined_at) : null;
     const goalNotStarted =

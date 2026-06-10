@@ -69,11 +69,20 @@ export function parseGoal(row: RawGoalRow): MemberGoal {
   };
 }
 
-type WeekSession = { activity?: string | null };
+type WeekSession = { activity?: string | null; activities?: string[] | null };
+
+// A session counts toward an activity if that activity is among the ones it
+// was logged with (multi-activity logs credit each). Falls back to the single
+// `activity` for older rows that have no `activities` array.
+function sessionCovers(s: WeekSession, activity: string): boolean {
+  return s.activities && s.activities.length
+    ? s.activities.includes(activity)
+    : s.activity === activity;
+}
 
 function countOf(weekSessions: WeekSession[], activity: string): number {
   let c = 0;
-  for (const s of weekSessions) if (s.activity === activity) c++;
+  for (const s of weekSessions) if (sessionCovers(s, activity)) c++;
   return c;
 }
 

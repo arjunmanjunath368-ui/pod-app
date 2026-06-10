@@ -81,13 +81,14 @@ export default async function StakesPage({
     const startInstant0 = periodStartInstant(stake.period_start, tz, wso);
     const { data: sess } = await supabase
       .from("sessions")
-      .select("user_id, logged_at, activity")
+      .select("user_id, logged_at, activity, activities")
       .eq("pod_id", current.podId)
       .gte("logged_at", startInstant0.toISOString());
     const sessions = (sess ?? []).map((s: any) => ({
       userId: s.user_id as string,
       loggedAt: new Date(s.logged_at),
       activity: (s.activity as string | null) ?? null,
+      activities: (s.activities as string[] | null) ?? null,
     }));
 
     // Frozen per-week rosters (pause fairness): who was staked each week. Once a

@@ -15,6 +15,7 @@ export type StakeSession = {
   userId: string;
   loggedAt: Date;
   activity?: string | null;
+  activities?: string[] | null;
 };
 
 export type Standing = { userId: string; firmNet: number; provNet: number };
@@ -155,15 +156,24 @@ export function computeStakes(opts: {
     const { start, end } = weekBounds(tz, weekStartsOn, startInstant, i);
     const isComplete = end.getTime() <= nowMs;
 
-    // Gather each roster member's sessions for this week (with activity), so a
-    // split goal can be checked per activity and a combined goal by total.
-    const weekSess: Record<string, (string | null | undefined)[]> = {};
+    // Gather each roster member's sessions for this week as the set of
+    // activities each session covered, so a split goal can be checked per
+    // activity (a multi-activity log credits each) and a combined goal by the
+    // number of sessions.
+    const weekSess: Record<string, string[][]> = {};
     roster.forEach((id) => (weekSess[id] = []));
     for (const s of sessions) {
       if (weekSess[s.userId] === undefined) continue;
       const t = s.loggedAt.getTime();
-      if (t >= start.getTime() && t < end.getTime())
-        weekSess[s.userId].push(s.activity);
+      if (t >= start.getTime() && t < end.getTime()) {
+        const acts =
+          s.activities && s.activities.length
+            ? s.activities
+            : s.activity
+              ? [s.activity]
+              : [];
+        weekSess[s.userId].push(acts.filter(Boolean) as string[]);
+      }
     }
 
     const hitters = roster.filter((id) => {
@@ -171,7 +181,8 @@ export function computeStakes(opts: {
       if (splits) {
         return splits.every(
           (sp) =>
-            weekSess[id].filter((a) => a === sp.activity).length >= sp.target
+            weekSess[id].filter((acts) => acts.includes(sp.activity)).length >=
+            sp.target
         );
       }
       return weekSess[id].length >= (targetOf[id] ?? Infinity);

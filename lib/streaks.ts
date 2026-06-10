@@ -25,6 +25,7 @@ export type StreakSession = {
   userId: string;
   loggedAt: Date;
   activity?: string | null;
+  activities?: string[] | null;
 };
 
 export function computeStreaks(opts: {
@@ -64,7 +65,13 @@ export function computeStreaks(opts: {
     let c = 0;
     for (const s of sessions) {
       if (s.userId !== userId) continue;
-      if (activity !== undefined && s.activity !== activity) continue;
+      if (activity !== undefined) {
+        const covers =
+          s.activities && s.activities.length
+            ? s.activities.includes(activity)
+            : s.activity === activity;
+        if (!covers) continue;
+      }
       const t = s.loggedAt.getTime();
       if (t >= lo && t < hi) c++;
     }

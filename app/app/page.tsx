@@ -40,17 +40,23 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
 
   const { data: sessions } = await supabase
     .from("sessions")
-    .select("user_id, logged_at, activity")
+    .select("user_id, logged_at, activity, activities")
     .eq("pod_id", podId)
     .gte("logged_at", podCreatedAt.toISOString());
 
-  const weekSess: Record<string, { activity: string | null }[]> = {};
+  const weekSess: Record<
+    string,
+    { activity: string | null; activities: string[] | null }[]
+  > = {};
   const monthPrefix = dayKeyInTz(now, tz).slice(0, 7);
   const monthDays: Record<string, Set<string>> = {};
   const allDays: Record<string, Set<string>> = {};
   (sessions ?? []).forEach((s: any) => {
     if (new Date(s.logged_at) >= weekStart)
-      (weekSess[s.user_id] ??= []).push({ activity: s.activity ?? null });
+      (weekSess[s.user_id] ??= []).push({
+        activity: s.activity ?? null,
+        activities: s.activities ?? null,
+      });
     const k = dayKeyInTz(new Date(s.logged_at), tz);
     (allDays[s.user_id] ??= new Set()).add(k);
     if (k.startsWith(monthPrefix)) (monthDays[s.user_id] ??= new Set()).add(k);
@@ -73,6 +79,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
       userId: s.user_id,
       loggedAt: new Date(s.logged_at),
       activity: s.activity ?? null,
+      activities: s.activities ?? null,
     })),
     tz,
     weekStartsOn: wso,

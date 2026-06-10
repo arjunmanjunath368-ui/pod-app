@@ -35,6 +35,7 @@ export type FeedItem = {
   activity: string;
   activities: string[];
   note: string | null;
+  activityNotes: Record<string, string> | null;
   photoUrl: string | null;
   timeLabel: string;
   isMine: boolean;
@@ -134,6 +135,7 @@ export default function Feed({
                 ? s.activities
                 : [s.activity ?? "other"],
             note: s.note ?? null,
+            activityNotes: s.activity_notes ?? null,
             photoUrl: s.photo_url ?? null,
             timeLabel: "just now",
             isMine: false,
@@ -167,6 +169,7 @@ export default function Feed({
                         ? s.activities
                         : [s.activity ?? "other"],
                     note: s.note ?? null,
+                    activityNotes: s.activity_notes ?? null,
                     photoUrl: s.photo_url ?? null,
                   }
                 : p
@@ -479,10 +482,27 @@ export default function Feed({
               )}
             </div>
 
-            {it.note && (
-              <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-                {it.note}
-              </p>
+            {it.activityNotes && Object.keys(it.activityNotes).length > 0 ? (
+              <div className="mt-3 space-y-1">
+                {Object.entries(it.activityNotes).map(([act, n]) => (
+                  <p
+                    key={act}
+                    className="text-[15px] leading-relaxed text-ink-soft"
+                  >
+                    <span className="font-semibold">
+                      {activityMeta(act as any).emoji}{" "}
+                      {activityMeta(act as any).label}:
+                    </span>{" "}
+                    {n}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              it.note && (
+                <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
+                  {it.note}
+                </p>
+              )
             )}
 
             {it.photoUrl && (
