@@ -6,6 +6,7 @@ import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz } from "@/lib/days";
 import { activityMeta } from "@/lib/activities";
 import ShareMonthButton from "@/components/ShareMonthButton";
+import HighlightTiles from "@/components/HighlightTiles";
 
 export default async function HighlightPage() {
   const supabase = createClient();
@@ -66,11 +67,26 @@ export default async function HighlightPage() {
   // A workout logged into several pods is stored once per pod (same instant).
   // For *your* personal recap, collapse those copies so your counts aren't
   // doubled by pod membership. (Active days already de-dupe by calendar day.)
-  const seenTs = new Set<number>();
+  // A workout logged into several pods in one tap creates one row per pod,
+  // landing milliseconds apart — so we collapse copies by (calendar day +
+  // activity set) rather than exact time. You don't realistically log two
+  // separate identical workouts on the same day, so this counts each once.
+  const seenKey = new Set<string>();
   const myUnique = myAll.filter((s) => {
-    const t = s.loggedAt.getTime();
-    if (seenTs.has(t)) return false;
-    seenTs.add(t);
+    const day = dayKeyInTz(s.loggedAt, tz);
+    const acts = (
+      s.activities && s.activities.length
+        ? s.activities
+        : s.activity
+          ? [s.activity]
+          : []
+    )
+      .slice()
+      .sort()
+      .join(",");
+    const key = `${day}|${acts}`;
+    if (seenKey.has(key)) return false;
+    seenKey.add(key);
     return true;
   });
 
@@ -216,15 +232,23 @@ export default async function HighlightPage() {
     challengesSent === 0 &&
     challengesAnswered === 0;
 
-  const stats: { label: string; value: string }[] = [
-    { label: activeDays === 1 ? "active day" : "active days", value: String(activeDays) },
+  const stats: { label: string; value: string; explain: string }[] = [
+    {
+      label: activeDays === 1 ? "active day" : "active days",
+      value: String(activeDays),
+      explain: "Days you logged at least one workout this month.",
+    },
     {
       label: "week streak",
       value: weekStreak > 0 ? `🔥${weekStreak}` : "0",
+      explain:
+        "Weeks in a row you've hit your goal. Rest days don't break it — only a full missed week does.",
     },
     {
       label: "consistency",
       value: consistencyPct === null ? "—" : `${consistencyPct}%`,
+      explain:
+        "Share of this month's finished weeks where you hit your goal.",
     },
   ];
 
@@ -272,22 +296,8 @@ export default async function HighlightPage() {
         </div>
       ) : (
         <>
-          {/* Consistency tiles */}
-          <div className="mt-6 grid grid-cols-3 gap-2.5">
-            {stats.map((s) => (
-              <div
-                key={s.label}
-                className="rounded-2xl bg-ink p-4 text-center text-paper"
-              >
-                <div className="font-serif text-[26px] font-semibold leading-none">
-                  {s.value}
-                </div>
-                <div className="mt-1 text-[12px] leading-tight text-sage-soft">
-                  {s.label}
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* Consistency tiles (tap to flip for an explanation) */}
+          <HighlightTiles tiles={stats} />
 
           {finishedGoalWeeks.length > 0 && (
             <div className="mt-2.5 rounded-2xl border border-line bg-card p-4">
