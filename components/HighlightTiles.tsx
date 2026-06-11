@@ -6,6 +6,8 @@ export type HighlightTile = {
   label: string;
   value: string;
   explain: string;
+  icon: string;
+  iconDim?: boolean; // shown faded (e.g. an unlit streak at 0)
 };
 
 // Three stat tiles that flip on tap to reveal a one-line explanation, so the
@@ -23,7 +25,7 @@ export default function HighlightTiles({ tiles }: { tiles: HighlightTile[] }) {
             type="button"
             onClick={() => setFlipped(isFlipped ? null : i)}
             aria-label={`${t.label}. ${t.explain} Tap to flip back.`}
-            className="relative h-[104px] w-full transition active:scale-95"
+            className="relative h-[116px] w-full transition active:scale-95"
             style={{ perspective: "900px" }}
           >
             <div
@@ -34,35 +36,41 @@ export default function HighlightTiles({ tiles }: { tiles: HighlightTile[] }) {
                 transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
               }}
             >
-              {/* Front: the number */}
+              {/* Front: icon, number, label */}
               <div
-                className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-ink p-3 text-paper"
+                className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-ink px-2 py-3 text-paper"
                 style={{
                   backfaceVisibility: "hidden",
                   WebkitBackfaceVisibility: "hidden",
                 }}
               >
-                <div className="font-serif text-[26px] font-semibold leading-none">
+                <span
+                  className="text-[20px] leading-none"
+                  style={{ opacity: t.iconDim ? 0.3 : 1 }}
+                >
+                  {t.icon}
+                </span>
+                <div className="mt-1.5 font-serif text-[34px] font-semibold leading-none">
                   {t.value}
                 </div>
-                <div className="mt-1 text-[12px] leading-tight text-sage-soft">
+                <div className="mt-1.5 text-[12px] font-medium leading-tight text-sage-soft">
                   {t.label}
                 </div>
-                <span className="absolute right-2 top-2 text-[10px] leading-none text-sage-soft/60">
+                <span className="absolute right-2 top-2 text-[10px] leading-none text-sage-soft/55">
                   ⓘ
                 </span>
               </div>
 
               {/* Back: the explanation */}
               <div
-                className="absolute inset-0 flex items-center justify-center rounded-2xl bg-ink px-2.5 text-center"
+                className="absolute inset-0 flex items-center justify-center rounded-2xl bg-ink px-3 text-center"
                 style={{
                   backfaceVisibility: "hidden",
                   WebkitBackfaceVisibility: "hidden",
                   transform: "rotateY(180deg)",
                 }}
               >
-                <p className="text-[11px] leading-snug text-paper/90">
+                <p className="text-[11.5px] leading-snug text-paper/90">
                   {t.explain}
                 </p>
               </div>

@@ -232,21 +232,31 @@ export default async function HighlightPage() {
     challengesSent === 0 &&
     challengesAnswered === 0;
 
-  const stats: { label: string; value: string; explain: string }[] = [
+  const stats: {
+    label: string;
+    value: string;
+    explain: string;
+    icon: string;
+    iconDim?: boolean;
+  }[] = [
     {
       label: activeDays === 1 ? "active day" : "active days",
       value: String(activeDays),
+      icon: "📆",
       explain: "Days you logged at least one workout this month.",
     },
     {
       label: "week streak",
-      value: weekStreak > 0 ? `🔥${weekStreak}` : "0",
+      value: String(weekStreak),
+      icon: "🔥",
+      iconDim: weekStreak === 0,
       explain:
         "Weeks in a row you've hit your goal. Rest days don't break it — only a full missed week does.",
     },
     {
       label: "consistency",
       value: consistencyPct === null ? "—" : `${consistencyPct}%`,
+      icon: "🎯",
       explain:
         "Share of this month's finished weeks where you hit your goal.",
     },
