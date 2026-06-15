@@ -116,36 +116,12 @@ export default async function StakesPage({
       now,
     });
 
-    // Settle every fully-elapsed period (guarded by unique(pod_id,period_start)).
-    for (let guard = 0; guard < 24 && res.isOver; guard++) {
-      const periodEndDate = dayKeyInTz(res.periodEndInstant, tz);
-      const results = res.standings.map((s) => ({
-        userId: s.userId,
-        net: s.firmNet,
-      }));
-      await supabase.from("stake_settlements").insert({
-        pod_id: current.podId,
-        period_start: periodStartDate,
-        period_end: periodEndDate,
-        results,
-      }); // dup insert (already settled) errors harmlessly
-      periodStartDate = periodEndDate;
-      await supabase
-        .from("pod_stakes")
-        .update({ period_start: periodStartDate, updated_at: now.toISOString() })
-        .eq("pod_id", current.podId);
-      res = computeStakes({
-        stakeAmount: stake.stake_amount,
-        periodStartDate,
-        periodWeeks: stake.period_weeks,
-        tz,
-        weekStartsOn: wso,
-        members: podMembers,
-        sessions,
-        weekRosters,
-        now,
-      });
-    }
+    // One-and-done: a period runs once and ends. When it fully elapses, the
+    // daily cron settles it (writes stake_settlements, flips status to "off",
+    // and pushes the result to the pod) — that way the result notification
+    // fires on schedule even if nobody opens the app. Until the cron runs, the
+    // page just shows the final standings (res already reflects the closed
+    // period). No roll-forward to a new period.
 
     // Keep the CURRENT (open) week's roster in sync with live status: active
     // members with a goal whose staked_from is on or before this week. Pausing

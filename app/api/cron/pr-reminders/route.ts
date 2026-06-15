@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { createClient } from "@supabase/supabase-js";
+import { computeStakes, periodStartInstant } from "@/lib/stakes";
+import { parseGoal } from "@/lib/goals";
+import { dayKeyInTz } from "@/lib/days";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -165,10 +168,162 @@ export async function GET(req: Request) {
       .in("id", anchorIds);
   }
 
+  // ---- Settle any one-and-done stake whose period has ended, then push the
+  // result to the whole pod (so it lands even if nobody opens the app). ----
+  const stakes = await settleEndedStakes(supabase);
+
   return NextResponse.json({
     ok: true,
     bestsMarked: anchorIds.length,
     usersNotified,
     pushesSent,
+    stakesSettled: stakes.settled,
+    stakePushes: stakes.pushes,
   });
+}
+
+function money(n: number): string {
+  const sign = n >= 0 ? "+$" : "−$";
+  const abs = Math.abs(n);
+  const str = Number.isInteger(abs) ? String(abs) : abs.toFixed(2);
+  return `${sign}${str}`;
+}
+
+async function settleEndedStakes(
+  supabase: any
+): Promise<{ settled: number; pushes: number }> {
+  const now = new Date();
+  let settled = 0;
+  let pushes = 0;
+
+  const { data: active } = await supabase
+    .from("pod_stakes")
+    .select("pod_id, stake_amount, period_start, period_weeks, status")
+    .eq("status", "active")
+    .not("period_start", "is", null);
+
+  for (const st of active ?? []) {
+    const { data: pod } = await supabase
+      .from("pods")
+      .select("name, timezone, week_starts_on")
+      .eq("id", st.pod_id)
+      .maybeSingle();
+    const tz = pod?.timezone ?? "UTC";
+    const wso = pod?.week_starts_on ?? 1;
+
+    const { data: mems } = await supabase
+      .from("pod_members")
+      .select(
+        "user_id, status, goal_activity, goal_target_per_week, goal_mode, goal_activities, goal_splits, staked_from, profiles(display_name)"
+      )
+      .eq("pod_id", st.pod_id)
+      .neq("status", "left");
+    const members = (mems ?? []).map((m: any) => {
+      const g = parseGoal(m);
+      return {
+        userId: m.user_id as string,
+        target: g.target,
+        status: m.status as string,
+        stakedFrom: (m.staked_from as string | null) ?? null,
+        mode: g.mode,
+        splits: g.splits,
+      };
+    });
+    const nameOf = (id: string): string => {
+      const m = (mems ?? []).find((x: any) => x.user_id === id);
+      const p = m
+        ? Array.isArray(m.profiles)
+          ? m.profiles[0]
+          : m.profiles
+        : null;
+      return p?.display_name ?? "Member";
+    };
+
+    const startInstant = periodStartInstant(st.period_start, tz, wso);
+    const { data: sess } = await supabase
+      .from("sessions")
+      .select("user_id, logged_at, activity, activities")
+      .eq("pod_id", st.pod_id)
+      .gte("logged_at", startInstant.toISOString());
+    const sessions = (sess ?? []).map((s: any) => ({
+      userId: s.user_id as string,
+      loggedAt: new Date(s.logged_at),
+      activity: (s.activity as string | null) ?? null,
+      activities: (s.activities as string[] | null) ?? null,
+    }));
+
+    const { data: wpRows } = await supabase
+      .from("stake_week_participants")
+      .select("week_start, user_id")
+      .eq("pod_id", st.pod_id)
+      .gte("week_start", st.period_start);
+    const weekRosters: Record<string, string[]> = {};
+    (wpRows ?? []).forEach((r: any) => {
+      (weekRosters[r.week_start] ??= []).push(r.user_id as string);
+    });
+
+    const res = computeStakes({
+      stakeAmount: st.stake_amount,
+      periodStartDate: st.period_start,
+      periodWeeks: st.period_weeks,
+      tz,
+      weekStartsOn: wso,
+      members,
+      sessions,
+      weekRosters,
+      now,
+    });
+    if (!res.isOver) continue; // period hasn't fully elapsed yet
+
+    const periodEndDate = dayKeyInTz(res.periodEndInstant, tz);
+    const results = res.standings.map((s) => ({
+      userId: s.userId,
+      net: s.firmNet,
+    }));
+
+    // Insert the settlement (unique on pod_id+period_start). If it already
+    // exists we still close the stake, but we don't push twice.
+    const { error: insErr } = await supabase
+      .from("stake_settlements")
+      .insert({
+        pod_id: st.pod_id,
+        period_start: st.period_start,
+        period_end: periodEndDate,
+        results,
+      });
+
+    await supabase
+      .from("pod_stakes")
+      .update({
+        status: "off",
+        period_start: null,
+        updated_at: now.toISOString(),
+      })
+      .eq("pod_id", st.pod_id);
+
+    if (insErr) continue; // already settled → no double notification
+    settled++;
+
+    // Push everyone's net to each pod member (their own row shown as "You").
+    const ordered = [...results].sort((a, b) => b.net - a.net);
+    const recipients = (mems ?? []).map((m: any) => m.user_id as string);
+    const title = `🏆 Your ${st.period_weeks}-week stake wrapped`;
+    for (const uid of recipients) {
+      const line = ordered
+        .map(
+          (r) => `${r.userId === uid ? "You" : nameOf(r.userId)} ${money(r.net)}`
+        )
+        .join(" · ");
+      const body = line || "The stake is settled.";
+      pushes += await sendToUser(
+        supabase,
+        uid,
+        title,
+        body,
+        `/app/stakes?pod=${st.pod_id}`
+      );
+    }
+  }
+
+  return { settled, pushes };
 }
