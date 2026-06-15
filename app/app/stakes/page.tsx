@@ -315,13 +315,13 @@ export default async function StakesPage({
       timeZone: tz,
       month: "short",
       day: "numeric",
-    }).format(new Date(`${stake.period_start}T12:00:00Z`));
+    }).format(new Date(`${periodStartDate}T12:00:00Z`));
     const startLabel = new Intl.DateTimeFormat("en-US", {
       timeZone: tz,
       weekday: "short",
       month: "short",
       day: "numeric",
-    }).format(new Date(`${stake.period_start}T12:00:00Z`));
+    }).format(new Date(`${periodStartDate}T12:00:00Z`));
     const notStartedYet = now.getTime() < startInstant0.getTime();
 
     activeView = {

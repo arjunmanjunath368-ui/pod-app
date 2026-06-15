@@ -149,14 +149,14 @@ export async function POST(req: Request) {
     message =
       body.body ||
       pick([
-        `${name} just logged${label} — your move.`,
-        `${name} showed up today. Your turn to make it count.`,
-        `${name} got${label} in. The pod's rolling — hop in?`,
-        `${name} just put in the work 💪 You in?`,
-        `${name} checked in. A quick one keeps you in the game.`,
-        `${name} trained today — even five honest minutes counts.`,
-        `${name} logged${label}. Don't leave 'em out there solo.`,
-        `${name} showed up. Future-you will thank you.`,
+        `${name} just logged${label} 💪`,
+        `${name} showed up today 🔥`,
+        `${name} got${label} in — the pod's rolling.`,
+        `${name} just put in the work 💪`,
+        `${name} checked in. Cheer 'em on?`,
+        `${name} trained today 🙌`,
+        `${name} logged${label}. The pod's moving.`,
+        `${name} showed up. That's the whole game.`,
       ]);
   } else {
     const toUserId: string | undefined = body.toUserId;

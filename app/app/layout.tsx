@@ -1,4 +1,5 @@
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import RefreshOnFocus from "@/components/RefreshOnFocus";
 
 export default function AppLayout({
   children,
@@ -7,6 +8,7 @@ export default function AppLayout({
 }) {
   return (
     <div className="phone">
+      <RefreshOnFocus />
       {children}
       <PWAInstallPrompt />
     </div>

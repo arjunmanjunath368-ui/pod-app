@@ -329,7 +329,7 @@ export default function Feed({
             podId,
             authorUserId: item.authorUserId,
             emoji,
-            url: "/app",
+            url: `/app/pod?pod=${podId}`,
           }),
         }).catch(() => {});
       }
@@ -423,7 +423,7 @@ export default function Feed({
           kind: "comment",
           podId,
           authorUserId: item.authorUserId,
-          url: "/app",
+          url: `/app/pod?pod=${podId}`,
         }),
       }).catch(() => {});
     }
