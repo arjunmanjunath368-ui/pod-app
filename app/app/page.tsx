@@ -6,7 +6,7 @@ import { weekStartUtc, weekRangeLabel } from "@/lib/week";
 import { computeStreaks } from "@/lib/streaks";
 import { dayKeyInTz, shortDate } from "@/lib/days";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
-import { parseGoal, goalProgress, splitBreakdown } from "@/lib/goals";
+import { parseGoal, goalProgress, splitBreakdown, goalHit } from "@/lib/goals";
 import BottomNav from "@/components/BottomNav";
 import PodSync from "@/components/PodSync";
 import InviteButton from "@/components/InviteButton";
@@ -145,7 +145,32 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
           totalRemaining === 1 ? "session" : "sessions"
         } from a perfect week.`;
 
-  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso) };
+  // The current user's own goal status in this pod, for the momentum banner:
+  // did I hit my goal this week yet, and did I hit it last week?
+  const meMember = (members ?? []).find((m: any) => m.user_id === userId);
+  const myGoal = meMember ? parseGoal(meMember) : null;
+  let meHasGoal = false;
+  let meHitThisWeek = false;
+  let meHitLastWeek = false;
+  if (myGoal?.hasGoal) {
+    meHasGoal = true;
+    meHitThisWeek = goalHit(myGoal, weekSess[userId] ?? []);
+    const lastWeekStart = new Date(weekStart.getTime() - 7 * 86400000);
+    const lastWeekMine = (sessions ?? [])
+      .filter(
+        (s: any) =>
+          s.user_id === userId &&
+          new Date(s.logged_at) >= lastWeekStart &&
+          new Date(s.logged_at) < weekStart
+      )
+      .map((s: any) => ({
+        activity: s.activity ?? null,
+        activities: s.activities ?? null,
+      }));
+    meHitLastWeek = goalHit(myGoal, lastWeekMine);
+  }
+
+  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso), meHasGoal, meHitThisWeek, meHitLastWeek };
 }
 
 export default async function Home({
@@ -189,6 +214,24 @@ export default async function Home({
   const sections = await Promise.all(
     podsList.map((pod: any) => buildSection(supabase, pod, user.id, now))
   );
+
+  // Momentum banner: shown until I've hit my goal somewhere this week. If I
+  // hit it last week, celebrate the momentum; if not, offer a clean-slate nudge.
+  const meHasGoalAny = sections.some((s: any) => s.meHasGoal);
+  const meHitThisWeekAny = sections.some((s: any) => s.meHitThisWeek);
+  const meHitLastWeekAny = sections.some((s: any) => s.meHitLastWeek);
+  const showMomentum = meHasGoalAny && !meHitThisWeekAny;
+  const momentum = meHitLastWeekAny
+    ? {
+        text: "Strong week behind you — keep the momentum going.",
+        icon: "🔥",
+        tone: "sage" as const,
+      }
+    : {
+        text: "New week, fresh start. It's never too late to show up.",
+        icon: "🌱",
+        tone: "terra" as const,
+      };
 
   // Header greeting (uses the first pod's timezone)
   const tz = podsList[0]?.timezone ?? "America/Chicago";
@@ -335,6 +378,21 @@ export default async function Home({
         <ChallengeInbox challenges={incomingChallenges} userId={user.id} />
 
         <PrCelebrations events={prEvents} />
+
+        {showMomentum && (
+          <div
+            className={`mt-4 flex items-center gap-3 rounded-2xl border p-4 ${
+              momentum.tone === "sage"
+                ? "border-sage/30 bg-sage/[0.08]"
+                : "border-terra/30 bg-terra/[0.08]"
+            }`}
+          >
+            <span className="text-[22px] leading-none">{momentum.icon}</span>
+            <p className="text-[14px] font-medium leading-snug text-ink">
+              {momentum.text}
+            </p>
+          </div>
+        )}
 
         {searchParams.welcome === "1" && (
           <div className="mt-4 rounded-2xl border border-terra/30 bg-terra/[0.08] p-4">

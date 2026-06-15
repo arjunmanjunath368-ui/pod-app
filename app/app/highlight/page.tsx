@@ -150,7 +150,9 @@ export default async function HighlightPage() {
     }
     personalWeeks.push({
       hasGoal: goalPods > 0,
-      onTrack: goalPods > 0 && hitPods === goalPods,
+      // On track if you hit your goal in AT LEAST ONE pod that week. Being in
+      // several pods shouldn't punish you — hitting your goal anywhere counts.
+      onTrack: hitPods >= 1,
       completed: weekEnd <= now.getTime(),
     });
   }
