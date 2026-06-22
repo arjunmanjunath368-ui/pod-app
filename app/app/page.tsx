@@ -684,7 +684,15 @@ export default async function Home({
             </Link>
           </div>
         </div>
+
+        {/* TEMP: camera test — remove after verification */}
+        <div className="mt-8 text-center">
+          <Link href="/camtest" className="text-[12px] text-muted underline">
+            🎥 Camera test
+          </Link>
+        </div>
       </main>
+
 
       <PodSync />
       <BottomNav active="home" podId={navPodId} userId={user.id} />
