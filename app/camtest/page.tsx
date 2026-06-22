@@ -1,18 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
-// TEMPORARY diagnostic page. Confirms the live in-app camera (getUserMedia)
-// actually works inside the installed Pod PWA before we build photo
-// verification for real. Safe to delete once verified.
+// TEMPORARY diagnostic page. Confirms the live in-app camera works inside the
+// installed Pod PWA, with correct orientation and a clean exit, before we wire
+// it into the real log flow. Safe to delete once verified.
 export default function CamTest() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [facing, setFacing] = useState<"user" | "environment">("environment");
+  const [facing, setFacing] = useState<"user" | "environment">("user");
   const [status, setStatus] = useState("Not started");
   const [error, setError] = useState("");
   const [shot, setShot] = useState<string | null>(null);
+  const [used, setUsed] = useState(false);
   const [diag, setDiag] = useState<Record<string, string>>({});
+
+  const mirror = facing === "user";
 
   useEffect(() => {
     const standalone =
@@ -21,7 +25,7 @@ export default function CamTest() {
     setDiag({
       "Installed app (standalone)": standalone
         ? "yes ✅"
-        : "NO ⚠️ — open this from the Pod app on your home screen",
+        : "NO ⚠️ — open from the Pod app on your home screen",
       "Camera API":
         typeof navigator.mediaDevices?.getUserMedia === "function"
           ? "available ✅"
@@ -39,6 +43,7 @@ export default function CamTest() {
   async function start(f: "user" | "environment") {
     setError("");
     setShot(null);
+    setUsed(false);
     setStatus("Starting…");
     stopCamera();
     try {
@@ -76,8 +81,22 @@ export default function CamTest() {
     const c = document.createElement("canvas");
     c.width = v.videoWidth;
     c.height = v.videoHeight;
-    c.getContext("2d")?.drawImage(v, 0, 0);
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    // Mirror the saved frame for the front camera so the photo matches the
+    // selfie preview (otherwise it looks "flipped").
+    if (mirror) {
+      ctx.translate(c.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(v, 0, 0, c.width, c.height);
     setShot(c.toDataURL("image/jpeg", 0.9));
+  }
+
+  function usePhoto() {
+    stopCamera();
+    setUsed(true);
+    setStatus("Photo used ✅ — camera stopped");
   }
 
   return (
@@ -90,11 +109,26 @@ export default function CamTest() {
         fontFamily: "system-ui, -apple-system, sans-serif",
       }}
     >
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
-        Pod camera test
-      </h1>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 4,
+        }}
+      >
+        <h1 style={{ fontSize: 22, fontWeight: 700 }}>Pod camera test</h1>
+        <Link
+          href="/app"
+          onClick={stopCamera}
+          style={{ color: "#e8b9ac", fontSize: 15, fontWeight: 600 }}
+        >
+          ← Back to Pod
+        </Link>
+      </div>
       <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 16 }}>
-        Temporary — checks the live camera works in the installed app.
+        Temporary — checks the live camera + orientation. Use “← Back to Pod” to
+        exit (no more killing the app).
       </p>
 
       <div
@@ -122,56 +156,97 @@ export default function CamTest() {
         )}
       </div>
 
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: "3 / 4",
-          background: "#000",
-          borderRadius: 16,
-          overflow: "hidden",
-          marginBottom: 14,
-        }}
-      >
-        {shot ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={shot}
-            alt="captured"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            autoPlay
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        )}
-      </div>
+      {used ? (
+        <div
+          style={{
+            background: "rgba(122,148,113,0.18)",
+            border: "1px solid #7a9471",
+            borderRadius: 16,
+            padding: 20,
+            textAlign: "center",
+            fontSize: 15,
+            lineHeight: 1.6,
+          }}
+        >
+          ✅ This is exactly what a verified log photo would save. Capture works
+          end-to-end. Tell me if the orientation looks right, then I’ll wire this
+          into the log flow.
+          <div style={{ marginTop: 14 }}>
+            <button onClick={() => start(facing)} style={btn("#2f4a37")}>
+              Test again
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+              aspectRatio: "3 / 4",
+              background: "#000",
+              borderRadius: 16,
+              overflow: "hidden",
+              marginBottom: 14,
+            }}
+          >
+            {shot ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={shot}
+                alt="captured"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                playsInline
+                muted
+                autoPlay
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  transform: mirror ? "scaleX(-1)" : "none",
+                }}
+              />
+            )}
+          </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button onClick={() => start(facing)} style={btn("#c8553d")}>
-          Start camera
-        </button>
-        <button onClick={flip} style={btn("#2f4a37")}>
-          Flip (front/back)
-        </button>
-        <button onClick={capture} style={btn("#2f4a37")}>
-          Capture
-        </button>
-        {shot && (
-          <button onClick={() => start(facing)} style={btn("#2f4a37")}>
-            Retake
-          </button>
-        )}
-      </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {!shot && (
+              <>
+                <button onClick={() => start(facing)} style={btn("#c8553d")}>
+                  Start camera
+                </button>
+                <button onClick={flip} style={btn("#2f4a37")}>
+                  Flip (front/back)
+                </button>
+                <button onClick={capture} style={btn("#2f4a37")}>
+                  Capture
+                </button>
+                <button onClick={stopCamera} style={btn("#2f4a37")}>
+                  Stop camera
+                </button>
+              </>
+            )}
+            {shot && (
+              <>
+                <button onClick={usePhoto} style={btn("#c8553d")}>
+                  Use photo
+                </button>
+                <button onClick={() => start(facing)} style={btn("#2f4a37")}>
+                  Retake
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       <p style={{ fontSize: 13, opacity: 0.7, marginTop: 18, lineHeight: 1.6 }}>
-        Success = tapping <b>Start camera</b> shows a live feed, <b>Flip</b>{" "}
-        switches front/back, and <b>Capture</b> freezes a photo. Tell me what you
-        see (and any red error text).
+        Check: front camera should look like a mirror (not flipped), and the
+        captured photo should match the preview. Then tap <b>Use photo</b>.
       </p>
     </main>
   );

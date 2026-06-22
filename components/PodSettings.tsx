@@ -175,13 +175,13 @@ export default function PodSettings({
               Expected back
             </label>
             <div className="flex gap-2">
-              <div className="relative flex-1">
+              <div className="relative min-w-0 flex-1">
                 <input
                   type="date"
                   value={pauseUntil}
                   min={today}
                   onChange={(e) => setPauseUntil(e.target.value)}
-                  className="peer w-full rounded-xl border border-line bg-paper-2/60 px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
+                  className="peer box-border w-full min-w-0 appearance-none rounded-xl border border-line bg-paper-2/60 px-4 py-3 text-[15px] text-ink outline-none focus:border-terra"
                 />
                 {!pauseUntil && (
                   <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[15px] text-muted peer-focus:hidden">
@@ -197,6 +197,10 @@ export default function PodSettings({
                 Save
               </button>
             </div>
+            <p className="text-[12px] leading-relaxed text-muted">
+              This just tells your pod when to expect you — you&apos;ll resume
+              with the button below when you&apos;re actually back.
+            </p>
           </div>
         )}
 
