@@ -16,6 +16,9 @@ export type StakeSession = {
   loggedAt: Date;
   activity?: string | null;
   activities?: string[] | null;
+  // Staked logs only count toward the wager when verified by a live photo.
+  // Undefined is treated as verified (older rows / non-staked contexts).
+  verified?: boolean;
 };
 
 export type Standing = { userId: string; firmNet: number; provNet: number };
@@ -164,6 +167,7 @@ export function computeStakes(opts: {
     roster.forEach((id) => (weekSess[id] = []));
     for (const s of sessions) {
       if (weekSess[s.userId] === undefined) continue;
+      if (s.verified === false) continue; // unverified staked log: no credit
       const t = s.loggedAt.getTime();
       if (t >= start.getTime() && t < end.getTime()) {
         const acts =

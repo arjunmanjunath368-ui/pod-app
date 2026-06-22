@@ -685,12 +685,6 @@ export default async function Home({
           </div>
         </div>
 
-        {/* TEMP: camera test — remove after verification */}
-        <div className="mt-8 text-center">
-          <Link href="/camtest" className="text-[12px] text-muted underline">
-            🎥 Camera test
-          </Link>
-        </div>
       </main>
 
 

@@ -7,6 +7,7 @@ import { ACTIVITIES, activityMeta, type ActivityKey } from "@/lib/activities";
 import { parseGoal, goalHit } from "@/lib/goals";
 import { weekStartUtc } from "@/lib/week";
 import { enablePush, pushSupported, isIOS, isStandalone } from "@/lib/push";
+import LiveCamera from "@/components/LiveCamera";
 
 type Celebration = { tier: "perfect" | "goal"; detail: string };
 
@@ -181,6 +182,15 @@ export default function LogSheet({
   }
   const [pods, setPods] = useState<{ id: string; name: string }[]>([]);
   const [selectedPods, setSelectedPods] = useState<string[]>([podId]);
+  // Pods (of this user's) that currently have stakes running. Logging into any
+  // of these requires a live in-app photo to count toward the wager.
+  const [stakedPodIds, setStakedPodIds] = useState<Set<string>>(new Set());
+  const [cameraOpen, setCameraOpen] = useState(false);
+  // True only when the attached photo came from the live camera (not gallery).
+  const [liveVerified, setLiveVerified] = useState(false);
+  // Set when the camera couldn't run — unlocks the unverified fallback so an OS
+  // quirk never blocks logging an actual workout.
+  const [cameraError, setCameraError] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -199,6 +209,20 @@ export default function LogSheet({
         }))
         .filter((p: any) => p.name);
       setPods(list);
+
+      const ids = list.map((p: any) => p.id);
+      if (ids.length) {
+        const { data: stakes } = await supabase
+          .from("pod_stakes")
+          .select("pod_id, status")
+          .in("pod_id", ids)
+          .eq("status", "active");
+        setStakedPodIds(
+          new Set((stakes ?? []).map((s: any) => s.pod_id as string))
+        );
+      } else {
+        setStakedPodIds(new Set());
+      }
     })();
   }, [open, podId, userId]);
 
@@ -215,6 +239,25 @@ export default function LogSheet({
     setPhoto(null);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
+    setLiveVerified(false);
+    setCameraError("");
+  }
+
+  // A live photo came back from the camera overlay.
+  function onLiveCapture(file: File, dataUrl: string) {
+    if (preview) URL.revokeObjectURL(preview);
+    setPhoto(file);
+    setPreview(dataUrl);
+    setLiveVerified(true);
+    setCameraError("");
+    setCameraOpen(false);
+  }
+
+  // Camera couldn't run — surface the unverified fallback.
+  function onLiveError(message: string) {
+    setCameraOpen(false);
+    setLiveVerified(false);
+    setCameraError(message);
   }
 
   function togglePod(id: string) {
@@ -265,6 +308,15 @@ export default function LogSheet({
       setError("Pick at least one activity.");
       return;
     }
+    // Staked pods need a live photo. If one's selected and there's no live
+    // photo yet, route to the camera instead of saving — unless the camera
+    // already failed, in which case "Log it" means an explicit unverified save.
+    const stakedSelected = selectedPods.filter((id) => stakedPodIds.has(id));
+    if (stakedSelected.length > 0 && !liveVerified && !cameraError) {
+      setError("");
+      setCameraOpen(true);
+      return;
+    }
     setSaving(true);
     setError("");
     const supabase = createClient();
@@ -308,6 +360,9 @@ export default function LogSheet({
         note: multi ? null : note.trim() || null,
         activity_notes: hasActNotes ? activityNotes : null,
         photo_url: photoUrl,
+        // Only staked pods care about verification. A staked row counts toward
+        // the wager only when a live photo backs it; otherwise it's unverified.
+        verified: stakedPodIds.has(pid) ? liveVerified : true,
       }))
     );
     setSaving(false);
@@ -404,6 +459,15 @@ export default function LogSheet({
       router.refresh();
     }, 900);
   }
+
+  const stakedSelectedNames = pods
+    .filter((p) => selectedPods.includes(p.id) && stakedPodIds.has(p.id))
+    .map((p) => p.name);
+  const requiresLivePhoto = stakedSelectedNames.length > 0;
+  const stakedWhy =
+    stakedSelectedNames.length === 1
+      ? `${stakedSelectedNames[0]} has stakes on`
+      : `${stakedSelectedNames.length} of your pods have stakes on`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -602,7 +666,13 @@ export default function LogSheet({
                   className="h-14 w-14 rounded-xl object-cover"
                 />
                 <span className="flex-1 text-[15px] text-muted">
-                  Photo attached
+                  {liveVerified ? (
+                    <span className="font-semibold text-sage">
+                      ✓ Live photo — verified
+                    </span>
+                  ) : (
+                    "Photo attached"
+                  )}
                 </span>
                 <button
                   onClick={clearPhoto}
@@ -610,6 +680,31 @@ export default function LogSheet({
                 >
                   Remove
                 </button>
+              </div>
+            ) : requiresLivePhoto ? (
+              <div className="mt-3">
+                <button
+                  onClick={() => {
+                    setCameraError("");
+                    setCameraOpen(true);
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-terra bg-terra/10 py-3 text-[15px] font-semibold text-terra"
+                >
+                  <span className="text-[16px]">📸</span> Take live photo
+                </button>
+                <p className="mt-2 text-[12px] leading-relaxed text-muted">
+                  🎯 {stakedWhy} — log it with a live photo so it counts toward
+                  the stake. No camera roll.
+                </p>
+                {cameraError && (
+                  <div className="mt-2 rounded-xl border border-line bg-paper-2/60 p-3">
+                    <p className="text-[13px] leading-relaxed text-ink-soft">
+                      Couldn&apos;t open the camera. You can still log this — it
+                      just won&apos;t count toward your stake until you re-log
+                      with a photo.
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-line bg-card py-3 text-[15px] font-semibold text-ink-soft">
@@ -630,11 +725,24 @@ export default function LogSheet({
               disabled={saving || activities.length === 0}
               className="mt-4 w-full rounded-2xl bg-terra py-4 text-[16px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
             >
-              {saving ? "Logging…" : "Log it"}
+              {saving
+                ? "Logging…"
+                : requiresLivePhoto && !liveVerified && !cameraError
+                  ? "📸 Take live photo to log"
+                  : requiresLivePhoto && !liveVerified && cameraError
+                    ? "Log without verifying"
+                    : "Log it"}
             </button>
           </>
         )}
       </div>
+
+      <LiveCamera
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={onLiveCapture}
+        onError={onLiveError}
+      />
     </div>
   );
 }
