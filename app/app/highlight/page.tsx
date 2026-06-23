@@ -51,7 +51,7 @@ export default async function HighlightPage() {
   const inMonth = (key: string | null) => !!key && key.startsWith(monthPrefix);
 
   // My sessions over a window that covers the month + streak lookback.
-  const since = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 190 * 24 * 60 * 60 * 1000).toISOString();
   const { data: rawMine } = await supabase
     .from("sessions")
     .select("pod_id, logged_at, activity, activities")
@@ -157,10 +157,48 @@ export default async function HighlightPage() {
     });
   }
 
+  // A longer (~26-week) window so a streak that crosses a month boundary isn't
+  // truncated, and a personal best is meaningful. Reuses the same cross-pod
+  // on-track rule. streakWeeks[0] = current week.
+  const assessWeek = (ws: Date): Wk => {
+    const weekEnd = ws.getTime() + 7 * 86400000;
+    let goalPods = 0;
+    let hitPods = 0;
+    for (const m of memberships) {
+      const goal = parseGoal(m);
+      if (!goal.hasGoal) continue;
+      const joinedAt = m.joined_at ? new Date(m.joined_at) : null;
+      if (joinedAt && joinedAt.getTime() > ws.getTime()) continue;
+      goalPods++;
+      const podMine = myAll
+        .filter(
+          (s) =>
+            s.podId === m.pod_id &&
+            s.loggedAt.getTime() >= ws.getTime() &&
+            s.loggedAt.getTime() < weekEnd
+        )
+        .map((s) => ({
+          activity: (s.activity ?? "other") as any,
+          activities: s.activities ?? null,
+        }));
+      if (goalHit(goal, podMine)) hitPods++;
+    }
+    return {
+      hasGoal: goalPods > 0,
+      onTrack: hitPods >= 1,
+      completed: weekEnd <= now.getTime(),
+    };
+  };
+  const streakWeeks: Wk[] = [];
+  for (let i = 0; i < 26; i++) {
+    const ref = new Date(now.getTime() - i * 7 * 86400000);
+    streakWeeks.push(assessWeek(weekStartUtc(tz, WSO, ref)));
+  }
+
   // Week streak: consecutive on-track weeks from now back. An in-progress week
   // that you haven't hit yet doesn't break it; a finished, missed week does.
   let weekStreak = 0;
-  for (const w of personalWeeks) {
+  for (const w of streakWeeks) {
     if (!w.hasGoal) continue;
     if (w.onTrack) {
       weekStreak++;
@@ -169,6 +207,23 @@ export default async function HighlightPage() {
     if (!w.completed) continue; // current week still open — no penalty
     break;
   }
+
+  // Personal best: the longest run of consecutive on-track weeks in the window.
+  let bestStreak = 0;
+  let streakRun = 0;
+  for (const w of streakWeeks) {
+    if (!w.hasGoal) continue;
+    if (w.onTrack) {
+      streakRun++;
+      if (streakRun > bestStreak) bestStreak = streakRun;
+      continue;
+    }
+    if (!w.completed) continue;
+    streakRun = 0;
+  }
+  // You're at your record when the current run matches the best (>=2 to skip
+  // the trivial case). Stateless — no all-time persistence yet.
+  const atPersonalBest = weekStreak >= 2 && weekStreak === bestStreak;
 
   // Consistency: share of this month's *finished* goal-weeks you hit.
   const finishedGoalWeeks = personalWeeks.filter((w) => w.hasGoal && w.completed);
@@ -253,7 +308,11 @@ export default async function HighlightPage() {
       icon: "🔥",
       iconDim: weekStreak === 0,
       explain:
-        "Weeks in a row you've hit your goal. Rest days don't break it — only a full missed week does.",
+        bestStreak > 0
+          ? `Weeks in a row you've hit your goal. Your best run: ${bestStreak} ${
+              bestStreak === 1 ? "week" : "weeks"
+            }. Rest days don't break it — only a full missed week does.`
+          : "Weeks in a row you've hit your goal. Rest days don't break it — only a full missed week does.",
     },
     {
       label: "consistency",
@@ -308,6 +367,17 @@ export default async function HighlightPage() {
         </div>
       ) : (
         <>
+          {atPersonalBest && (
+            <div className="mb-3 rounded-2xl border border-gold/40 bg-gold/[0.08] p-3.5 text-center">
+              <p className="text-[15px] font-semibold text-ink">
+                🏆 Longest streak yet — {weekStreak} weeks
+              </p>
+              <p className="mt-0.5 text-[13px] text-muted">
+                You&apos;re matching your personal best. Keep it alive.
+              </p>
+            </div>
+          )}
+
           {/* Consistency tiles (tap to flip for an explanation) */}
           <HighlightTiles tiles={stats} />
 
