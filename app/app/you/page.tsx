@@ -82,6 +82,20 @@ export default async function YouPage() {
     weekStartsOn: (firstMembershipPod as any)?.week_starts_on ?? 1,
   });
 
+  // How long the user has actually been on Pod — used to hide timeframe tabs
+  // (e.g. "3 Months") until they'd show more than the shorter window.
+  const joinTimes = (memberships ?? [])
+    .map((m: any) => (m.joined_at ? new Date(m.joined_at).getTime() : null))
+    .filter((t: number | null): t is number => t !== null);
+  const sessionTimes = (mySessions ?? []).map((s: any) =>
+    new Date(s.logged_at).getTime()
+  );
+  const earliest = Math.min(
+    ...(joinTimes.length ? joinTimes : [Date.now()]),
+    ...(sessionTimes.length ? sessionTimes : [Date.now()])
+  );
+  const tenureDays = Math.floor((Date.now() - earliest) / 86400000);
+
   const pods = (memberships ?? []).map((m: any) => {
     const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
     const tz = pod?.timezone ?? "America/Chicago";
@@ -158,7 +172,7 @@ export default async function YouPage() {
           Your stats
         </div>
         <div className="mt-3">
-          <YouStats data={youStats} />
+          <YouStats data={youStats} tenureDays={tenureDays} />
         </div>
 
         <div className="mt-3 rounded-2xl border border-line bg-card p-4">

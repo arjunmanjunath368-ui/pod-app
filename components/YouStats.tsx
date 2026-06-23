@@ -4,15 +4,26 @@ import { useState } from "react";
 import { activityMeta } from "@/lib/activities";
 import type { YouStatsResult, WindowKey } from "@/lib/youStats";
 
-const TABS: { key: WindowKey; label: string }[] = [
-  { key: "week", label: "Week" },
-  { key: "month", label: "Month" },
-  { key: "quarter", label: "3 Months" },
-  { key: "all", label: "All time" },
+const TABS: { key: WindowKey; label: string; minTenure: number }[] = [
+  { key: "week", label: "Week", minTenure: 0 },
+  { key: "month", label: "Month", minTenure: 8 },
+  { key: "quarter", label: "3 Months", minTenure: 35 },
+  { key: "all", label: "All time", minTenure: 95 },
 ];
 
-export default function YouStats({ data }: { data: YouStatsResult }) {
-  const [tab, setTab] = useState<WindowKey>("month");
+export default function YouStats({
+  data,
+  tenureDays,
+}: {
+  data: YouStatsResult;
+  tenureDays: number;
+}) {
+  // Only show a timeframe once the user has been on Pod long enough for it to
+  // reveal more than the shorter window (no empty "3 Months" for week-old users).
+  const tabs = TABS.filter((t) => tenureDays >= t.minTenure);
+  const initial: WindowKey =
+    tabs.find((t) => t.key === "month")?.key ?? tabs[tabs.length - 1].key;
+  const [tab, setTab] = useState<WindowKey>(initial);
   const w = data.windows[tab];
 
   const tiles: { label: string; value: string }[] = [
@@ -32,7 +43,7 @@ export default function YouStats({ data }: { data: YouStatsResult }) {
     <div>
       {/* Timeframe selector */}
       <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
