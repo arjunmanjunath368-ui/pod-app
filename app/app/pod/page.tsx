@@ -7,6 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import InviteButton from "@/components/InviteButton";
 import LeavePodButton from "@/components/LeavePodButton";
 import Feed, { type FeedItem, type FeedComment } from "@/components/Feed";
+import RecentPhotos from "@/components/RecentPhotos";
 
 export default async function PodFeed({
   searchParams,
@@ -176,6 +177,7 @@ export default async function PodFeed({
         </div>
 
         <div className="mt-5">
+          <RecentPhotos items={items.filter((it) => it.photoUrl).slice(0, 6)} />
           <Feed items={items} me={me} podId={podId} />
         </div>
       </main>

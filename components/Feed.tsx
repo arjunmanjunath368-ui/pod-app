@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { activityMeta } from "@/lib/activities";
 import SessionEditSheet from "@/components/SessionEditSheet";
 import Avatar from "@/components/Avatar";
+import { thumb } from "@/lib/img";
 
 const REACTIONS: { kind: string; emoji: string }[] = [
   { kind: "clap", emoji: "👏" },
@@ -75,6 +76,8 @@ export default function Feed({
   const [editDraft, setEditDraft] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [editing, setEditing] = useState<FeedItem | null>(null);
+  // Render only the most recent N to keep the page light; reveal more on tap.
+  const [visible, setVisible] = useState(12);
 
   // Re-sync to server truth whenever the page re-fetches (e.g. after you log).
   useEffect(() => {
@@ -445,7 +448,7 @@ export default function Feed({
 
   return (
     <div className="flex flex-col gap-3">
-      {feedItems.map((it) => {
+      {feedItems.slice(0, visible).map((it) => {
         const metas = (it.activities?.length ? it.activities : [it.activity]).map(
           (k) => activityMeta(k)
         );
@@ -507,8 +510,10 @@ export default function Feed({
 
             {it.photoUrl && (
               <img
-                src={it.photoUrl}
+                src={thumb(it.photoUrl, 800)}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="mt-3 w-full rounded-xl object-cover"
                 style={{ maxHeight: "360px" }}
               />
@@ -667,6 +672,15 @@ export default function Feed({
           </div>
         );
       })}
+
+      {feedItems.length > visible && (
+        <button
+          onClick={() => setVisible((v) => v + 12)}
+          className="mt-1 w-full rounded-2xl border border-line bg-card py-3 text-[15px] font-semibold text-muted active:scale-[0.99]"
+        >
+          Load older
+        </button>
+      )}
 
       {editing && (
         <SessionEditSheet
