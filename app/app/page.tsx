@@ -117,7 +117,14 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
         total: allDays[m.user_id]?.size ?? 0,
         shareStats: prof?.share_stats ?? false,
         paused: m.status === "paused",
-        pauseUntil: shortDate(m.pause_until as string | null),
+        pauseUntil:
+          m.pause_until &&
+          (m.pause_until as string).slice(0, 10) >= dayKeyInTz(now, tz)
+            ? shortDate(m.pause_until as string)
+            : null,
+        pauseOverdue:
+          !!m.pause_until &&
+          (m.pause_until as string).slice(0, 10) < dayKeyInTz(now, tz),
         goalNotStarted,
         isMe: m.user_id === userId,
       };
@@ -564,7 +571,11 @@ export default async function Home({
                           {r.paused ? (
                             <div className="mt-0.5 text-[15px] font-medium text-muted">
                               ⏸ Paused
-                              {r.pauseUntil ? ` · back ~${r.pauseUntil}` : " this week"}
+                              {r.pauseUntil
+                                ? ` · back ~${r.pauseUntil}`
+                                : r.pauseOverdue
+                                  ? " · ready to resume"
+                                  : " this week"}
                             </div>
                           ) : r.goalNotStarted ? (
                             <div className="mt-0.5 text-[15px] text-muted">

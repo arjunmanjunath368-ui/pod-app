@@ -120,6 +120,11 @@ export default function PodSettings({
   const paused = status === "paused";
   const today = new Date().toISOString().slice(0, 10);
   const etaLabel = shortDate(initialPauseUntil ?? null);
+  // Only treat the expected-back date as a real ETA while it's still in the
+  // future. A past date is stale (resume is manual and nothing clears it), so
+  // we stop surfacing it as "back around <date>".
+  const etaFuture =
+    !!initialPauseUntil && initialPauseUntil.slice(0, 10) >= today;
   const etaDirty = (pauseUntil || "") !== (initialPauseUntil ?? "");
 
   return (
@@ -131,9 +136,11 @@ export default function PodSettings({
         </div>
         <p className="mt-1 text-[13px] leading-relaxed text-muted">
           {paused
-            ? etaLabel
+            ? etaFuture
               ? `You're paused — your pod can see you're aiming to be back around ${etaLabel}. Resume whenever you're ready.`
-              : "You're paused. You don't count toward the pod's perfect-week streak right now — resume when you're back."
+              : initialPauseUntil
+                ? "You're paused — resume whenever you're ready."
+                : "You're paused. You don't count toward the pod's perfect-week streak right now — resume when you're back."
             : "Going to be away — travel, illness, a busy week? Pause so a missed week doesn't break the pod's streak."}
         </p>
 
