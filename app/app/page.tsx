@@ -569,14 +569,30 @@ export default async function Home({
                             )}
                           </div>
                           {r.paused ? (
-                            <div className="mt-0.5 text-[15px] font-medium text-muted">
-                              ⏸ Paused
-                              {r.pauseUntil
-                                ? ` · back ~${r.pauseUntil}`
-                                : r.pauseOverdue
-                                  ? " · ready to resume"
-                                  : " this week"}
-                            </div>
+                            r.isMe ? (
+                              <Link
+                                href={`/app/pod-settings?pod=${sec.pod.id}`}
+                                className="mt-0.5 inline-flex items-center gap-1 text-[15px] font-semibold text-terra"
+                              >
+                                <span>
+                                  ⏸ Paused
+                                  {r.pauseUntil
+                                    ? ` · back ~${r.pauseUntil}`
+                                    : ""}{" "}
+                                  · Resume
+                                </span>
+                                <span aria-hidden>›</span>
+                              </Link>
+                            ) : (
+                              <div className="mt-0.5 text-[15px] font-medium text-muted">
+                                ⏸ Paused
+                                {r.pauseUntil
+                                  ? ` · back ~${r.pauseUntil}`
+                                  : r.pauseOverdue
+                                    ? " · ready to resume"
+                                    : " this week"}
+                              </div>
+                            )
                           ) : r.goalNotStarted ? (
                             <div className="mt-0.5 text-[15px] text-muted">
                               🌱 Goal starts Monday

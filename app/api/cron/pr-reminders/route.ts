@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { computeStakes, periodStartInstant } from "@/lib/stakes";
 import { parseGoal } from "@/lib/goals";
 import { dayKeyInTz } from "@/lib/days";
+import { weekStartUtc } from "@/lib/week";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -168,6 +169,11 @@ export async function GET(req: Request) {
       .in("id", anchorIds);
   }
 
+  // ---- Auto-resume anyone whose pause window has elapsed. Staked pods resume
+  // unstaked until the next week boundary, so no one is dropped into a partial
+  // staked week. ----
+  const resumed = await autoResumeEnded(supabase);
+
   // ---- Settle any one-and-done stake whose period has ended, then push the
   // result to the whole pod (so it lands even if nobody opens the app). ----
   const stakes = await settleEndedStakes(supabase);
@@ -177,9 +183,57 @@ export async function GET(req: Request) {
     bestsMarked: anchorIds.length,
     usersNotified,
     pushesSent,
+    autoResumed: resumed,
     stakesSettled: stakes.settled,
     stakePushes: stakes.pushes,
   });
+}
+
+async function autoResumeEnded(supabase: any): Promise<number> {
+  const now = new Date();
+  const { data: paused } = await supabase
+    .from("pod_members")
+    .select("user_id, pod_id, pause_until, pods(timezone, week_starts_on)")
+    .eq("status", "paused")
+    .not("pause_until", "is", null);
+  if (!paused?.length) return 0;
+
+  // Which of these pods currently have stakes running.
+  const podIds = Array.from(new Set(paused.map((m: any) => m.pod_id)));
+  const { data: stakeRows } = await supabase
+    .from("pod_stakes")
+    .select("pod_id")
+    .in("pod_id", podIds)
+    .eq("status", "active");
+  const stakedPods = new Set((stakeRows ?? []).map((s: any) => s.pod_id));
+
+  let resumed = 0;
+  for (const m of paused as any[]) {
+    const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
+    const tz = pod?.timezone ?? "UTC";
+    const wso = pod?.week_starts_on ?? 1;
+    // Past or equal to the pod's "today" means the pause window has elapsed.
+    if (String(m.pause_until).slice(0, 10) > dayKeyInTz(now, tz)) continue;
+
+    // Staked pods: don't stake them on the partial current week — pick them up
+    // from the next week boundary (matches the manual "staked from Monday").
+    let stakedFrom: string | null = null;
+    if (stakedPods.has(m.pod_id)) {
+      const ws = weekStartUtc(tz, wso);
+      stakedFrom = dayKeyInTz(
+        new Date(ws.getTime() + 7 * 24 * 60 * 60 * 1000),
+        tz
+      );
+    }
+
+    const { error } = await supabase
+      .from("pod_members")
+      .update({ status: "active", pause_until: null, staked_from: stakedFrom })
+      .eq("pod_id", m.pod_id)
+      .eq("user_id", m.user_id);
+    if (!error) resumed++;
+  }
+  return resumed;
 }
 
 function money(n: number): string {
