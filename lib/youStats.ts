@@ -150,10 +150,19 @@ export function computeYouStats(opts: {
     // counts toward both, bars can each reach 100%, and they don't sum to 100.
     const counts: Record<string, number> = {};
     for (const s of winSessions) {
-      const acts = new Set(
-        s.activities?.length ? s.activities : s.activity ? [s.activity] : []
-      );
-      for (const a of acts) counts[a] = (counts[a] ?? 0) + 1;
+      const raw = s.activities?.length
+        ? s.activities
+        : s.activity
+          ? [s.activity]
+          : [];
+      // Count each activity once per workout (no Set iteration — keeps the
+      // build target-agnostic).
+      const seen: Record<string, boolean> = {};
+      for (const a of raw) {
+        if (seen[a]) continue;
+        seen[a] = true;
+        counts[a] = (counts[a] ?? 0) + 1;
+      }
     }
     const totalWorkouts = winSessions.length || 1;
     const breakdown = Object.entries(counts)
