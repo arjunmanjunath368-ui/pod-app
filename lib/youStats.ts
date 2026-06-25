@@ -144,22 +144,24 @@ export function computeYouStats(opts: {
       winSessions.map((s) => dayKeyInTz(s.loggedAt, tz))
     ).size;
 
+    // For each activity, how many of this window's workouts included it (each
+    // workout counts once per activity, even if logged into several pods). The
+    // % is out of total workouts — so a session tagged with two activities
+    // counts toward both, bars can each reach 100%, and they don't sum to 100.
     const counts: Record<string, number> = {};
     for (const s of winSessions) {
-      const acts = s.activities?.length
-        ? s.activities
-        : s.activity
-          ? [s.activity]
-          : [];
+      const acts = new Set(
+        s.activities?.length ? s.activities : s.activity ? [s.activity] : []
+      );
       for (const a of acts) counts[a] = (counts[a] ?? 0) + 1;
     }
-    const totalActs = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+    const totalWorkouts = winSessions.length || 1;
     const breakdown = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .map(([key, count]) => ({
         key,
         count,
-        pct: Math.round((100 * count) / totalActs),
+        pct: Math.round((100 * count) / totalWorkouts),
       }));
 
     const inWin = weeks.filter((w) => w.ws.getTime() >= startMs);

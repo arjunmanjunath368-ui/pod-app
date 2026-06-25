@@ -106,6 +106,10 @@ export default function YouStats({
           <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
             What you did
           </div>
+          <div className="mt-0.5 text-[12px] text-muted">
+            Share of your {w.sessions} {w.sessions === 1 ? "workout" : "workouts"}{" "}
+            that included each activity
+          </div>
           <div className="mt-3 flex flex-col gap-3">
             {w.breakdown.map((b) => {
               const meta = activityMeta(b.key);
@@ -116,7 +120,7 @@ export default function YouStats({
                       {meta.emoji} {meta.label}
                     </span>
                     <span className="text-muted">
-                      {b.count} · {b.pct}%
+                      {b.count} of {w.sessions} · {b.pct}%
                     </span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-paper-2">
