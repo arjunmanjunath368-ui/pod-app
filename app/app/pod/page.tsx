@@ -38,7 +38,7 @@ export default async function PodFeed({
   const { data: sessions } = await supabase
     .from("sessions")
     .select(
-      "id, user_id, activity, activities, note, activity_notes, photo_url, logged_at, profiles(display_name, initials, avatar_color, avatar_url)"
+      "id, user_id, activity, activities, note, activity_notes, photo_url, logged_at, voided, profiles(display_name, initials, avatar_color, avatar_url)"
     )
     .eq("pod_id", podId)
     .order("logged_at", { ascending: false })
@@ -58,9 +58,37 @@ export default async function PodFeed({
     .in("session_id", ids.length ? ids : noIds)
     .order("created_at", { ascending: true });
 
-  // Profiles for commenters
+  // Active stake window — staked logs (logged on/after the period start) can be
+  // flagged for re-verification by pod-mates.
+  const { data: activeStake } = await supabase
+    .from("pod_stakes")
+    .select("period_start, status")
+    .eq("pod_id", podId)
+    .eq("status", "active")
+    .maybeSingle();
+  const stakePeriodStart = activeStake?.period_start
+    ? new Date(activeStake.period_start as string)
+    : null;
+
+  // Flags on the visible sessions (drives the disputed UI).
+  const { data: flagRows } = await supabase
+    .from("session_flags")
+    .select("session_id, flagger_id")
+    .in("session_id", ids.length ? ids : noIds);
+  const flagsBySession: Record<string, string[]> = {};
+  (flagRows ?? []).forEach((f: any) => {
+    (flagsBySession[f.session_id] ??= []).push(f.flagger_id);
+  });
+
+  // Profiles for commenters + flaggers
+  const flaggerIds = Object.values(flagsBySession).reduce(
+    (acc: string[], arr) => acc.concat(arr),
+    [] as string[]
+  );
   const commenterIds = Array.from(
-    new Set((comments ?? []).map((c: any) => c.user_id))
+    new Set(
+      (comments ?? []).map((c: any) => c.user_id as string).concat(flaggerIds)
+    )
   );
   const cprofMap: Record<string, any> = {};
   if (commenterIds.length) {
@@ -113,6 +141,13 @@ export default async function PodFeed({
         };
       });
 
+    const sFlaggerIds: string[] = flagsBySession[s.id] ?? [];
+    const flaggers = sFlaggerIds.map(
+      (id: string) => cprofMap[id]?.display_name ?? "Member"
+    );
+    const staked =
+      !!stakePeriodStart && new Date(s.logged_at) >= stakePeriodStart;
+
     return {
       id: s.id,
       authorUserId: s.user_id as string,
@@ -133,6 +168,11 @@ export default async function PodFeed({
       counts,
       mine,
       comments: cmts,
+      staked,
+      voided: !!s.voided,
+      flagCount: sFlaggerIds.length,
+      flaggers,
+      iFlagged: sFlaggerIds.includes(user.id),
     };
   });
 

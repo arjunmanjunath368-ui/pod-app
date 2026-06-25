@@ -43,6 +43,12 @@ export type FeedItem = {
   counts: Record<string, number>;
   mine: Record<string, boolean>;
   comments: FeedComment[];
+  // Flagging/dispute (staked logs only)
+  staked: boolean;
+  voided: boolean;
+  flagCount: number;
+  flaggers: string[];
+  iFlagged: boolean;
 };
 
 type Me = { userId: string; name: string; initials: string; color: string; avatarUrl: string | null };
@@ -145,6 +151,11 @@ export default function Feed({
             counts: {},
             mine: {},
             comments: [],
+            staked: false,
+            voided: !!s.voided,
+            flagCount: 0,
+            flaggers: [],
+            iFlagged: false,
           };
           setFeedItems((prev) =>
             prev.some((p) => p.id === s.id) ? prev : [item, ...prev]
@@ -339,6 +350,80 @@ export default function Feed({
     }
   }
 
+  async function toggleFlag(it: FeedItem) {
+    const willFlag = !it.iFlagged;
+    setFeedItems((prev) =>
+      prev.map((x) => {
+        if (x.id !== it.id) return x;
+        const flaggers = willFlag
+          ? x.flaggers.concat([me.name])
+          : x.flaggers.filter((n) => n !== me.name);
+        return {
+          ...x,
+          iFlagged: willFlag,
+          flagCount: Math.max(0, x.flagCount + (willFlag ? 1 : -1)),
+          flaggers,
+        };
+      })
+    );
+    try {
+      const res = await fetch("/api/flag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: willFlag ? "flag" : "unflag",
+          sessionId: it.id,
+        }),
+      });
+      const data = await res.json().catch(() => ({}) as any);
+      if (res.ok) {
+        setFeedItems((prev) =>
+          prev.map((x) =>
+            x.id === it.id
+              ? {
+                  ...x,
+                  voided: !!data.voided,
+                  flagCount:
+                    typeof data.flagCount === "number"
+                      ? data.flagCount
+                      : x.flagCount,
+                }
+              : x
+          )
+        );
+        if (willFlag) {
+          fetch("/api/push", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              kind: "flag",
+              podId,
+              authorUserId: it.authorUserId,
+              url: `/app/pod?pod=${podId}`,
+            }),
+          }).catch(() => {});
+        }
+      }
+    } catch {
+      /* keep optimistic state */
+    }
+  }
+
+  async function concede(it: FeedItem) {
+    setFeedItems((prev) =>
+      prev.map((x) => (x.id === it.id ? { ...x, voided: true } : x))
+    );
+    try {
+      await fetch("/api/flag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "concede", sessionId: it.id }),
+      });
+    } catch {
+      /* optimistic */
+    }
+  }
+
   function startEdit(c: FeedComment) {
     setEditingId(c.id);
     setEditDraft(c.body);
@@ -519,6 +604,44 @@ export default function Feed({
               />
             )}
 
+            {it.staked && (it.flagCount > 0 || it.voided) && (
+              <div
+                className={`mt-3 rounded-xl border px-3 py-2.5 text-[13px] ${
+                  it.voided
+                    ? "border-terra/40 bg-terra/[0.06]"
+                    : "border-gold/50 bg-gold/[0.10]"
+                }`}
+              >
+                {it.voided ? (
+                  <div className="font-semibold text-terra">
+                    ✗ Voided — doesn’t count toward stakes
+                  </div>
+                ) : (
+                  <div className="font-semibold text-ink">
+                    ⚑ Disputed — pod asked to re-verify
+                  </div>
+                )}
+                {it.flaggers.length > 0 && (
+                  <div className="mt-0.5 text-muted">
+                    Flagged by {it.flaggers.join(", ")}
+                  </div>
+                )}
+                {it.isMine && !it.voided && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => concede(it)}
+                      className="rounded-full border border-line bg-card px-3 py-1.5 text-[13px] font-semibold text-muted active:scale-95"
+                    >
+                      Concede (void it)
+                    </button>
+                    <span className="text-[12px] text-muted">
+                      or stand by it — re-verify by photo is coming
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {REACTIONS.map(({ kind, emoji }) => {
                 const active = rstate[it.id]?.mine[kind];
@@ -539,6 +662,19 @@ export default function Feed({
                 );
               })}
             </div>
+
+            {it.staked && !it.isMine && (
+              <button
+                onClick={() => toggleFlag(it)}
+                className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition active:scale-95 ${
+                  it.iFlagged
+                    ? "border-terra bg-terra/[0.08] text-terra"
+                    : "border-line bg-paper-2/40 text-muted"
+                }`}
+              >
+                {it.iFlagged ? "✓ You flagged — tap to undo" : "⚑ Flag for re-verify"}
+              </button>
+            )}
 
             {/* Comments */}
             <button

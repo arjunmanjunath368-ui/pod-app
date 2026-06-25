@@ -117,6 +117,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ sent: total });
   }
 
+  // Flag: a pod-mate asked the logger to re-verify a staked log. Ping only the
+  // logger — the dispute itself is visible to the whole pod in-app.
+  if (body.kind === "flag") {
+    const authorId: string | undefined = body.authorUserId;
+    if (!podId || !authorId) {
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+    const { data: members } = await supabase
+      .from("pod_members")
+      .select("user_id")
+      .eq("pod_id", podId)
+      .eq("status", "active");
+    const ids = (members ?? []).map((m: any) => m.user_id as string);
+    if (!ids.includes(user.id)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const sent = await deliver(
+      supabase,
+      [authorId],
+      "Pod",
+      "A pod-mate asked you to re-verify a staked log 🔍",
+      body.url || `/app/pod?pod=${podId}`
+    );
+    return NextResponse.json({ sent });
+  }
+
   let recipientIds: string[] = [];
   let title = body.title || "Pod";
   let message = body.body || "Your pod's waiting.";

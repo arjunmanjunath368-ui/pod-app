@@ -296,7 +296,7 @@ async function settleEndedStakes(
     const startInstant = periodStartInstant(st.period_start, tz, wso);
     const { data: sess } = await supabase
       .from("sessions")
-      .select("user_id, logged_at, activity, activities, verified")
+      .select("user_id, logged_at, activity, activities, verified, voided")
       .eq("pod_id", st.pod_id)
       .gte("logged_at", startInstant.toISOString());
     const sessions = (sess ?? []).map((s: any) => ({
@@ -305,6 +305,7 @@ async function settleEndedStakes(
       activity: (s.activity as string | null) ?? null,
       activities: (s.activities as string[] | null) ?? null,
       verified: (s.verified as boolean | null) ?? true,
+      voided: (s.voided as boolean | null) ?? false,
     }));
 
     const { data: wpRows } = await supabase
