@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { activityMeta } from "@/lib/activities";
 import SessionEditSheet from "@/components/SessionEditSheet";
 import Avatar from "@/components/Avatar";
-import { thumb } from "@/lib/img";
+import { thumb, compressToJpeg } from "@/lib/img";
+import LiveCamera from "@/components/LiveCamera";
 
 const REACTIONS: { kind: string; emoji: string }[] = [
   { kind: "clap", emoji: "👏" },
@@ -84,6 +85,10 @@ export default function Feed({
   const [editing, setEditing] = useState<FeedItem | null>(null);
   // Render only the most recent N to keep the page light; reveal more on tap.
   const [visible, setVisible] = useState(12);
+  // Re-verify (logger re-snaps a fresh live photo to clear a dispute).
+  const [reverifying, setReverifying] = useState<FeedItem | null>(null);
+  const [reverifyBusy, setReverifyBusy] = useState(false);
+  const [reverifyError, setReverifyError] = useState("");
 
   // Re-sync to server truth whenever the page re-fetches (e.g. after you log).
   useEffect(() => {
@@ -424,6 +429,59 @@ export default function Feed({
     }
   }
 
+  function startReverify(it: FeedItem) {
+    setReverifyError("");
+    setReverifying(it);
+  }
+
+  async function handleReverifyCapture(file: File) {
+    const it = reverifying;
+    if (!it) return;
+    setReverifying(null); // close the camera; show progress via the toast
+    setReverifyBusy(true);
+    setReverifyError("");
+    try {
+      const supabase = createClient();
+      const blob = await compressToJpeg(file);
+      const path = `${podId}/${me.userId}/${crypto.randomUUID()}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from("session-photos")
+        .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+      if (upErr) throw new Error(upErr.message);
+      const url = supabase.storage
+        .from("session-photos")
+        .getPublicUrl(path).data.publicUrl;
+      const res = await fetch("/api/flag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reverify",
+          sessionId: it.id,
+          photoUrl: url,
+        }),
+      });
+      if (!res.ok) throw new Error("Could not re-verify — try again");
+      setFeedItems((prev) =>
+        prev.map((x) =>
+          x.id === it.id
+            ? {
+                ...x,
+                photoUrl: url,
+                voided: false,
+                flagCount: 0,
+                flaggers: [],
+                iFlagged: false,
+              }
+            : x
+        )
+      );
+    } catch (e: any) {
+      setReverifyError(e?.message || "Re-verify failed");
+    } finally {
+      setReverifyBusy(false);
+    }
+  }
+
   function startEdit(c: FeedComment) {
     setEditingId(c.id);
     setEditDraft(c.body);
@@ -626,17 +684,22 @@ export default function Feed({
                     Flagged by {it.flaggers.join(", ")}
                   </div>
                 )}
-                {it.isMine && !it.voided && (
+                {it.isMine && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <button
-                      onClick={() => concede(it)}
-                      className="rounded-full border border-line bg-card px-3 py-1.5 text-[13px] font-semibold text-muted active:scale-95"
+                      onClick={() => startReverify(it)}
+                      className="rounded-full bg-terra px-3 py-1.5 text-[13px] font-semibold text-paper active:scale-95"
                     >
-                      Concede (void it)
+                      📸 Re-verify
                     </button>
-                    <span className="text-[12px] text-muted">
-                      or stand by it — re-verify by photo is coming
-                    </span>
+                    {!it.voided && (
+                      <button
+                        onClick={() => concede(it)}
+                        className="rounded-full border border-line bg-card px-3 py-1.5 text-[13px] font-semibold text-muted active:scale-95"
+                      >
+                        Concede
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -847,6 +910,29 @@ export default function Feed({
             );
           }}
         />
+      )}
+
+      <LiveCamera
+        open={!!reverifying}
+        onClose={() => {
+          if (!reverifyBusy) setReverifying(null);
+        }}
+        onCapture={(file) => handleReverifyCapture(file)}
+        onError={(m) => {
+          setReverifyError(m);
+          setReverifying(null);
+        }}
+      />
+
+      {(reverifyBusy || reverifyError) && (
+        <div
+          onClick={() => {
+            if (!reverifyBusy) setReverifyError("");
+          }}
+          className="fixed inset-x-4 bottom-24 z-50 rounded-xl bg-ink px-4 py-3 text-center text-[14px] font-medium text-paper shadow-lg"
+        >
+          {reverifyBusy ? "Re-verifying…" : `${reverifyError} · tap to dismiss`}
+        </div>
       )}
     </div>
   );

@@ -15,3 +15,31 @@ export function thumb(url: string | null | undefined, width: number): string | u
   const sep = transformed.includes("?") ? "&" : "?";
   return `${transformed}${sep}width=${width}&quality=70`;
 }
+
+// Downscale + JPEG-compress a photo before upload (caps the long edge at 1200px).
+// Falls back to the original file if the browser can't decode it.
+export async function compressToJpeg(file: File): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxDim = 1200;
+    let { width, height } = bitmap;
+    if (width >= height && width > maxDim) {
+      height = Math.round((height * maxDim) / width);
+      width = maxDim;
+    } else if (height > maxDim) {
+      width = Math.round((width * maxDim) / height);
+      height = maxDim;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    return await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b ?? file), "image/jpeg", 0.8)
+    );
+  } catch {
+    return file;
+  }
+}

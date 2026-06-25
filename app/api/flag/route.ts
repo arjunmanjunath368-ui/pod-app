@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}) as any);
   const action = body.action as string;
   const sessionId = body.sessionId as string;
-  if (!sessionId || !["flag", "unflag", "concede"].includes(action)) {
+  if (!sessionId || !["flag", "unflag", "concede", "reverify"].includes(action)) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 
@@ -66,6 +66,24 @@ export async function POST(req: Request) {
     }
     await svc.from("sessions").update({ voided: true }).eq("id", sessionId);
     return NextResponse.json({ ok: true, voided: true, conceded: true });
+  }
+
+  // The logger re-verifies with a fresh live photo -> clears all flags and
+  // restores the log (verified again, not voided).
+  if (action === "reverify") {
+    if (user.id !== loggerId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const photoUrl = body.photoUrl as string | undefined;
+    if (!photoUrl) {
+      return NextResponse.json({ error: "Missing photo" }, { status: 400 });
+    }
+    await svc
+      .from("sessions")
+      .update({ voided: false, verified: true, photo_url: photoUrl })
+      .eq("id", sessionId);
+    await svc.from("session_flags").delete().eq("session_id", sessionId);
+    return NextResponse.json({ ok: true, voided: false, cleared: true });
   }
 
   // Flag / unflag — only members other than the logger.
