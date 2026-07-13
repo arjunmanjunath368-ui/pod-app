@@ -48,10 +48,14 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     string,
     { activity: string | null; activities: string[] | null }[]
   > = {};
+  const lastLogAt: Record<string, number> = {};
   const monthPrefix = dayKeyInTz(now, tz).slice(0, 7);
   const monthDays: Record<string, Set<string>> = {};
   const allDays: Record<string, Set<string>> = {};
   (sessions ?? []).forEach((s: any) => {
+    const t = new Date(s.logged_at).getTime();
+    if (!lastLogAt[s.user_id] || t > lastLogAt[s.user_id])
+      lastLogAt[s.user_id] = t;
     if (new Date(s.logged_at) >= weekStart)
       (weekSess[s.user_id] ??= []).push({
         activity: s.activity ?? null,
@@ -127,6 +131,13 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
           (m.pause_until as string).slice(0, 10) < dayKeyInTz(now, tz),
         goalNotStarted,
         isMe: m.user_id === userId,
+        // Days since their last log in this pod (from joining if never logged).
+        // Drives the quiet-member label and the self "pause?" prompt.
+        quietDays: Math.floor(
+          (now.getTime() -
+            (lastLogAt[m.user_id] ?? joinedAt.getTime())) /
+            86400000
+        ),
       };
     })
     .sort((a: any, b: any) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
@@ -530,6 +541,32 @@ export default async function Home({
                 )}
               </div>
 
+              {/* You've gone quiet — offer Pause right where it's needed, and
+                  frame it as a choice, not a failure. */}
+              {(() => {
+                const mine = sec.rows.find((r: any) => r.isMe);
+                if (!mine || mine.paused || mine.quietDays < 5) return null;
+                return (
+                  <div className="mt-3 rounded-2xl border border-gold/45 bg-gold/[0.08] p-4">
+                    <div className="text-[15px] font-semibold text-ink">
+                      No workouts logged in {mine.quietDays} days
+                    </div>
+                    <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
+                      Life gets in the way — that's allowed. Pause the week and it
+                      won't count against you, or log one to pick things back up.
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/app/pod-settings?pod=${sec.pod.id}`}
+                        className="rounded-full border border-line bg-card px-3.5 py-2 text-[14px] font-semibold text-ink-soft active:scale-95"
+                      >
+                        ⏸ Pause my week
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Member rows */}
               <div className="mt-3 flex flex-col gap-2.5">
                 {sec.rows.map((r: any) => {
@@ -565,6 +602,11 @@ export default async function Home({
                             {r.isMe && (
                               <span className="rounded-full bg-paper-2 px-2 py-0.5 text-[12px] font-semibold text-muted">
                                 you
+                              </span>
+                            )}
+                            {!r.paused && !r.isMe && r.quietDays >= 5 && (
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-paper-2 px-2 py-0.5 text-[12px] font-semibold text-muted">
+                                💤 quiet {r.quietDays}d
                               </span>
                             )}
                           </div>

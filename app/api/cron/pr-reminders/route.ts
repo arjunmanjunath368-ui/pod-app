@@ -174,6 +174,10 @@ export async function GET(req: Request) {
   // staked week. ----
   const resumed = await autoResumeEnded(supabase);
 
+  // ---- Nudge anyone who's gone quiet: a gentle check-in that offers Pause at
+  // the moment it's actually useful (this is the drop-off we lose people to). ----
+  const absent = await nudgeAbsent(supabase);
+
   // ---- Settle any one-and-done stake whose period has ended, then push the
   // result to the whole pod (so it lands even if nobody opens the app). ----
   const stakes = await settleEndedStakes(supabase);
@@ -184,9 +188,131 @@ export async function GET(req: Request) {
     usersNotified,
     pushesSent,
     autoResumed: resumed,
+    absentNudged: absent,
     stakesSettled: stakes.settled,
     stakePushes: stakes.pushes,
   });
+}
+
+// Someone who's gone quiet gets a check-in — never a scolding, and never a
+// broadcast to the pod. The nudge offers Pause explicitly, because the moment
+// you're falling off is exactly when Pause is worth knowing about.
+//
+// Quiet = no logged session in QUIET_DAYS. Paused members are left alone.
+// Cooldown stops it repeating daily; the copy escalates gently if they stay away.
+async function nudgeAbsent(supabase: any): Promise<number> {
+  const QUIET_DAYS = 5; // first check-in
+  const LONG_DAYS = 10; // warmer, more direct copy past this
+  const COOLDOWN_DAYS = 5; // don't nudge the same person more often than this
+  const GRACE_DAYS = 3; // brand-new members get a moment to settle in
+
+  const nowMs = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+
+  const { data: members } = await supabase
+    .from("pod_members")
+    .select("user_id, pod_id, joined_at, absent_nudged_at, pods(name)")
+    .eq("status", "active");
+  if (!members?.length) return 0;
+
+  const userIds: string[] = [];
+  const podIds: string[] = [];
+  for (const m of members as any[]) {
+    if (!userIds.includes(m.user_id)) userIds.push(m.user_id);
+    if (!podIds.includes(m.pod_id)) podIds.push(m.pod_id);
+  }
+
+  // Last log per (user, pod).
+  const { data: sessions } = await supabase
+    .from("sessions")
+    .select("user_id, pod_id, logged_at")
+    .in("pod_id", podIds)
+    .gte("logged_at", new Date(nowMs - 90 * day).toISOString());
+  const lastLog: Record<string, number> = {};
+  for (const s of (sessions ?? []) as any[]) {
+    const k = `${s.user_id}::${s.pod_id}`;
+    const t = new Date(s.logged_at).getTime();
+    if (!lastLog[k] || t > lastLog[k]) lastLog[k] = t;
+  }
+
+  // Pods with money on the line — worth naming in the nudge.
+  const { data: stakeRows } = await supabase
+    .from("pod_stakes")
+    .select("pod_id")
+    .eq("status", "active")
+    .in("pod_id", podIds);
+  const stakedPods: string[] = (stakeRows ?? []).map((r: any) => r.pod_id);
+
+  // One nudge per person, even if they're quiet in several pods.
+  type Cand = { podId: string; podName: string; quiet: number; staked: boolean };
+  const byUser: Record<string, Cand> = {};
+  const touched: { userId: string; podId: string }[] = [];
+
+  for (const m of members as any[]) {
+    const joined = m.joined_at ? new Date(m.joined_at).getTime() : nowMs;
+    if (nowMs - joined < GRACE_DAYS * day) continue;
+
+    if (m.absent_nudged_at) {
+      const since = nowMs - new Date(m.absent_nudged_at).getTime();
+      if (since < COOLDOWN_DAYS * day) continue;
+    }
+
+    // Never logged? Measure from when they joined.
+    const last = lastLog[`${m.user_id}::${m.pod_id}`] ?? joined;
+    const quiet = Math.floor((nowMs - last) / day);
+    if (quiet < QUIET_DAYS) continue;
+
+    const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
+    const cand: Cand = {
+      podId: m.pod_id,
+      podName: pod?.name ?? "your pod",
+      quiet,
+      staked: stakedPods.includes(m.pod_id),
+    };
+    // Prefer the pod where they've been quiet longest (staked pods win ties).
+    const cur = byUser[m.user_id];
+    if (
+      !cur ||
+      cand.quiet > cur.quiet ||
+      (cand.quiet === cur.quiet && cand.staked && !cur.staked)
+    ) {
+      byUser[m.user_id] = cand;
+    }
+    touched.push({ userId: m.user_id, podId: m.pod_id });
+  }
+
+  let nudged = 0;
+  for (const userId of Object.keys(byUser)) {
+    const c = byUser[userId];
+    const long = c.quiet >= LONG_DAYS;
+
+    const title = long ? "Still with us?" : "Everything alright?";
+    let body: string;
+    if (long) {
+      body = `It's been ${c.quiet} days since your last workout in ${c.podName}. If life's busy, pause your week — it won't count against you. Otherwise, one log gets you back in.`;
+    } else {
+      body = `No workouts logged in ${c.podName} for ${c.quiet} days. Jump back in — or pause the week if you're travelling.`;
+    }
+    if (c.staked && !long) {
+      body = `No workouts logged in ${c.podName} for ${c.quiet} days — and there's a stake running. Log one, or pause the week if you're away.`;
+    }
+
+    const sent = await sendToUser(supabase, userId, title, body, "/app");
+    if (sent > 0) nudged++;
+  }
+
+  // Mark everyone we considered, so the cooldown holds even if push failed
+  // (no subscription) — otherwise we'd retry them every single day.
+  const stamp = new Date().toISOString();
+  for (const t of touched) {
+    await supabase
+      .from("pod_members")
+      .update({ absent_nudged_at: stamp })
+      .eq("user_id", t.userId)
+      .eq("pod_id", t.podId);
+  }
+
+  return nudged;
 }
 
 async function autoResumeEnded(supabase: any): Promise<number> {
