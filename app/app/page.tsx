@@ -438,6 +438,10 @@ export default async function Home({
             anything else on the screen has to make sense on its own. */}
         <Onboarding
           userId={user.id}
+          pods={sections.map((s: any) => ({
+            id: s.pod.id as string,
+            name: s.pod.name as string,
+          }))}
           open={!(myProfile as any)?.onboarded_at || searchParams.tour === "1"}
         />
 
