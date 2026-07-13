@@ -8,6 +8,7 @@ import { dayKeyInTz, shortDate } from "@/lib/days";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
 import { parseGoal, goalProgress, splitBreakdown, goalHit } from "@/lib/goals";
 import BottomNav from "@/components/BottomNav";
+import Onboarding from "@/components/Onboarding";
 import PodSync from "@/components/PodSync";
 import InviteButton from "@/components/InviteButton";
 import NudgeButton from "@/components/NudgeButton";
@@ -89,6 +90,26 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     weekStartsOn: wso,
     podCreatedAt,
   });
+
+  // Active stake for this pod — surfaced on Home so the money isn't buried in a
+  // settings menu (it's the thing people most need to keep an eye on).
+  const { data: stakeRow } = await supabase
+    .from("pod_stakes")
+    .select("status, stake_amount, period_start, period_weeks")
+    .eq("pod_id", podId)
+    .eq("status", "active")
+    .maybeSingle();
+  let stake: { amount: number; weekNow: number; weeks: number } | null = null;
+  if (stakeRow) {
+    const startMs = new Date(stakeRow.period_start as string).getTime();
+    const weeks = (stakeRow.period_weeks as number) ?? 1;
+    const elapsed = Math.floor((now.getTime() - startMs) / (7 * 86400000)) + 1;
+    stake = {
+      amount: Number(stakeRow.stake_amount ?? 0),
+      weekNow: Math.min(Math.max(elapsed, 1), weeks),
+      weeks,
+    };
+  }
 
   const rows = (members ?? [])
     .filter((m: any) => m.status === "active" || m.status === "paused")
@@ -188,13 +209,13 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     meHitLastWeek = goalHit(myGoal, lastWeekMine);
   }
 
-  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso), meHasGoal, meHitThisWeek, meHitLastWeek };
+  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso), meHasGoal, meHitThisWeek, meHitLastWeek, stake };
 }
 
 export default async function Home({
   searchParams,
 }: {
-  searchParams: { pod?: string; welcome?: string };
+  searchParams: { pod?: string; welcome?: string; tour?: string };
 }) {
   const supabase = createClient();
   const {
@@ -204,7 +225,7 @@ export default async function Home({
 
   const { data: myProfile } = await supabase
     .from("profiles")
-    .select("display_name")
+    .select("display_name, onboarded_at")
     .eq("id", user.id)
     .maybeSingle();
   const emailLocal = (user.email ?? "").split("@")[0];
@@ -413,6 +434,13 @@ export default async function Home({
   return (
     <>
       <main className="px-5 pb-28 pt-8">
+        {/* First run (or replayed from Settings) — explain what Pod is before
+            anything else on the screen has to make sense on its own. */}
+        <Onboarding
+          userId={user.id}
+          open={!(myProfile as any)?.onboarded_at || searchParams.tour === "1"}
+        />
+
         {/* Header */}
         <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
           {weekday} · {twist}
@@ -623,6 +651,32 @@ export default async function Home({
                   </div>
                 );
               })()}
+
+              {/* Stakes — visible on Home, not buried in the gear menu. */}
+              <Link
+                href={`/app/stakes?pod=${sec.pod.id}`}
+                className={`mt-3 flex items-center justify-between rounded-2xl border p-4 active:scale-[0.99] ${
+                  sec.stake
+                    ? "border-gold/50 bg-gold/[0.08]"
+                    : "border-line bg-card"
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="text-[15px] font-semibold text-ink">
+                    {sec.stake
+                      ? `\u{1F4B0} $${sec.stake.amount} on the line`
+                      : "\u{1F4B0} Add stakes"}
+                  </div>
+                  <div className="mt-0.5 text-[13px] text-muted">
+                    {sec.stake
+                      ? `Week ${sec.stake.weekNow} of ${sec.stake.weeks} \u00b7 see standings`
+                      : "Put real money on the week \u2014 miss your goal, you pay in."}
+                  </div>
+                </div>
+                <span className="ml-3 shrink-0 text-muted" aria-hidden>
+                  \u203a
+                </span>
+              </Link>
 
               {/* Member rows */}
               <div className="mt-3 flex flex-col gap-2.5">

@@ -33,6 +33,16 @@ const ABOUT_CARDS: WalkCard[] = [
     title: "Chase your own bests",
     body: "Log a personal best — your longest plank, your heaviest lift, that incline walk — and beat it next month. The only person you're racing is past-you.",
   },
+  {
+    emoji: "💰",
+    title: "Stakes, if you want teeth",
+    body: "Put real money on the week. Staked logs need a live photo taken in the app, and your pod can flag anything that looks off — a log is only voided if most of the others agree. Miss your goal, you pay in.",
+  },
+  {
+    emoji: "⏸",
+    title: "Life happens — pause it",
+    body: "Travelling, sick, buried at work? Pause your week. It won't count against you, and your pod knows you're out rather than wondering where you went.",
+  },
 ];
 
 export default async function SettingsPage() {
@@ -101,6 +111,13 @@ export default async function SettingsPage() {
         <div className="mt-3">
           <WalkthroughCards cards={ABOUT_CARDS} />
         </div>
+
+        <Link
+          href="/app?tour=1"
+          className="mt-3 block rounded-2xl border border-line bg-card p-4 text-[15px] font-semibold text-ink-soft active:scale-[0.99]"
+        >
+          ↺ Replay the walkthrough
+        </Link>
 
         <div className="mt-8">
           <SignOutButton />

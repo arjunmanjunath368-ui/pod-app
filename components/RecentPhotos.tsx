@@ -6,24 +6,35 @@ import { thumb } from "@/lib/img";
 import Avatar from "@/components/Avatar";
 import type { FeedItem } from "@/components/Feed";
 
-// A light, swipeable stack of the most recent photo logs — the focal "what just
-// happened" surface, so the latest proof is front-and-center without scrolling
-// a heavy feed. Images lazy-load; tapping opens a full-res lightbox.
+// The most recent photo logs, held like a hand of cards: the newest sits square
+// in front, the rest fan out behind it. Tap a card behind to bring it forward;
+// tap the front card to open it full-res. Images lazy-load.
 export default function RecentPhotos({ items }: { items: FeedItem[] }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [front, setFront] = useState(0);
   if (items.length === 0) return null;
+
+  const deck = items.slice(0, 6);
+  const n = deck.length;
+
+  // Fan geometry: cards pivot from a point below the deck, so they splay like
+  // cards in a hand rather than sliding sideways.
+  const SPREAD = n > 1 ? Math.min(9, 26 / (n - 1)) : 0; // degrees between cards
+  const mid = (n - 1) / 2;
 
   return (
     <div className="mb-6">
-      <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
+      <div className="mb-2 flex items-center justify-between text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
         <span>📸 Recent</span>
+        {n > 1 && (
+          <span className="normal-case tracking-normal text-[12px] font-medium">
+            {front + 1} / {n}
+          </span>
+        )}
       </div>
 
-      <div
-        className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1"
-        style={{ scrollbarWidth: "none" }}
-      >
-        {items.map((it) => {
+      <div className="relative mx-auto h-[290px] w-full max-w-[300px]">
+        {deck.map((it, i) => {
           const metas = (it.activities?.length
             ? it.activities
             : [it.activity]
@@ -31,11 +42,35 @@ export default function RecentPhotos({ items }: { items: FeedItem[] }) {
           const label = metas
             .map((m) => `${m.emoji} ${m.label.toLowerCase()}`)
             .join(" + ");
+
+          const isFront = i === front;
+          // Distance from the front card decides how far back it sits.
+          const offset = i - front;
+          const angle = isFront ? 0 : (i - mid) * SPREAD;
+          const depth = Math.min(Math.abs(offset), 4);
+
           return (
             <button
               key={it.id}
-              onClick={() => it.photoUrl && setLightbox(it.photoUrl)}
-              className="relative aspect-[3/4] w-[72%] max-w-[260px] shrink-0 snap-start overflow-hidden rounded-2xl bg-card text-left active:scale-[0.99]"
+              onClick={() => {
+                if (isFront) {
+                  if (it.photoUrl) setLightbox(it.photoUrl);
+                } else {
+                  setFront(i);
+                }
+              }}
+              aria-label={
+                isFront ? "Open photo" : `Bring ${it.authorName}'s photo forward`
+              }
+              className="absolute left-1/2 top-0 h-[270px] w-[200px] overflow-hidden rounded-2xl bg-card text-left shadow-pod-lg ring-1 ring-black/[0.06] transition-transform duration-300 ease-out"
+              style={{
+                transform: `translateX(-50%) rotate(${angle}deg) translateY(${
+                  isFront ? 0 : 10 + depth * 3
+                }px) scale(${isFront ? 1 : 1 - depth * 0.03})`,
+                transformOrigin: "50% 130%",
+                zIndex: isFront ? 50 : 20 - depth,
+                filter: isFront ? "none" : "brightness(0.94)",
+              }}
             >
               {it.photoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -47,28 +82,45 @@ export default function RecentPhotos({ items }: { items: FeedItem[] }) {
                   className="h-full w-full object-cover"
                 />
               )}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 pt-8">
-                <div className="flex items-center gap-2">
-                  <Avatar
-                    url={it.avatarUrl}
-                    initials={it.initials}
-                    color={it.color}
-                    size={24}
-                  />
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] font-semibold text-white">
-                      {it.isMine ? "You" : it.authorName}
-                    </div>
-                    <div className="truncate text-[11px] text-white/75">
-                      {label} · {it.timeLabel}
+              {isFront && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 pt-8">
+                  <div className="flex items-center gap-2">
+                    <Avatar
+                      url={it.avatarUrl}
+                      initials={it.initials}
+                      color={it.color}
+                      size={24}
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] font-semibold text-white">
+                        {it.isMine ? "You" : it.authorName}
+                      </div>
+                      <div className="truncate text-[11px] text-white/75">
+                        {label} · {it.timeLabel}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </button>
           );
         })}
       </div>
+
+      {n > 1 && (
+        <div className="mt-2 flex justify-center gap-1.5">
+          {deck.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setFront(i)}
+              aria-label={`Photo ${i + 1}`}
+              className={`h-1.5 rounded-full transition-all ${
+                i === front ? "w-5 bg-terra" : "w-1.5 bg-line"
+              }`}
+            />
+          ))}
+        </div>
+      )}
 
       {lightbox && (
         <div
