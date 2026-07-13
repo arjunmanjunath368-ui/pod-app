@@ -209,7 +209,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     meHitLastWeek = goalHit(myGoal, lastWeekMine);
   }
 
-  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso), meHasGoal, meHitThisWeek, meHitLastWeek, stake };
+  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, totalRemaining, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso), meHasGoal, meHitThisWeek, meHitLastWeek, stake };
 }
 
 export default async function Home({
@@ -592,14 +592,28 @@ export default async function Home({
 
                 {sec.goalRows.length > 0 ? (
                   <>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <span className="font-serif text-[52px] font-semibold leading-none text-paper">
-                        {sec.podPct}%
-                      </span>
-                      <span className="text-[15px] text-sage-soft">
-                        of the pod's goals hit
-                      </span>
-                    </div>
+                    {sec.podPct > 0 ? (
+                      <div className="mt-2 flex items-baseline gap-2">
+                        <span className="font-serif text-[52px] font-semibold leading-none text-paper">
+                          {sec.podPct}%
+                        </span>
+                        <span className="text-[15px] text-sage-soft">
+                          of the pod's goals hit
+                        </span>
+                      </div>
+                    ) : (
+                      // Nobody's logged yet. A big "0%" reads like failure before
+                      // the week has even started — show what's ahead instead.
+                      <div className="mt-2 flex items-baseline gap-2">
+                        <span className="font-serif text-[52px] font-semibold leading-none text-paper">
+                          {sec.totalRemaining}
+                        </span>
+                        <span className="text-[15px] text-sage-soft">
+                          {sec.totalRemaining === 1 ? "session" : "sessions"} to a
+                          perfect week
+                        </span>
+                      </div>
+                    )}
                     <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/12">
                       <div
                         className="h-full rounded-full bg-gradient-to-r from-[#4ADE80] to-[#60A5FA]"
@@ -607,7 +621,9 @@ export default async function Home({
                       />
                     </div>
                     <div className="mt-3 text-[15px] font-semibold text-gold">
-                      {sec.remainingLabel}
+                      {sec.podPct > 0
+                        ? sec.remainingLabel
+                        : "The week's wide open — first log sets the tone."}
                     </div>
                     <p className="mt-3 text-[15px] leading-relaxed text-sage-soft">
                       It's not about who does the most. The pod rises when
@@ -668,17 +684,17 @@ export default async function Home({
                 <div className="min-w-0">
                   <div className="text-[15px] font-semibold text-ink">
                     {sec.stake
-                      ? `\u{1F4B0} $${sec.stake.amount} on the line`
-                      : "\u{1F4B0} Add stakes"}
+                      ? `💰 $${sec.stake.amount} on the line`
+                      : "💰 Add stakes"}
                   </div>
                   <div className="mt-0.5 text-[13px] text-muted">
                     {sec.stake
-                      ? `Week ${sec.stake.weekNow} of ${sec.stake.weeks} \u00b7 see standings`
-                      : "Put real money on the week \u2014 miss your goal, you pay in."}
+                      ? `Week ${sec.stake.weekNow} of ${sec.stake.weeks} · see standings`
+                      : "Put real money on the week — miss your goal, you pay in."}
                   </div>
                 </div>
-                <span className="ml-3 shrink-0 text-muted" aria-hidden>
-                  \u203a
+                <span className="ml-3 shrink-0 text-[18px] text-muted" aria-hidden>
+                  ›
                 </span>
               </Link>
 
