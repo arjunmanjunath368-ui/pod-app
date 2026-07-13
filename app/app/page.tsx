@@ -380,6 +380,36 @@ export default async function Home({
     sections.find((s: any) => s.pod.id === searchParams.pod) ?? sections[0];
   const welcomeLone = !!welcomePod && welcomePod.rows.length <= 1;
 
+  // ---- Absence, across pods ----
+  // Quiet everywhere → say it ONCE at the top. Quiet in only some pods → say it
+  // inside those pods, worded against the ones you HAVE been logging in (a
+  // generic "you've been away" would be plainly false for the active pod).
+  const QUIET_DAYS = 5;
+  const myPodStates = sections
+    .map((s: any) => {
+      const me = s.rows.find((r: any) => r.isMe);
+      return me
+        ? {
+            podId: s.pod.id,
+            podName: s.pod.name,
+            quietDays: me.quietDays as number,
+            paused: !!me.paused,
+          }
+        : null;
+    })
+    .filter(Boolean)
+    .filter((x: any) => !x.paused) as {
+    podId: string;
+    podName: string;
+    quietDays: number;
+    paused: boolean;
+  }[];
+  const quietPods = myPodStates.filter((p) => p.quietDays >= QUIET_DAYS);
+  const activePods = myPodStates.filter((p) => p.quietDays < QUIET_DAYS);
+  const quietEverywhere = quietPods.length > 0 && activePods.length === 0;
+  const maxQuiet = quietPods.reduce((m, p) => Math.max(m, p.quietDays), 0);
+  const activeNames = activePods.map((p) => p.podName).join(" and ");
+
   return (
     <>
       <main className="px-5 pb-28 pt-8">
@@ -396,6 +426,30 @@ export default async function Home({
         <ChallengeInbox challenges={incomingChallenges} userId={user.id} />
 
         <PrCelebrations events={prEvents} />
+
+        {/* Away from all your pods — one message, not one per pod. */}
+        {quietEverywhere && (
+          <div className="mt-4 rounded-2xl border border-gold/45 bg-gold/[0.08] p-4">
+            <div className="text-[16px] font-semibold text-ink">
+              {maxQuiet} days since your last workout
+            </div>
+            <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
+              Travel, work, life — it happens. Pause a week and it won't count
+              against you. Or log one today and you're right back in.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {quietPods.map((p) => (
+                <Link
+                  key={p.podId}
+                  href={`/app/pod-settings?pod=${p.podId}`}
+                  className="rounded-full border border-line bg-card px-3.5 py-2 text-[14px] font-semibold text-ink-soft active:scale-95"
+                >
+                  ⏸ Pause{quietPods.length > 1 ? ` · ${p.podName}` : " my week"}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {showMomentum && (
           <div
@@ -541,19 +595,22 @@ export default async function Home({
                 )}
               </div>
 
-              {/* You've gone quiet — offer Pause right where it's needed, and
-                  frame it as a choice, not a failure. */}
+              {/* Quiet in THIS pod while logging in another — the one case a
+                  pod-specific message is truer than a blanket one. */}
               {(() => {
                 const mine = sec.rows.find((r: any) => r.isMe);
-                if (!mine || mine.paused || mine.quietDays < 5) return null;
+                if (!mine || mine.paused || mine.quietDays < QUIET_DAYS)
+                  return null;
+                if (quietEverywhere) return null; // already said at the top
                 return (
                   <div className="mt-3 rounded-2xl border border-gold/45 bg-gold/[0.08] p-4">
                     <div className="text-[15px] font-semibold text-ink">
-                      No workouts logged in {mine.quietDays} days
+                      Nothing logged here in {mine.quietDays} days
                     </div>
                     <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
-                      Life gets in the way — that's allowed. Pause the week and it
-                      won't count against you, or log one to pick things back up.
+                      {activeNames
+                        ? `You've been showing up in ${activeNames} — this pod just hasn't seen it. Log here too, or pause the week.`
+                        : "Log one to pick things back up, or pause the week if you're away."}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Link
