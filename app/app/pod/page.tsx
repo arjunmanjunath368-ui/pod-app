@@ -22,7 +22,7 @@ export default async function PodFeed({
 
   const { data: memberships } = await supabase
     .from("pod_members")
-    .select("pod_id, pods(id, name, invite_code)")
+    .select("pod_id, pods(id, name, invite_code, timezone)")
     .eq("user_id", user.id)
     .neq("status", "left");
 
@@ -164,6 +164,16 @@ export default async function PodFeed({
       activityNotes: (s as any).activity_notes ?? null,
       photoUrl: s.photo_url,
       timeLabel: timeAgo(new Date(s.logged_at), now),
+      // Absolute date too — a relative "3d ago" is useless for tracing progress
+      // back through the photo history.
+      dateLabel: new Date(s.logged_at).toLocaleString("en-US", {
+        timeZone: (current as any)?.timezone ?? "UTC",
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }),
       isMine: s.user_id === user.id,
       counts,
       mine,

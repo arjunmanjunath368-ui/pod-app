@@ -20,7 +20,7 @@ const ONBOARD_CARDS: WalkCard[] = [
   {
     emoji: "🔥",
     title: "Showing up is the whole game",
-    body: "The only scoreboard is consistency. Hit your number, build your streak, stack perfect weeks together. Outrunning the couch counts.",
+    body: "The only scoreboard is consistency. Hit your number, build your streak, stack Pod Perfect weeks together. Outrunning the couch counts.",
   },
   {
     emoji: "💪",

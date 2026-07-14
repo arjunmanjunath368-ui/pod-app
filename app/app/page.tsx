@@ -177,12 +177,15 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     (acc: number, r: any) => acc + Math.max(r.target - r.done, 0),
     0
   );
+  // A "Pod Perfect week" = every member hit their own goal. Naming it as a
+  // milestone (rather than describing the arithmetic) is what stops the count
+  // reading as days — these are sessions summed across the pod, so >7 is normal.
   const remainingLabel =
     totalRemaining === 0
-      ? "Perfect week — everyone showed up 🎉"
+      ? "Pod Perfect week — everyone showed up 🎉"
       : `${totalRemaining} ${
           totalRemaining === 1 ? "session" : "sessions"
-        } from a perfect week.`;
+        } from a Pod Perfect week.`;
 
   // The current user's own goal status in this pod, for the momentum banner:
   // did I hit my goal this week yet, and did I hit it last week?
@@ -609,8 +612,8 @@ export default async function Home({
                           {sec.totalRemaining}
                         </span>
                         <span className="text-[15px] text-sage-soft">
-                          {sec.totalRemaining === 1 ? "session" : "sessions"} to a
-                          perfect week
+                          {sec.totalRemaining === 1 ? "session" : "sessions"} from
+                          a Pod Perfect week
                         </span>
                       </div>
                     )}

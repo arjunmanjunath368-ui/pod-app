@@ -20,8 +20,8 @@ const ABOUT_CARDS: WalkCard[] = [
   },
   {
     emoji: "🔥",
-    title: "Streaks & perfect weeks",
-    body: "Hit your number on whatever days you like — order doesn't matter. When everyone hits theirs, that's a perfect week, and perfect weeks build the pod's streak.",
+    title: "Streaks & Pod Perfect weeks",
+    body: "Hit your number on whatever days you like — order doesn't matter. When everyone in the pod hits theirs, that's a Pod Perfect week — and those build the pod's streak.",
   },
   {
     emoji: "💪",

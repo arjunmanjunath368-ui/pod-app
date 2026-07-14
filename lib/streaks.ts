@@ -2,7 +2,7 @@ import { weekStartUtc } from "./week";
 
 // A week is "complete" for a member when sessions logged that week >= their target.
 // Individual streak = consecutive completed weeks.
-// Pod streak = consecutive "perfect weeks" (every eligible member completed theirs).
+// Pod streak = consecutive "Pod Perfect weeks" (every eligible member completed theirs).
 // Optimistic rule: the in-progress (current) week never BREAKS a streak; completing
 // it EXTENDS the streak immediately. Paused members and members who hadn't joined yet
 // are excluded from a given week's perfect-week check.

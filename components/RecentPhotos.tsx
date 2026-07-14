@@ -11,7 +11,7 @@ import type { FeedItem } from "@/components/Feed";
 // Cards you've passed fly off to the left, so the direction of travel is always
 // legible — no guessing which tap does what.
 export default function RecentPhotos({ items }: { items: FeedItem[] }) {
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<number | null>(null);
   const [front, setFront] = useState(0);
   const [drag, setDrag] = useState(0);
   const startX = useRef<number | null>(null);
@@ -115,7 +115,7 @@ export default function RecentPhotos({ items }: { items: FeedItem[] }) {
               onClick={() => {
                 if (moved.current) return; // that was a swipe, not a tap
                 if (isFront) {
-                  if (it.photoUrl) setLightbox(it.photoUrl);
+                  if (it.photoUrl) setLightbox(i);
                 } else if (!passed) {
                   go(i);
                 }
@@ -208,17 +208,61 @@ export default function RecentPhotos({ items }: { items: FeedItem[] }) {
         </div>
       )}
 
-      {lightbox && (
+      {lightbox !== null && (
         <div
           onClick={() => setLightbox(null)}
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4"
+          className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/90 p-4"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={lightbox}
+            src={deck[lightbox].photoUrl ?? ""}
             alt=""
-            className="max-h-full max-w-full rounded-xl object-contain"
+            className="max-h-[72vh] max-w-full rounded-xl object-contain"
           />
+          {/* Details — so a photo can be traced back to a day and read as progress. */}
+          <div
+            className="mt-4 w-full max-w-[420px] rounded-2xl bg-white/[0.08] p-4 text-left backdrop-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2.5">
+              <Avatar
+                url={deck[lightbox].avatarUrl}
+                initials={deck[lightbox].initials}
+                color={deck[lightbox].color}
+                size={32}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[15px] font-semibold text-white">
+                  {deck[lightbox].isMine ? "You" : deck[lightbox].authorName}
+                </div>
+                <div className="truncate text-[13px] text-white/70">
+                  {deck[lightbox].dateLabel}
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 text-[14px] font-medium text-white/90">
+              {(deck[lightbox].activities?.length
+                ? deck[lightbox].activities
+                : [deck[lightbox].activity]
+              )
+                .map((k) => {
+                  const m = activityMeta(k as any);
+                  return `${m.emoji} ${m.label}`;
+                })
+                .join(" + ")}
+            </div>
+            {deck[lightbox].note && (
+              <p className="mt-2 text-[14px] leading-relaxed text-white/75">
+                “{deck[lightbox].note}”
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setLightbox(null)}
+            className="mt-4 text-[14px] font-semibold text-white/60"
+          >
+            Close
+          </button>
         </div>
       )}
     </div>

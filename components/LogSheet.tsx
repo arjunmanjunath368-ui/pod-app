@@ -92,7 +92,7 @@ async function computeCelebration(
     idx >= 0 ? mine.filter((_, i) => i !== idx) : mine.slice(0, -1);
   if (goalHit(myGoal, without)) return null;
 
-  // Perfect week: every active member with a goal has met it.
+  // Pod Perfect week: every active member with a goal has met it.
   const { data: members } = await supabase
     .from("pod_members")
     .select(
@@ -500,7 +500,7 @@ export default function LogSheet({
                   </span>
                 </div>
                 <p className="font-serif text-[27px] font-semibold leading-tight text-ink">
-                  Perfect week!
+                  Pod Perfect week!
                 </p>
               </>
             ) : (

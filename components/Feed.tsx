@@ -40,6 +40,7 @@ export type FeedItem = {
   activityNotes: Record<string, string> | null;
   photoUrl: string | null;
   timeLabel: string;
+  dateLabel: string;
   isMine: boolean;
   counts: Record<string, number>;
   mine: Record<string, boolean>;
@@ -152,6 +153,13 @@ export default function Feed({
             activityNotes: s.activity_notes ?? null,
             photoUrl: s.photo_url ?? null,
             timeLabel: "just now",
+            dateLabel: new Date().toLocaleString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            }),
             isMine: false,
             counts: {},
             mine: {},
