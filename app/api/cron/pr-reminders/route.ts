@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { createClient } from "@supabase/supabase-js";
-import { computeStakes, periodStartInstant } from "@/lib/stakes";
-import { parseGoal } from "@/lib/goals";
+import { computeStakes, periodStartInstant, stakeWeekBounds } from "@/lib/stakes";
+import { parseGoal, goalHit, goalProgress } from "@/lib/goals";
 import { dayKeyInTz } from "@/lib/days";
 import { weekStartUtc } from "@/lib/week";
 
@@ -178,6 +178,12 @@ export async function GET(req: Request) {
   // the moment it's actually useful (this is the drop-off we lose people to). ----
   const absent = await nudgeAbsent(supabase);
 
+  // ---- While a multi-week stake is still running, keep people informed: a
+  // recap when a sub-week closes, and a private nudge if they're short with
+  // little time left in the current one. Otherwise a 2-6 week stake is silent
+  // until the very end. ----
+  const digest = await stakeStatusPings(supabase);
+
   // ---- Settle any one-and-done stake whose period has ended, then push the
   // result to the whole pod (so it lands even if nobody opens the app). ----
   const stakes = await settleEndedStakes(supabase);
@@ -189,6 +195,8 @@ export async function GET(req: Request) {
     pushesSent,
     autoResumed: resumed,
     absentNudged: absent,
+    stakeWeeklyRecaps: digest.weeklyRecaps,
+    stakeFinalStretchWarnings: digest.finalStretch,
     stakesSettled: stakes.settled,
     stakePushes: stakes.pushes,
   });
@@ -367,6 +375,241 @@ function money(n: number): string {
   const abs = Math.abs(n);
   const str = Number.isInteger(abs) ? String(abs) : abs.toFixed(2);
   return `${sign}${str}`;
+}
+
+// A 2-6 week stake period currently only speaks up once, at the very end
+// (settleEndedStakes). This fills the silence in between with two throttled
+// events per pod, each firing at most once no matter how often the cron runs:
+//
+//   (a) Weekly recap — a sub-week inside the period just closed. Push each
+//       member that week's net plus the running total for the period so far.
+//   (b) Final-stretch warning — 2 or fewer days left in the CURRENT week and
+//       a member hasn't hit their goal yet. Private nudge, sent once per week.
+async function stakeStatusPings(
+  supabase: any
+): Promise<{ weeklyRecaps: number; finalStretch: number }> {
+  const now = new Date();
+  let weeklyRecaps = 0;
+  let finalStretch = 0;
+
+  const { data: active } = await supabase
+    .from("pod_stakes")
+    .select(
+      "pod_id, stake_amount, period_start, period_weeks, status, last_week_notified, warned_week_key"
+    )
+    .eq("status", "active")
+    .not("period_start", "is", null);
+
+  for (const st of active ?? []) {
+    const { data: pod } = await supabase
+      .from("pods")
+      .select("name, timezone, week_starts_on")
+      .eq("id", st.pod_id)
+      .maybeSingle();
+    const tz = pod?.timezone ?? "UTC";
+    const wso = pod?.week_starts_on ?? 1;
+    const podName = pod?.name ?? "your pod";
+
+    const { data: mems } = await supabase
+      .from("pod_members")
+      .select(
+        "user_id, status, goal_activity, goal_target_per_week, goal_mode, goal_activities, goal_splits, staked_from, profiles(display_name)"
+      )
+      .eq("pod_id", st.pod_id)
+      .neq("status", "left");
+    if (!mems?.length) continue;
+
+    const members: {
+      userId: string;
+      target: number;
+      status: string;
+      stakedFrom: string | null;
+      mode: "combined" | "split";
+      splits: { activity: string; target: number }[];
+    }[] = mems.map((m: any) => {
+      const g = parseGoal(m);
+      return {
+        userId: m.user_id as string,
+        target: g.target,
+        status: m.status as string,
+        stakedFrom: (m.staked_from as string | null) ?? null,
+        mode: g.mode,
+        splits: g.splits,
+      };
+    });
+    const goalOf: Record<string, ReturnType<typeof parseGoal>> = {};
+    mems.forEach((m: any) => (goalOf[m.user_id] = parseGoal(m)));
+    const nameOf = (id: string): string => {
+      const m = mems.find((x: any) => x.user_id === id);
+      const p = m
+        ? Array.isArray(m.profiles)
+          ? m.profiles[0]
+          : m.profiles
+        : null;
+      return p?.display_name ?? "Member";
+    };
+
+    const startInstant = periodStartInstant(st.period_start, tz, wso);
+    const { data: sess } = await supabase
+      .from("sessions")
+      .select("user_id, logged_at, activity, activities, verified, voided")
+      .eq("pod_id", st.pod_id)
+      .gte("logged_at", startInstant.toISOString());
+    const rawSessions = (sess ?? []).filter(
+      (s: any) => (s.verified ?? true) !== false && !s.voided
+    );
+    const sessions = rawSessions.map((s: any) => ({
+      userId: s.user_id as string,
+      loggedAt: new Date(s.logged_at),
+      activity: (s.activity as string | null) ?? null,
+      activities: (s.activities as string[] | null) ?? null,
+    }));
+
+    const { data: wpRows } = await supabase
+      .from("stake_week_participants")
+      .select("week_start, user_id")
+      .eq("pod_id", st.pod_id)
+      .gte("week_start", st.period_start);
+    const weekRosters: Record<string, string[]> = {};
+    (wpRows ?? []).forEach((r: any) => {
+      (weekRosters[r.week_start] ??= []).push(r.user_id as string);
+    });
+
+    const baseArgs = {
+      stakeAmount: st.stake_amount,
+      periodStartDate: st.period_start,
+      periodWeeks: st.period_weeks,
+      tz,
+      weekStartsOn: wso,
+      members,
+      sessions,
+      weekRosters,
+    };
+
+    const res = computeStakes({ ...baseArgs, now });
+    if (res.isOver) continue; // settleEndedStakes owns the period-end push
+
+    const patch: Record<string, any> = {};
+
+    // ---- (a) A sub-week just closed ----
+    if (res.weeksCompleted > (st.last_week_notified ?? 0)) {
+      const closedIdx = res.weeksCompleted - 1;
+      // Re-run with `now` pinned to that week's own start: at that instant the
+      // week is still "in progress," so firmNet only reflects weeks BEFORE it —
+      // subtracting gives that one week's net in isolation.
+      const { start: closedStart } = stakeWeekBounds(
+        tz,
+        wso,
+        startInstant,
+        closedIdx
+      );
+      const resPrev = computeStakes({ ...baseArgs, now: closedStart });
+      const prevNet: Record<string, number> = {};
+      resPrev.standings.forEach((s) => (prevNet[s.userId] = s.firmNet));
+
+      const weekNet: { userId: string; net: number }[] = res.standings.map(
+        (s) => ({ userId: s.userId, net: s.firmNet - (prevNet[s.userId] ?? 0) })
+      );
+      // Only worth a push if that week's pot actually moved (someone missed).
+      const moved = weekNet.some((w) => Math.abs(w.net) > 0.001);
+      if (moved) {
+        const orderedWeek = [...weekNet].sort((a, b) => b.net - a.net);
+        const orderedTotal = [...res.standings].sort(
+          (a, b) => b.firmNet - a.firmNet
+        );
+        const title = `Week ${res.weeksCompleted} of ${st.period_weeks} settled`;
+        const weeksLeft = st.period_weeks - res.weeksCompleted;
+        for (const uid of Array.from(
+          new Set(weekNet.map((w) => w.userId))
+        )) {
+          const weekLine = orderedWeek
+            .map(
+              (w) =>
+                `${w.userId === uid ? "You" : nameOf(w.userId)} ${money(w.net)}`
+            )
+            .join(" · ");
+          const totalMine =
+            orderedTotal.find((t) => t.userId === uid)?.firmNet ?? 0;
+          const tail =
+            weeksLeft > 0
+              ? ` Running total: ${money(totalMine)}, ${weeksLeft} week${
+                  weeksLeft === 1 ? "" : "s"
+                } left in ${podName}.`
+              : ` Running total: ${money(totalMine)} in ${podName}.`;
+          const body = weekLine + "." + tail;
+          weeklyRecaps += await sendToUser(
+            supabase,
+            uid,
+            title,
+            body,
+            `/app/stakes?pod=${st.pod_id}`
+          );
+        }
+      }
+      patch.last_week_notified = res.weeksCompleted;
+    }
+
+    // ---- (b) Final stretch of the CURRENT week ----
+    if (
+      res.currentWeekIndex !== null &&
+      res.currentWeekStartKey &&
+      res.currentWeekStartKey !== st.warned_week_key
+    ) {
+      const { end } = stakeWeekBounds(tz, wso, startInstant, res.currentWeekIndex);
+      const daysLeft = Math.ceil((end.getTime() - now.getTime()) / 86400000);
+      if (daysLeft > 0 && daysLeft <= 2) {
+        const weekKey = res.currentWeekStartKey;
+        const roster = members.filter(
+          (m) =>
+            m.status === "active" &&
+            m.target >= 1 &&
+            (!m.stakedFrom || m.stakedFrom <= weekKey)
+        );
+        const { start } = stakeWeekBounds(
+          tz,
+          wso,
+          startInstant,
+          res.currentWeekIndex
+        );
+        for (const m of roster) {
+          const mine = rawSessions
+            .filter(
+              (s: any) =>
+                s.user_id === m.userId &&
+                new Date(s.logged_at).getTime() >= start.getTime() &&
+                new Date(s.logged_at).getTime() < end.getTime()
+            )
+            .map((s: any) => ({
+              activity: (s.activity as string | null) ?? null,
+              activities: (s.activities as string[] | null) ?? null,
+            }));
+          const goal = goalOf[m.userId];
+          if (goalHit(goal, mine)) continue;
+          const { done, target } = goalProgress(goal, mine);
+          const short = Math.max(target - done, 0);
+          if (short <= 0) continue;
+          const title = `⏳ ${daysLeft} day${daysLeft === 1 ? "" : "s"} left this stake week`;
+          const body = `You're ${short} ${
+            short === 1 ? "session" : "sessions"
+          } short of your goal in ${podName} — log one to stay in the money.`;
+          finalStretch += await sendToUser(
+            supabase,
+            m.userId,
+            title,
+            body,
+            `/app/stakes?pod=${st.pod_id}`
+          );
+        }
+        patch.warned_week_key = weekKey;
+      }
+    }
+
+    if (Object.keys(patch).length > 0) {
+      await supabase.from("pod_stakes").update(patch).eq("pod_id", st.pod_id);
+    }
+  }
+
+  return { weeklyRecaps, finalStretch };
 }
 
 async function settleEndedStakes(

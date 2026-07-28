@@ -38,7 +38,7 @@ export default async function PodFeed({
   const { data: sessions } = await supabase
     .from("sessions")
     .select(
-      "id, user_id, activity, activities, note, activity_notes, photo_url, logged_at, voided, profiles(display_name, initials, avatar_color, avatar_url)"
+      "id, user_id, activity, activities, note, activity_notes, photo_url, logged_at, voided, source, profiles(display_name, initials, avatar_color, avatar_url)"
     )
     .eq("pod_id", podId)
     .order("logged_at", { ascending: false })
@@ -183,6 +183,9 @@ export default async function PodFeed({
       flagCount: sFlaggerIds.length,
       flaggers,
       iFlagged: sFlaggerIds.includes(user.id),
+      source: (s.source === "healthkit" ? "healthkit" : "manual") as
+        | "manual"
+        | "healthkit",
     };
   });
 

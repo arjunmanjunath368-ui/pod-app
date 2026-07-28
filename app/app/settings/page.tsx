@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationToggle from "@/components/NotificationToggle";
+import HealthSyncPanel from "@/components/HealthSyncPanel";
 import { BRAND_NAME } from "@/lib/brand";
 import WalkthroughCards, { type WalkCard } from "@/components/WalkthroughCards";
 
@@ -65,7 +66,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name")
+    .select("display_name, health_sync_token")
     .eq("id", user.id)
     .maybeSingle();
   const displayName = profile?.display_name ?? "You";
@@ -102,6 +103,13 @@ export default async function SettingsPage() {
 
         <div className="mt-4">
           <NotificationToggle userId={user.id} />
+        </div>
+
+        <div className="mt-4">
+          <HealthSyncPanel
+            userId={user.id}
+            initialToken={(profile as any)?.health_sync_token ?? null}
+          />
         </div>
 
         {/* How it works */}

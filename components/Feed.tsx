@@ -51,6 +51,7 @@ export type FeedItem = {
   flagCount: number;
   flaggers: string[];
   iFlagged: boolean;
+  source: "manual" | "healthkit";
 };
 
 type Me = { userId: string; name: string; initials: string; color: string; avatarUrl: string | null };
@@ -169,6 +170,7 @@ export default function Feed({
             flagCount: 0,
             flaggers: [],
             iFlagged: false,
+            source: "manual",
           };
           setFeedItems((prev) =>
             prev.some((p) => p.id === s.id) ? prev : [item, ...prev]
@@ -625,6 +627,11 @@ export default function Feed({
                   logged {activityLabel}
                 </div>
                 <div className="text-[13px] text-muted">{it.timeLabel}</div>
+                {it.source === "healthkit" && (
+                  <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-semibold text-muted">
+                    ⌚ synced from Apple Health
+                  </span>
+                )}
               </div>
               {it.isMine && (
                 <button

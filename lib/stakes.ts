@@ -41,8 +41,10 @@ export function periodStartInstant(
   return weekStartUtc(tz, weekStartsOn, ref);
 }
 
-// Start/end instants of week `i` (0-based) within the period.
-function weekBounds(
+// Start/end instants of week `i` (0-based) within the period. Exported so
+// callers (e.g. the daily digest) can isolate a single week's net rather than
+// only the period-wide cumulative totals computeStakes returns.
+export function stakeWeekBounds(
   tz: string,
   weekStartsOn: number,
   startInstant: Date,
@@ -126,7 +128,7 @@ export function computeStakes(opts: {
   let currentWeekStartKey: string | null = null;
 
   for (let i = 0; i < periodWeeks; i++) {
-    const { start, end } = weekBounds(tz, weekStartsOn, startInstant, i);
+    const { start, end } = stakeWeekBounds(tz, weekStartsOn, startInstant, i);
     if (start.getTime() > nowMs) {
       rosters.push(null); // hasn't started yet
       continue;
@@ -159,7 +161,7 @@ export function computeStakes(opts: {
   for (let i = 0; i < periodWeeks; i++) {
     const roster = rosters[i];
     if (!roster || roster.length === 0) continue;
-    const { start, end } = weekBounds(tz, weekStartsOn, startInstant, i);
+    const { start, end } = stakeWeekBounds(tz, weekStartsOn, startInstant, i);
     const isComplete = end.getTime() <= nowMs;
 
     // Gather each roster member's sessions for this week as the set of
@@ -210,7 +212,7 @@ export function computeStakes(opts: {
     });
   }
 
-  const periodEndInstant = weekBounds(
+  const periodEndInstant = stakeWeekBounds(
     tz,
     weekStartsOn,
     startInstant,
