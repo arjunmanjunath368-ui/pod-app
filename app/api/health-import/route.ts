@@ -138,16 +138,24 @@ export async function POST(req: Request) {
     imported++;
   }
 
+  let dbError: string | null = null;
   if (rows.length > 0) {
-    // onConflict matches the partial unique index — a re-sent workout for a
-    // pod the person is already in is silently skipped, not duplicated.
-    await supabase
+    // onConflict matches the unique index — a re-sent workout for a pod the
+    // person is already in is silently skipped, not duplicated.
+    const { error } = await supabase
       .from("sessions")
       .upsert(rows, {
         onConflict: "pod_id,user_id,external_id",
         ignoreDuplicates: true,
       });
+    if (error) {
+      // A write failure here must never look like success — this used to
+      // return {imported, skipped} regardless of whether rows actually landed.
+      dbError = error.message;
+      imported = 0;
+      skipped = workouts.length;
+    }
   }
 
-  return NextResponse.json({ imported, skipped });
+  return NextResponse.json({ imported, skipped, dbError });
 }
