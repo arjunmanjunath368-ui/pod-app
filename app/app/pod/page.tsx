@@ -38,7 +38,7 @@ export default async function PodFeed({
   const { data: sessions } = await supabase
     .from("sessions")
     .select(
-      "id, user_id, activity, activities, note, activity_notes, photo_url, logged_at, voided, source, profiles(display_name, initials, avatar_color, avatar_url)"
+      "id, user_id, activity, activities, note, activity_notes, photo_url, logged_at, voided, source, duration_seconds, calories, calories_units, profiles(display_name, initials, avatar_color, avatar_url)"
     )
     .eq("pod_id", podId)
     .order("logged_at", { ascending: false })
@@ -186,6 +186,9 @@ export default async function PodFeed({
       source: (s.source === "healthkit" ? "healthkit" : "manual") as
         | "manual"
         | "healthkit",
+      durationSeconds: (s.duration_seconds as number | null) ?? null,
+      calories: (s.calories as number | null) ?? null,
+      caloriesUnits: (s.calories_units as string | null) ?? null,
     };
   });
 

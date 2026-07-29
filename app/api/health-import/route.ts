@@ -29,6 +29,9 @@ type HKWorkout = {
   start?: string;
   end?: string;
   duration?: number;
+  // Workouts v2 only — v1 doesn't include this field at all, which is why the
+  // setup guide specifies Export Version 2.
+  activeEnergyBurned?: { qty?: number; units?: string };
 };
 
 // Auto-logs never touch stakes: they always save verified=false, exactly like
@@ -99,6 +102,9 @@ export async function POST(req: Request) {
     voided: false;
     source: "healthkit";
     external_id: string;
+    duration_seconds: number | null;
+    calories: number | null;
+    calories_units: string | null;
   }[] = [];
 
   for (const w of workouts) {
@@ -120,6 +126,13 @@ export async function POST(req: Request) {
         ? w.id
         : `${w.name ?? "workout"}|${start.toISOString()}`;
     const activity = mapHealthKitWorkout(w.name ?? "");
+    // Only present when "Include Workout Metrics" is on in Health Auto
+    // Export — absent otherwise, and that's fine, it's optional.
+    const calQty =
+      typeof w.activeEnergyBurned?.qty === "number"
+        ? w.activeEnergyBurned.qty
+        : null;
+    const calUnits = calQty !== null ? (w.activeEnergyBurned?.units ?? null) : null;
 
     for (const podId of podIds) {
       rows.push({
@@ -133,6 +146,9 @@ export async function POST(req: Request) {
         voided: false,
         source: "healthkit",
         external_id: externalId,
+        duration_seconds: Math.round(duration),
+        calories: calQty,
+        calories_units: calUnits,
       });
     }
     imported++;

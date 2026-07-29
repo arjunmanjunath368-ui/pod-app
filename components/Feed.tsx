@@ -8,6 +8,16 @@ import Avatar from "@/components/Avatar";
 import { thumb, compressToJpeg } from "@/lib/img";
 import LiveCamera from "@/components/LiveCamera";
 
+// "45 min" / "1h 12m" — only used for synced Apple Health workouts, since
+// manual logs have never captured duration.
+function formatDuration(seconds: number): string {
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 const REACTIONS: { kind: string; emoji: string }[] = [
   { kind: "clap", emoji: "👏" },
   { kind: "fire", emoji: "🔥" },
@@ -52,6 +62,9 @@ export type FeedItem = {
   flaggers: string[];
   iFlagged: boolean;
   source: "manual" | "healthkit";
+  durationSeconds: number | null;
+  calories: number | null;
+  caloriesUnits: string | null;
 };
 
 type Me = { userId: string; name: string; initials: string; color: string; avatarUrl: string | null };
@@ -171,6 +184,9 @@ export default function Feed({
             flaggers: [],
             iFlagged: false,
             source: "manual",
+            durationSeconds: null,
+            calories: null,
+            caloriesUnits: null,
           };
           setFeedItems((prev) =>
             prev.some((p) => p.id === s.id) ? prev : [item, ...prev]
@@ -630,6 +646,10 @@ export default function Feed({
                 {it.source === "healthkit" && (
                   <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-semibold text-muted">
                     ⌚ synced from Apple Health
+                    {it.durationSeconds != null &&
+                      ` · ${formatDuration(it.durationSeconds)}`}
+                    {it.calories != null &&
+                      ` · ${Math.round(it.calories)} ${it.caloriesUnits ?? "kcal"}`}
                   </span>
                 )}
               </div>

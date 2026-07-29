@@ -173,8 +173,12 @@ export default function HealthSyncPanel({
           </li>
           <li>
             Under <span className="font-semibold">Workout Configuration</span>
-            , leave "Include Route Data" and "Include Workout Metrics" both{" "}
-            <span className="font-semibold">off</span>.
+            , leave "Include Route Data" <span className="font-semibold">off</span>{" "}
+            (Pod doesn't use location data, and it's the main cause of oversized
+            payload errors). "Include Workout Metrics" is{" "}
+            <span className="font-semibold">optional</span> — turn it on if you
+            want calories to show up alongside your synced workouts (duration
+            shows either way); it does add a little processing time per export.
           </li>
           <li>
             <span className="font-semibold">Export Format:</span> JSON.{" "}
