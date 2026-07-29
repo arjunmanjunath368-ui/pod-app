@@ -82,6 +82,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Push not configured" }, { status: 500 });
   }
 
+  // Manual testing only: when present (and only reachable with the cron
+  // secret above), stakeStatusPings treats this one pod's final-stretch check
+  // as always due — bypassing the "<=2 days left" and "already warned" gates
+  // so a real send can be triggered on demand instead of waiting for the
+  // calendar. No effect on any other pod, and no effect at all if omitted.
+  const testStakePod = new URL(req.url).searchParams.get("testStakePod");
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) {
@@ -182,7 +189,7 @@ export async function GET(req: Request) {
   // recap when a sub-week closes, and a private nudge if they're short with
   // little time left in the current one. Otherwise a 2-6 week stake is silent
   // until the very end. ----
-  const digest = await stakeStatusPings(supabase);
+  const digest = await stakeStatusPings(supabase, testStakePod);
 
   // ---- Settle any one-and-done stake whose period has ended, then push the
   // result to the whole pod (so it lands even if nobody opens the app). ----
@@ -386,7 +393,8 @@ function money(n: number): string {
 //   (b) Final-stretch warning — 2 or fewer days left in the CURRENT week and
 //       a member hasn't hit their goal yet. Private nudge, sent once per week.
 async function stakeStatusPings(
-  supabase: any
+  supabase: any,
+  testPodId?: string | null
 ): Promise<{ weeklyRecaps: number; finalStretch: number }> {
   const now = new Date();
   let weeklyRecaps = 0;
@@ -550,14 +558,19 @@ async function stakeStatusPings(
     }
 
     // ---- (b) Final stretch of the CURRENT week ----
+    const isTestPod = !!testPodId && testPodId === st.pod_id;
     if (
       res.currentWeekIndex !== null &&
       res.currentWeekStartKey &&
-      res.currentWeekStartKey !== st.warned_week_key
+      (isTestPod || res.currentWeekStartKey !== st.warned_week_key)
     ) {
       const { end } = stakeWeekBounds(tz, wso, startInstant, res.currentWeekIndex);
       const daysLeft = Math.ceil((end.getTime() - now.getTime()) / 86400000);
-      if (daysLeft > 0 && daysLeft <= 2) {
+      // Real days-left is calendar-fixed and can't be manufactured via SQL —
+      // the test bypass skips the "<=2 days" gate rather than faking the
+      // number, so the push shows the true count (e.g. "6 days left") even
+      // while testing. That's expected; only the trigger condition is bypassed.
+      if (isTestPod || (daysLeft > 0 && daysLeft <= 2)) {
         const weekKey = res.currentWeekStartKey;
         const roster = members.filter(
           (m) =>
@@ -600,7 +613,12 @@ async function stakeStatusPings(
             `/app/stakes?pod=${st.pod_id}`
           );
         }
-        patch.warned_week_key = weekKey;
+        // Only latch the real throttle when the genuine condition held — a
+        // test-only run (isTestPod bypassing daysLeft) must never suppress
+        // the real warning from firing later this week when it's actually due.
+        if (daysLeft > 0 && daysLeft <= 2) {
+          patch.warned_week_key = weekKey;
+        }
       }
     }
 

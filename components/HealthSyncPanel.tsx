@@ -93,9 +93,14 @@ export default function HealthSyncPanel({
           </div>
           <button
             onClick={() => copy("url", webhookUrl)}
-            className="mt-0.5 block w-full truncate rounded-lg border border-line bg-paper px-3 py-2 text-left text-[13px] text-ink-soft active:scale-[0.99]"
+            className="mt-0.5 flex w-full items-center gap-2 rounded-lg border border-line bg-paper px-3 py-2 text-left active:scale-[0.99]"
           >
-            {webhookUrl} · {copied === "url" ? "copied ✓" : "tap to copy"}
+            <span className="min-w-0 flex-1 truncate text-[13px] text-ink-soft">
+              {webhookUrl}
+            </span>
+            <span className="shrink-0 text-[12px] font-semibold text-terra">
+              {copied === "url" ? "Copied ✓" : "Copy"}
+            </span>
           </button>
         </div>
         <div>
@@ -104,10 +109,14 @@ export default function HealthSyncPanel({
           </div>
           <button
             onClick={() => copy("token", `Authorization: Bearer ${token}`)}
-            className="mt-0.5 block w-full truncate rounded-lg border border-line bg-paper px-3 py-2 text-left text-[13px] text-ink-soft active:scale-[0.99]"
+            className="mt-0.5 flex w-full items-center gap-2 rounded-lg border border-line bg-paper px-3 py-2 text-left active:scale-[0.99]"
           >
-            Authorization: Bearer {token.slice(0, 10)}… ·{" "}
-            {copied === "token" ? "copied ✓" : "tap to copy"}
+            <span className="min-w-0 flex-1 truncate text-[13px] text-ink-soft">
+              Authorization: Bearer {token}
+            </span>
+            <span className="shrink-0 text-[12px] font-semibold text-terra">
+              {copied === "token" ? "Copied ✓" : "Copy"}
+            </span>
           </button>
         </div>
       </div>
