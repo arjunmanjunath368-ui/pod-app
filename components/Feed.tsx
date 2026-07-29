@@ -644,13 +644,21 @@ export default function Feed({
                 </div>
                 <div className="text-[13px] text-muted">{it.timeLabel}</div>
                 {it.source === "healthkit" && (
-                  <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-semibold text-muted">
-                    ⌚ synced from Apple Health
-                    {it.durationSeconds != null &&
-                      ` · ${formatDuration(it.durationSeconds)}`}
-                    {it.calories != null &&
-                      ` · ${Math.round(it.calories)} ${it.caloriesUnits ?? "kcal"}`}
-                  </span>
+                  <div className="mt-1 flex w-fit flex-wrap items-center gap-1.5">
+                    <span className="rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-semibold text-muted">
+                      ⌚ Apple Health
+                    </span>
+                    {it.durationSeconds != null && (
+                      <span className="rounded-full bg-terra/10 px-2 py-0.5 text-[12px] font-bold text-terra">
+                        {formatDuration(it.durationSeconds)}
+                      </span>
+                    )}
+                    {it.calories != null && (
+                      <span className="rounded-full bg-terra/10 px-2 py-0.5 text-[12px] font-bold text-terra">
+                        {Math.round(it.calories)} {it.caloriesUnits ?? "kcal"}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               {it.isMine && (
