@@ -6,6 +6,8 @@ import SignOutButton from "@/components/SignOutButton";
 import NotificationToggle from "@/components/NotificationToggle";
 import HealthSyncPanel from "@/components/HealthSyncPanel";
 import { isAdminEmail } from "@/lib/admin";
+import WhoopPanel from "@/components/WhoopPanel";
+import { whoopConfig } from "@/lib/whoop";
 import { BRAND_NAME } from "@/lib/brand";
 import WalkthroughCards, { type WalkCard } from "@/components/WalkthroughCards";
 
@@ -47,7 +49,11 @@ const ABOUT_CARDS: WalkCard[] = [
   },
 ];
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: { whoop?: string };
+}) {
   const supabase = createClient();
   const {
     data: { user },
@@ -71,6 +77,14 @@ export default async function SettingsPage() {
     .eq("id", user.id)
     .maybeSingle();
   const displayName = profile?.display_name ?? "You";
+
+  // Separate query on purpose: if the WHOOP migration hasn't been run yet this
+  // one returns nothing, and the rest of Settings is unaffected.
+  const { data: whoopStatus } = await supabase
+    .from("profiles")
+    .select("whoop_connected_at, whoop_status")
+    .eq("id", user.id)
+    .maybeSingle();
 
   return (
     <>
@@ -113,6 +127,16 @@ export default async function SettingsPage() {
           />
         </div>
 
+        {whoopConfig() && (
+          <div className="mt-4">
+            <WhoopPanel
+              connected={!!(whoopStatus as any)?.whoop_connected_at}
+              needsReconnect={(whoopStatus as any)?.whoop_status === "needs_reconnect"}
+              flash={searchParams.whoop ?? null}
+            />
+          </div>
+        )}
+
         {/* How it works */}
         <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
           How {BRAND_NAME} works
@@ -136,6 +160,13 @@ export default async function SettingsPage() {
             📊 Pod health (admin)
           </Link>
         )}
+
+        <Link
+          href="/privacy"
+          className="mt-4 block text-center text-[13px] font-semibold text-muted underline"
+        >
+          Privacy policy
+        </Link>
 
         <div className="mt-8">
           <SignOutButton />

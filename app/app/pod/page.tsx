@@ -183,9 +183,9 @@ export default async function PodFeed({
       flagCount: sFlaggerIds.length,
       flaggers,
       iFlagged: sFlaggerIds.includes(user.id),
-      source: (s.source === "healthkit" ? "healthkit" : "manual") as
-        | "manual"
-        | "healthkit",
+      source: (s.source === "healthkit" || s.source === "whoop"
+        ? s.source
+        : "manual") as "manual" | "healthkit" | "whoop",
       durationSeconds: (s.duration_seconds as number | null) ?? null,
       calories: (s.calories as number | null) ?? null,
       caloriesUnits: (s.calories_units as string | null) ?? null,

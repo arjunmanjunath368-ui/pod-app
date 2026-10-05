@@ -61,7 +61,7 @@ export type FeedItem = {
   flagCount: number;
   flaggers: string[];
   iFlagged: boolean;
-  source: "manual" | "healthkit";
+  source: "manual" | "healthkit" | "whoop";
   durationSeconds: number | null;
   calories: number | null;
   caloriesUnits: string | null;
@@ -183,10 +183,16 @@ export default function Feed({
             flagCount: 0,
             flaggers: [],
             iFlagged: false,
-            source: "manual",
-            durationSeconds: null,
-            calories: null,
-            caloriesUnits: null,
+            // Read the real values: a pod-mate's synced workout arriving live
+            // used to be shown as a plain manual log with no badge.
+            source:
+              s.source === "healthkit" || s.source === "whoop"
+                ? s.source
+                : "manual",
+            durationSeconds:
+              typeof s.duration_seconds === "number" ? s.duration_seconds : null,
+            calories: typeof s.calories === "number" ? s.calories : null,
+            caloriesUnits: s.calories_units ?? null,
           };
           setFeedItems((prev) =>
             prev.some((p) => p.id === s.id) ? prev : [item, ...prev]
@@ -643,10 +649,10 @@ export default function Feed({
                   logged {activityLabel}
                 </div>
                 <div className="text-[13px] text-muted">{it.timeLabel}</div>
-                {it.source === "healthkit" && (
+                {(it.source === "healthkit" || it.source === "whoop") && (
                   <div className="mt-1 flex w-fit flex-wrap items-center gap-1.5">
                     <span className="rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-semibold text-muted">
-                      ⌚ Apple Health
+                      {it.source === "whoop" ? "⌚ WHOOP" : "⌚ Apple Health"}
                     </span>
                     {it.durationSeconds != null && (
                       <span className="rounded-full bg-terra/10 px-2 py-0.5 text-[12px] font-bold text-terra">

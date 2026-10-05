@@ -5,6 +5,7 @@ import { computeStakes, periodStartInstant, stakeWeekBounds } from "@/lib/stakes
 import { parseGoal, goalHit, goalProgress } from "@/lib/goals";
 import { dayKeyInTz } from "@/lib/days";
 import { weekStartUtc } from "@/lib/week";
+import { reconcileAllWhoop } from "@/lib/whoopStore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -195,6 +196,17 @@ export async function GET(req: Request) {
   // result to the whole pod (so it lands even if nobody opens the app). ----
   const stakes = await settleEndedStakes(supabase);
 
+  // ---- Last: re-pull each connected member's recent WHOOP workouts. WHOOP says
+  // webhooks can be missed, and a missed one looks like a skipped workout. Runs
+  // after everything else, inside a 5s budget, and can never throw into the
+  // jobs above. ----
+  let whoop = { users: 0, workouts: 0 };
+  try {
+    whoop = await reconcileAllWhoop(supabase, 5000);
+  } catch {
+    /* non-fatal */
+  }
+
   return NextResponse.json({
     ok: true,
     bestsMarked: anchorIds.length,
@@ -206,6 +218,8 @@ export async function GET(req: Request) {
     stakeFinalStretchWarnings: digest.finalStretch,
     stakesSettled: stakes.settled,
     stakePushes: stakes.pushes,
+    whoopReconciled: whoop.users,
+    whoopWorkouts: whoop.workouts,
   });
 }
 
