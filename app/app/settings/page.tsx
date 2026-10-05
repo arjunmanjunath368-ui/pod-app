@@ -5,6 +5,7 @@ import BottomNav from "@/components/BottomNav";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationToggle from "@/components/NotificationToggle";
 import HealthSyncPanel from "@/components/HealthSyncPanel";
+import { isAdminEmail } from "@/lib/admin";
 import { BRAND_NAME } from "@/lib/brand";
 import WalkthroughCards, { type WalkCard } from "@/components/WalkthroughCards";
 
@@ -126,6 +127,15 @@ export default async function SettingsPage() {
         >
           ↺ Replay the walkthrough
         </Link>
+
+        {isAdminEmail(user.email) && (
+          <Link
+            href="/app/admin"
+            className="mt-3 block rounded-2xl border border-line bg-card p-4 text-[15px] font-semibold text-ink-soft active:scale-[0.99]"
+          >
+            📊 Pod health (admin)
+          </Link>
+        )}
 
         <div className="mt-8">
           <SignOutButton />
