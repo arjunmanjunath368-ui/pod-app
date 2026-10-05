@@ -125,7 +125,8 @@ export default function WhoopPanel({
       {!connected && (
         <>
           <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
-            Finished workouts show up in your pods automatically. Pod uses only
+            Needs a WHOOP membership. Finished workouts show up in your pods
+            automatically. Pod uses only
             the workout type, start time and length — never strain, heart rate,
             calories, recovery or sleep. Synced workouts never count toward
             stakes.
