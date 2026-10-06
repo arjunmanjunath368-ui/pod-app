@@ -6,6 +6,7 @@ import { parseGoal, goalHit, goalProgress } from "@/lib/goals";
 import { dayKeyInTz } from "@/lib/days";
 import { weekStartUtc } from "@/lib/week";
 import { reconcileAllWhoop } from "@/lib/whoopStore";
+import { mealTabs, normalizeUnit, tabLine, unitEmoji, unitPhrase } from "@/lib/meals";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -417,7 +418,7 @@ async function stakeStatusPings(
   const { data: active } = await supabase
     .from("pod_stakes")
     .select(
-      "pod_id, stake_amount, period_start, period_weeks, status, last_week_notified, warned_week_key"
+      "*"
     )
     .eq("status", "active")
     .not("period_start", "is", null);
@@ -511,6 +512,11 @@ async function stakeStatusPings(
     const res = computeStakes({ ...baseArgs, now });
     if (res.isOver) continue; // settleEndedStakes owns the period-end push
 
+    // Cash or a meal on the line (a plain "money" stake if the meal migration
+    // hasn't been run).
+    const isMeal = (st.kind ?? "money") === "meal";
+    const unitKey = normalizeUnit(st.unit_label);
+
     const patch: Record<string, any> = {};
 
     // ---- (a) A sub-week just closed ----
@@ -533,7 +539,7 @@ async function stakeStatusPings(
         (s) => ({ userId: s.userId, net: s.firmNet - (prevNet[s.userId] ?? 0) })
       );
       // Only worth a push if that week's pot actually moved (someone missed).
-      const moved = weekNet.some((w) => Math.abs(w.net) > 0.001);
+      const moved = !isMeal && weekNet.some((w) => Math.abs(w.net) > 0.001);
       if (moved) {
         const orderedWeek = [...weekNet].sort((a, b) => b.net - a.net);
         const orderedTotal = [...res.standings].sort(
@@ -566,6 +572,41 @@ async function stakeStatusPings(
             body,
             `/app/stakes?pod=${st.pod_id}`
           );
+        }
+      }
+      // Meal pods: who missed the week that just closed, and the running tab.
+      if (isMeal) {
+        const w = res.weeks.filter((x) => x.index === closedIdx)[0];
+        const movedMeal =
+          !!w && w.hitters.length > 0 && w.hitters.length < w.roster.length;
+        if (w && movedMeal) {
+          const missers = w.roster.filter((id) => w.hitters.indexOf(id) === -1);
+          const running = mealTabs(res.weeks).locked;
+          const runningEntries = Object.keys(running).map((id) => ({
+            userId: id,
+            owes: running[id],
+          }));
+          const weeksLeftMeal = st.period_weeks - res.weeksCompleted;
+          for (const uid of w.roster) {
+            const weekLine = tabLine(
+              missers.map((id) => ({ userId: id, owes: 1 })),
+              uid,
+              nameOf,
+              unitKey
+            );
+            const tabNow = tabLine(runningEntries, uid, nameOf, unitKey);
+            const tail =
+              weeksLeftMeal > 0
+                ? ` (${weeksLeftMeal} week${weeksLeftMeal === 1 ? "" : "s"} left in ${podName})`
+                : "";
+            weeklyRecaps += await sendToUser(
+              supabase,
+              uid,
+              `${unitEmoji(unitKey)} Week ${res.weeksCompleted} of ${st.period_weeks} closed`,
+              `${weekLine}. Tab so far: ${tabNow}${tail}`,
+              `/app/stakes?pod=${st.pod_id}`
+            );
+          }
         }
       }
       patch.last_week_notified = res.weeksCompleted;
@@ -615,10 +656,16 @@ async function stakeStatusPings(
           const { done, target } = goalProgress(goal, mine);
           const short = Math.max(target - done, 0);
           if (short <= 0) continue;
-          const title = `⏳ ${daysLeft} day${daysLeft === 1 ? "" : "s"} left this stake week`;
+          const title = `⏳ ${daysLeft} day${daysLeft === 1 ? "" : "s"} left this ${
+            isMeal ? "week" : "stake week"
+          }`;
           const body = `You're ${short} ${
             short === 1 ? "session" : "sessions"
-          } short of your goal in ${podName} — log one to stay in the money.`;
+          } short of your goal in ${podName} — log one ${
+            isMeal
+              ? `so you don't owe the pod ${unitPhrase(unitKey, 1)}.`
+              : "to stay in the money."
+          }`;
           finalStretch += await sendToUser(
             supabase,
             m.userId,
@@ -653,7 +700,7 @@ async function settleEndedStakes(
 
   const { data: active } = await supabase
     .from("pod_stakes")
-    .select("pod_id, stake_amount, period_start, period_weeks, status")
+    .select("*")
     .eq("status", "active")
     .not("period_start", "is", null);
 
@@ -733,9 +780,17 @@ async function settleEndedStakes(
     if (!res.isOver) continue; // period hasn't fully elapsed yet
 
     const periodEndDate = dayKeyInTz(res.periodEndInstant, tz);
+    // A meal tab records how many meals each person owes (and which treat);
+    // `select("*")` above carries `kind` only once the migration has been run.
+    const isMealSettle = (st.kind ?? "money") === "meal";
+    const settleUnit = normalizeUnit(st.unit_label);
+    const settleTabs = isMealSettle ? mealTabs(res.weeks) : null;
     const results = res.standings.map((s) => ({
       userId: s.userId,
       net: s.firmNet,
+      ...(settleTabs
+        ? { owes: settleTabs.locked[s.userId] ?? 0, unit: settleUnit }
+        : {}),
     }));
 
     // Insert the settlement (unique on pod_id+period_start). If it already
@@ -764,14 +819,23 @@ async function settleEndedStakes(
     // Push everyone's net to each pod member (their own row shown as "You").
     const ordered = [...results].sort((a, b) => b.net - a.net);
     const recipients = (mems ?? []).map((m: any) => m.user_id as string);
-    const title = `🏆 Your ${st.period_weeks}-week stake wrapped`;
+    const title = isMealSettle
+      ? `${unitEmoji(settleUnit)} Your ${st.period_weeks}-week meal tab wrapped`
+      : `🏆 Your ${st.period_weeks}-week stake wrapped`;
     for (const uid of recipients) {
       const line = ordered
         .map(
           (r) => `${r.userId === uid ? "You" : nameOf(r.userId)} ${money(r.net)}`
         )
         .join(" · ");
-      const body = line || "The stake is settled.";
+      const body = isMealSettle
+        ? tabLine(
+            results.map((r: any) => ({ userId: r.userId, owes: r.owes ?? 0 })),
+            uid,
+            nameOf,
+            settleUnit
+          )
+        : line || "The stake is settled.";
       pushes += await sendToUser(
         supabase,
         uid,

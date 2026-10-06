@@ -37,10 +37,14 @@ export default function SessionEditSheet({
   userId,
   onClose,
   onSaved,
+  lockPhoto = false,
 }: {
   session: { id: string; activities: string[]; note: string | null; photoUrl: string | null };
   podId: string;
   userId: string;
+  // True in a pod whose rule is "live photo with every workout": the photo that
+  // was taken at logging time can't be swapped for a camera-roll one or removed.
+  lockPhoto?: boolean;
   onClose: () => void;
   onSaved: (fields: {
     activities: string[];
@@ -188,7 +192,22 @@ export default function SessionEditSheet({
         />
 
         <div className="mt-4">
-          {shownPhoto ? (
+          {lockPhoto ? (
+            <div>
+              {shownPhoto && (
+                <img
+                  src={shownPhoto}
+                  alt=""
+                  className="w-full rounded-xl object-cover"
+                  style={{ maxHeight: "240px" }}
+                />
+              )}
+              <p className="mt-2 text-[12px] leading-relaxed text-muted">
+                📸 This pod requires a live photo with every workout, so the
+                photo can&apos;t be changed after logging.
+              </p>
+            </div>
+          ) : shownPhoto ? (
             <div className="relative">
               <img
                 src={shownPhoto}

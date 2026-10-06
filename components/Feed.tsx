@@ -73,10 +73,12 @@ export default function Feed({
   items,
   me,
   podId,
+  proofRequired = false,
 }: {
   items: FeedItem[];
   me: Me;
   podId: string;
+  proofRequired?: boolean;
 }) {
   const [feedItems, setFeedItems] = useState<FeedItem[]>(items);
   const [rstate, setRstate] = useState<
@@ -942,6 +944,7 @@ export default function Feed({
           }}
           podId={podId}
           userId={me.userId}
+          lockPhoto={proofRequired}
           onClose={() => setEditing(null)}
           onSaved={(fields) => {
             setFeedItems((prev) =>

@@ -8,6 +8,7 @@ import { parseGoal, goalHit } from "@/lib/goals";
 import { weekStartUtc } from "@/lib/week";
 import { enablePush, pushSupported, isIOS, isStandalone } from "@/lib/push";
 import LiveCamera from "@/components/LiveCamera";
+import { logGate } from "@/lib/proof";
 
 type Celebration = { tier: "perfect" | "goal"; detail: string };
 
@@ -185,6 +186,9 @@ export default function LogSheet({
   // Pods (of this user's) that currently have stakes running. Logging into any
   // of these requires a live in-app photo to count toward the wager.
   const [stakedPodIds, setStakedPodIds] = useState<Set<string>>(new Set());
+  // Pods whose own rule (set when the pod was created) is "live photo with
+  // every workout". Unlike stakes, there is no unverified fallback for these.
+  const [proofPodIds, setProofPodIds] = useState<Set<string>>(new Set());
   const [cameraOpen, setCameraOpen] = useState(false);
   // True only when the attached photo came from the live camera (not gallery).
   const [liveVerified, setLiveVerified] = useState(false);
@@ -220,8 +224,24 @@ export default function LogSheet({
         setStakedPodIds(
           new Set((stakes ?? []).map((s: any) => s.pod_id as string))
         );
+        // Separate query on purpose: if the photo-rule migration hasn't been
+        // run yet this just comes back empty and logging works exactly as before.
+        const { data: proofRows, error: proofErr } = await supabase
+          .from("pods")
+          .select("id, proof_mode")
+          .in("id", ids);
+        setProofPodIds(
+          new Set(
+            proofErr
+              ? []
+              : (proofRows ?? [])
+                  .filter((r: any) => r.proof_mode === "photo")
+                  .map((r: any) => r.id as string)
+          )
+        );
       } else {
         setStakedPodIds(new Set());
+        setProofPodIds(new Set());
       }
     })();
   }, [open, podId, userId]);
@@ -308,12 +328,20 @@ export default function LogSheet({
       setError("Pick at least one activity.");
       return;
     }
-    // Staked pods need a live photo. If one's selected and there's no live
-    // photo yet, route to the camera instead of saving — unless the camera
-    // already failed, in which case "Log it" means an explicit unverified save.
-    const stakedSelected = selectedPods.filter((id) => stakedPodIds.has(id));
-    if (stakedSelected.length > 0 && !liveVerified && !cameraError) {
+    // A selected pod may demand a live photo: stakes (so it counts toward the
+    // wager) or the pod's own photo rule. See lib/proof.ts for exactly how the
+    // two differ — in short, only stakes allow an unverified save if the
+    // camera genuinely can't open.
+    const gate = logGate({
+      selectedPods,
+      stakedPodIds,
+      proofPodIds,
+      liveVerified,
+      cameraFailed: !!cameraError,
+    });
+    if (gate.action === "camera") {
       setError("");
+      setCameraError("");
       setCameraOpen(true);
       return;
     }
@@ -463,11 +491,25 @@ export default function LogSheet({
   const stakedSelectedNames = pods
     .filter((p) => selectedPods.includes(p.id) && stakedPodIds.has(p.id))
     .map((p) => p.name);
-  const requiresLivePhoto = stakedSelectedNames.length > 0;
+  const proofSelectedNames = pods
+    .filter((p) => selectedPods.includes(p.id) && proofPodIds.has(p.id))
+    .map((p) => p.name);
+  const gateNow = logGate({
+    selectedPods,
+    stakedPodIds,
+    proofPodIds,
+    liveVerified,
+    cameraFailed: !!cameraError,
+  });
+  const requiresLivePhoto = gateNow.requiresLive;
   const stakedWhy =
     stakedSelectedNames.length === 1
       ? `${stakedSelectedNames[0]} has stakes on`
       : `${stakedSelectedNames.length} of your pods have stakes on`;
+  const proofWhy =
+    proofSelectedNames.length === 1
+      ? `${proofSelectedNames[0]} requires a live photo with every workout`
+      : `${proofSelectedNames.length} of your pods require a live photo with every workout`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -586,6 +628,7 @@ export default function LogSheet({
                       >
                         {on ? "✓ " : ""}
                         {p.name}
+                        {proofPodIds.has(p.id) ? " 📸" : ""}
                       </button>
                     );
                   })}
@@ -692,17 +735,33 @@ export default function LogSheet({
                 >
                   <span className="text-[16px]">📸</span> Take live photo
                 </button>
-                <p className="mt-2 text-[12px] leading-relaxed text-muted">
-                  🎯 {stakedWhy} — log it with a live photo so it counts toward
-                  the stake. No camera roll.
-                </p>
+                {gateNow.requiresProof && (
+                  <p className="mt-2 text-[12px] leading-relaxed text-muted">
+                    📸 {proofWhy}. No camera roll.
+                  </p>
+                )}
+                {gateNow.requiresStakesPhoto && (
+                  <p className="mt-2 text-[12px] leading-relaxed text-muted">
+                    🎯 {stakedWhy} — log it with a live photo so it counts
+                    toward the stake{gateNow.requiresProof ? "" : ". No camera roll"}.
+                  </p>
+                )}
                 {cameraError && (
                   <div className="mt-2 rounded-xl border border-line bg-paper-2/60 p-3">
-                    <p className="text-[13px] leading-relaxed text-ink-soft">
-                      Couldn&apos;t open the camera. You can still log this — it
-                      just won&apos;t count toward your stake until you re-log
-                      with a photo.
-                    </p>
+                    {gateNow.requiresProof ? (
+                      <p className="text-[13px] leading-relaxed text-ink-soft">
+                        Couldn&apos;t open the camera. {proofWhy}, so it needs
+                        to be working to log there. Check that Pod has camera
+                        permission and try again — or deselect that pod to log
+                        to your others.
+                      </p>
+                    ) : (
+                      <p className="text-[13px] leading-relaxed text-ink-soft">
+                        Couldn&apos;t open the camera. You can still log this —
+                        it just won&apos;t count toward your stake until you
+                        re-log with a photo.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -727,9 +786,9 @@ export default function LogSheet({
             >
               {saving
                 ? "Logging…"
-                : requiresLivePhoto && !liveVerified && !cameraError
+                : gateNow.button === "camera"
                   ? "📸 Take live photo to log"
-                  : requiresLivePhoto && !liveVerified && cameraError
+                  : gateNow.button === "unverified"
                     ? "Log without verifying"
                     : "Log it"}
             </button>

@@ -56,8 +56,19 @@ export function stakeWeekBounds(
   return { start, end };
 }
 
+// One scored week of a period: who was on that week's roster and who hit their
+// goal. Exposed so a different consequence (e.g. a meal tab) can be derived from
+// the SAME hit/miss decisions the cash pot uses, instead of re-implementing them.
+export type WeekOutcome = {
+  index: number; // 0-based week within the period
+  complete: boolean; // the week has fully elapsed
+  roster: string[];
+  hitters: string[];
+};
+
 export type StakeResult = {
   standings: Standing[];
+  weeks: WeekOutcome[];
   participantCount: number;
   weeksCompleted: number; // fully-finished weeks in the period so far
   currentWeekIndex: number | null; // 0-based in-progress week, or null if over
@@ -158,6 +169,7 @@ export function computeStakes(opts: {
   });
 
   // Pass 2: settle each week's pot among its roster.
+  const outcomes: WeekOutcome[] = [];
   for (let i = 0; i < periodWeeks; i++) {
     const roster = rosters[i];
     if (!roster || roster.length === 0) continue;
@@ -197,6 +209,7 @@ export function computeStakes(opts: {
       }
       return weekSess[id].length >= (targetOf[id] ?? Infinity);
     });
+    outcomes.push({ index: i, complete: isComplete, roster, hitters });
     const pot = roster.length * stakeAmount;
     const weekNet: Record<string, number> = {};
     roster.forEach((id) => (weekNet[id] = 0));
@@ -228,6 +241,7 @@ export function computeStakes(opts: {
 
   return {
     standings,
+    weeks: outcomes,
     participantCount: ids.length,
     weeksCompleted,
     currentWeekIndex,

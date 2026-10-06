@@ -35,6 +35,15 @@ export default async function PodFeed({
     podsList.find((p: any) => p.id === searchParams.pod) ?? podsList[0];
   const podId = current.id as string;
 
+  // Separate query on purpose: if the photo-rule migration hasn't been run yet
+  // this just comes back empty and the pod behaves exactly as it always has.
+  const { data: proofRow } = await supabase
+    .from("pods")
+    .select("proof_mode")
+    .eq("id", podId)
+    .maybeSingle();
+  const proofRequired = (proofRow as any)?.proof_mode === "photo";
+
   const { data: sessions } = await supabase
     .from("sessions")
     .select(
@@ -221,6 +230,11 @@ export default async function PodFeed({
             <h1 className="truncate font-serif text-[26px] font-semibold leading-tight text-ink">
               {current.name}
             </h1>
+            {proofRequired && (
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-paper-2 px-2.5 py-0.5 text-[12px] font-semibold text-ink-soft">
+                📸 Photo proof required
+              </div>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-3 pt-1">
             <InviteButton code={current.invite_code} podName={current.name} />
@@ -234,7 +248,7 @@ export default async function PodFeed({
 
         <div className="mt-5">
           <RecentPhotos items={items.filter((it) => it.photoUrl).slice(0, 6)} />
-          <Feed items={items} me={me} podId={podId} />
+          <Feed items={items} me={me} podId={podId} proofRequired={proofRequired} />
         </div>
       </main>
 

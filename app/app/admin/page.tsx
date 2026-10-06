@@ -65,6 +65,8 @@ export default async function AdminPage({
   const minSize = searchParams.min === "3" ? 3 : 1;
 
   let list: PodHealth[] = [];
+  // Pods whose running stake is a meal tab rather than cash (for the 🍽️ tag).
+  const mealPodIds: Record<string, boolean> = {};
   let loadError = "";
   try {
     const [pods, memberRows, sessionRows, stakeRows] = await Promise.all([
@@ -88,7 +90,7 @@ export default async function AdminPage({
           .range(f, t)
       ),
       fetchAll((f, t) =>
-        svc.from("pod_stakes").select("pod_id").eq("status", "active").range(f, t)
+        svc.from("pod_stakes").select("*").eq("status", "active").range(f, t)
       ),
     ]);
 
@@ -130,7 +132,22 @@ export default async function AdminPage({
       });
     }
     const stakedPods: Record<string, boolean> = {};
-    for (const r of stakeRows) stakedPods[r.pod_id] = true;
+    for (const r of stakeRows) {
+      stakedPods[r.pod_id] = true;
+      if (r.kind === "meal") mealPodIds[r.pod_id] = true;
+    }
+
+    // Which pods require a live photo. Its own query so a missing migration
+    // can't take the whole page down.
+    const proofPods: Record<string, boolean> = {};
+    try {
+      const proofRows = await fetchAll((f, t) =>
+        svc.from("pods").select("id, proof_mode").range(f, t)
+      );
+      for (const r of proofRows) if (r.proof_mode === "photo") proofPods[r.id] = true;
+    } catch {
+      /* column not there yet: treat every pod as having no photo rule */
+    }
 
     const now = new Date();
     for (const p of pods) {
@@ -147,6 +164,7 @@ export default async function AdminPage({
             members,
             sessions: sessionsByPod[p.id] ?? [],
             staked: !!stakedPods[p.id],
+            proof: !!proofPods[p.id],
           },
           now
         )
@@ -166,6 +184,17 @@ export default async function AdminPage({
   const wk8 = sum.survival.find((s) => s.week === 8) ?? null;
   const maxOf = sum.survival.reduce((m, s) => Math.max(m, s.of), 0);
   const actJudged = sum.activation.activated + sum.activation.failed;
+
+  // Photo-proof pods vs the rest — the comparison the rule was added to allow.
+  const withProof = list.filter((p) => p.proof);
+  const withoutProof = list.filter((p) => !p.proof);
+  const compare = withProof.length > 0 && withoutProof.length > 0;
+  const at = (s: ReturnType<typeof summarize>, w: number) => {
+    const pt = s.survival.find((x) => x.week === w);
+    return pt ? `${pt.alive}/${pt.of}` : "—";
+  };
+  const proofSum = summarize(withProof);
+  const noProofSum = summarize(withoutProof);
 
   const pill = (active: boolean) =>
     `rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${
@@ -288,6 +317,33 @@ export default async function AdminPage({
         )}
       </div>
 
+      {compare && (
+        <div className="mt-2.5 rounded-2xl border border-line bg-card p-4">
+          <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
+            Photo proof vs. none (pods alive)
+          </div>
+          {[
+            { label: "📸 Photo proof", n: withProof.length, s: proofSum },
+            { label: "No photo rule", n: withoutProof.length, s: noProofSum },
+          ].map((g) => (
+            <div
+              key={g.label}
+              className="mt-2.5 flex items-baseline justify-between gap-3 text-[14px]"
+            >
+              <span className="font-medium text-ink-soft">
+                {g.label} · {g.n} pod{g.n === 1 ? "" : "s"}
+              </span>
+              <span className="text-muted">
+                W2 {at(g.s, 2)} · W4 {at(g.s, 4)} · W8 {at(g.s, 8)}
+              </span>
+            </div>
+          ))}
+          <p className="mt-2.5 text-[12px] leading-relaxed text-muted">
+            Small groups: read this as a hint, not a result.
+          </p>
+        </div>
+      )}
+
       {/* Per-pod cards */}
       <div className="mt-5 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
         Pods
@@ -310,7 +366,8 @@ export default async function AdminPage({
                 <div className="min-w-0">
                   <div className="truncate text-[16px] font-semibold text-ink">
                     {p.name}
-                    {p.staked ? " 💰" : ""}
+                    {p.staked ? (mealPodIds[p.podId] ? " 🍽️" : " 💰") : ""}
+                    {p.proof ? " 📸" : ""}
                   </div>
                   <div className="mt-0.5 text-[13px] text-muted">
                     Started {started} · {p.weeks.length} week

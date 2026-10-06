@@ -18,7 +18,7 @@ const SECTIONS: Section[] = [
     bullets: [
       "Your account: your email address (to send your sign-in link), your display name, and an optional profile photo.",
       "Your activity: your weekly goal, the workouts you log (activity type, time, notes, and any photos you take or add), personal bests, and the reactions, comments, challenges and nudges you send.",
-      "Stakes, only if your pod uses them: amounts, who agreed, and weekly results. Pod keeps track of who owes what. It does not hold or move money.",
+      "Stakes (cash or a meal), only if your pod uses them: the amount or treat, who agreed, and weekly results. Pod keeps track of who owes what. It does not hold or move money.",
       "Notifications, only if you turn them on: your device's push address, so we can send them.",
       "Synced workouts, only if you connect Apple Health or WHOOP (sections 3 and 4).",
     ],

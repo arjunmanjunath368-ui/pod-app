@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { MEAL_UNITS, normalizeUnit, unitEmoji, unitPhrase } from "@/lib/meals";
 
 type Member = { userId: string; name: string; paused?: boolean };
 
@@ -29,6 +30,11 @@ export default function StakesPanel({
   pendingById,
   pendingByName,
   offLastSettlement,
+  kind,
+  unit,
+  propKind,
+  propUnit,
+  hasKindColumn,
 }: {
   podId: string;
   userId: string;
@@ -54,9 +60,21 @@ export default function StakesPanel({
     startLabel: string;
     notStartedYet: boolean;
     standings: { name: string; net: number; hasGoal: boolean; paused: boolean }[];
+    // Present only for a meal tab: locked-in meals per member instead of $ nets.
+    meal?: {
+      unit: string;
+      rows: {
+        name: string;
+        locked: number;
+        atRisk: boolean;
+        hasGoal: boolean;
+        paused: boolean;
+      }[];
+    } | null;
     lastSettlement: {
       periodLabel: string;
-      rows: { name: string; net: number }[];
+      rows: { name: string; net: number; owes?: number }[];
+      unit?: string | null;
     } | null;
   } | null;
   pendingAction: string | null;
@@ -66,8 +84,18 @@ export default function StakesPanel({
   pendingByName: string;
   offLastSettlement: {
     periodLabel: string;
-    rows: { name: string; net: number }[];
+    rows: { name: string; net: number; owes?: number }[];
+    unit?: string | null;
   } | null;
+  // What the running (or last) period puts on the line: cash or a meal.
+  kind: "money" | "meal";
+  unit: string | null;
+  // The kind of the proposal currently awaiting votes.
+  propKind: "money" | "meal";
+  propUnit: string | null;
+  // True once the meal migration has been run, so cash proposals can keep
+  // writing exactly what they always did when it hasn't.
+  hasKindColumn: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -78,6 +106,10 @@ export default function StakesPanel({
     null
   );
   const [rescheduleWeeks, setRescheduleWeeks] = useState(2);
+  // The proposal form: cash (default) or a meal.
+  const [formKind, setFormKind] = useState<"money" | "meal">("money");
+  const [formUnit, setFormUnit] = useState("dinner");
+  const [formError, setFormError] = useState("");
 
   const supabase = () => createClient();
   const fmtNet = (n: number) => `${n > 0 ? "+" : ""}${n}`;
@@ -112,6 +144,14 @@ export default function StakesPanel({
           stake_amount: propAmount ?? amount,
           period_weeks: propWeeks ?? weeks,
           period_start: firstPeriodStart,
+          // Only sent when the migration is in place (or this is a meal), so a
+          // cash stake activates exactly as it always has.
+          ...(hasKindColumn || propKind === "meal"
+            ? {
+                kind: propKind,
+                unit_label: propKind === "meal" ? normalizeUnit(propUnit) : null,
+              }
+            : {}),
           updated_at: new Date().toISOString(),
         })
         .eq("pod_id", podId);
@@ -122,18 +162,35 @@ export default function StakesPanel({
     setBusy(true);
     const sb = supabase();
     const pid = crypto.randomUUID();
-    await sb.from("pod_stakes").upsert(
+    const { error: propErr } = await sb.from("pod_stakes").upsert(
       {
         pod_id: podId,
         status: "proposed",
         proposal_id: pid,
         proposed_by: userId,
-        prop_amount: amount,
+        prop_amount: formKind === "meal" ? 1 : amount,
         prop_weeks: weeks,
+        // Same rule as activation: cash proposals don't send the new fields
+        // unless the migration is already in place.
+        ...(formKind === "meal" || hasKindColumn
+          ? {
+              prop_kind: formKind,
+              prop_unit: formKind === "meal" ? formUnit : null,
+            }
+          : {}),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "pod_id" }
     );
+    if (propErr && formKind === "meal") {
+      setFormError(
+        "Couldn't send that — the meal option may not be set up yet. (" +
+          propErr.message +
+          ")"
+      );
+      setBusy(false);
+      return;
+    }
     await sb.from("stake_consents").upsert(
       {
         pod_id: podId,
@@ -312,19 +369,71 @@ export default function StakesPanel({
 
             <div className="mt-4">
               <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
-                Weekly stake
+                What's on the line
               </div>
-              <div className="mt-2 flex items-center gap-3">
-                <Stepper
-                  value={amount}
-                  set={(v) => setAmount(Math.max(1, Math.min(20, v)))}
-                  step={1}
-                  prefix="$"
-                  animated
-                />
-                <span className="text-[13px] text-muted">per week (max $20)</span>
+              <div className="mt-2 flex gap-2">
+                {(["money", "meal"] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => {
+                      setFormKind(k);
+                      setFormError("");
+                    }}
+                    className={`flex-1 rounded-2xl border px-3 py-2.5 text-[14px] font-semibold transition active:scale-95 ${
+                      formKind === k
+                        ? "border-terra bg-terra/[0.06] text-ink"
+                        : "border-line bg-card text-ink-soft"
+                    }`}
+                  >
+                    {k === "money" ? "💰 Cash" : "🍽️ A meal"}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {formKind === "money" ? (
+              <div className="mt-4">
+                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
+                  Weekly stake
+                </div>
+                <div className="mt-2 flex items-center gap-3">
+                  <Stepper
+                    value={amount}
+                    set={(v) => setAmount(Math.max(1, Math.min(20, v)))}
+                    step={1}
+                    prefix="$"
+                    animated
+                  />
+                  <span className="text-[13px] text-muted">per week (max $20)</span>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
+                  What's the treat?
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {MEAL_UNITS.map((u) => (
+                    <button
+                      key={u.key}
+                      onClick={() => setFormUnit(u.key)}
+                      className={`rounded-full border px-3.5 py-2 text-[14px] font-semibold transition active:scale-95 ${
+                        formUnit === u.key
+                          ? "border-terra bg-terra/[0.06] text-ink"
+                          : "border-line bg-card text-ink-soft"
+                      }`}
+                    >
+                      {u.emoji} {u.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[13px] leading-relaxed text-muted">
+                  Miss a week's goal and you owe the pod{" "}
+                  {unitPhrase(formUnit, 1)}. Nothing is paid in the app — you
+                  settle by actually treating them.
+                </p>
+              </div>
+            )}
 
             <div className="mt-4">
               <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
@@ -341,6 +450,12 @@ export default function StakesPanel({
                 <span className="text-[13px] text-muted">1–6 weeks</span>
               </div>
             </div>
+
+            {formError && (
+              <p className="mt-4 text-[13px] leading-relaxed text-terra">
+                {formError}
+              </p>
+            )}
 
             <div className="mt-5 flex gap-3">
               <button
@@ -374,17 +489,7 @@ export default function StakesPanel({
                   className="flex items-center justify-between text-[15px]"
                 >
                   <span className="text-ink">{s.name}</span>
-                  <span
-                    className={`font-semibold ${
-                      s.net > 0
-                        ? "text-sage"
-                        : s.net < 0
-                          ? "text-terra"
-                          : "text-muted"
-                    }`}
-                  >
-                    {fmtNet(s.net)}
-                  </span>
+                  <SettleValue s={s} unit={offLastSettlement.unit} fmtNet={fmtNet} />
                 </div>
               ))}
             </div>
@@ -403,14 +508,30 @@ export default function StakesPanel({
     return (
       <Card>
         <div className="text-[15px] font-semibold text-ink">
-          {iProposed ? "Your proposal" : `${proposedByName} proposed stakes`}
+          {iProposed
+            ? "Your proposal"
+            : propKind === "meal"
+              ? `${proposedByName} proposed a meal tab`
+              : `${proposedByName} proposed stakes`}
         </div>
-        <p className="mt-1 text-[14px] text-muted">
-          <span className="font-semibold text-ink-soft">${propAmount}</span> per
-          week ·{" "}
-          <span className="font-semibold text-ink-soft">{propWeeks} weeks</span>{" "}
-          per settlement. Everyone must agree.
-        </p>
+        {propKind === "meal" ? (
+          <p className="mt-1 text-[14px] leading-relaxed text-muted">
+            Miss a week's goal and you owe the pod{" "}
+            <span className="font-semibold text-ink-soft">
+              {unitPhrase(propUnit, 1)}
+            </span>{" "}
+            · settled every{" "}
+            <span className="font-semibold text-ink-soft">{propWeeks} weeks</span>.
+            Nothing is paid in the app. Everyone must agree.
+          </p>
+        ) : (
+          <p className="mt-1 text-[14px] text-muted">
+            <span className="font-semibold text-ink-soft">${propAmount}</span> per
+            week ·{" "}
+            <span className="font-semibold text-ink-soft">{propWeeks} weeks</span>{" "}
+            per settlement. Everyone must agree.
+          </p>
+        )}
 
         <div className="mt-4 space-y-2">
           {activeMembers.map((m) => {
@@ -493,6 +614,8 @@ export default function StakesPanel({
           pendingWeeks < periodWeeks
         ? `${pendingWho} proposed wrapping up after week ${pendingWeeks}`
         : `${pendingWho} proposed extending to ${pendingWeeks} weeks`;
+  // A meal tab shows locked-in meals instead of $ nets.
+  const mealView = kind === "meal" ? activeView?.meal ?? null : null;
   const curTotalWeeks = periodWeeks ?? 2;
   const curWeekNum = activeView?.displayWeek ?? 1;
   const minReschedule = curWeekNum; // earliest scheduled end = close of the current week
@@ -503,7 +626,7 @@ export default function StakesPanel({
         <div className="flex items-center justify-between">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-sage/15 px-3 py-1 text-[12px] font-semibold text-sage">
             <span className="h-1.5 w-1.5 rounded-full bg-sage" />
-            Stakes active
+            {kind === "meal" ? "Meal tab active" : "Stakes active"}
           </div>
           {activeView && !activeView.notStartedYet && (
             <div className="text-[12px] font-semibold text-muted">
@@ -512,7 +635,10 @@ export default function StakesPanel({
           )}
         </div>
         <div className="mt-3 text-[15px] font-semibold text-ink">
-          ${stakeAmount} / week · {periodWeeks}-week settlement
+          {kind === "meal"
+            ? `${unitEmoji(unit)} Miss a week, owe the pod ${unitPhrase(unit, 1)}`
+            : `$${stakeAmount} / week`}{" "}
+          · {periodWeeks}-week settlement
         </div>
         {activeView &&
           (activeView.notStartedYet ? (
@@ -716,7 +842,49 @@ export default function StakesPanel({
         )
       )}
 
-      {activeView && activeView.standings.length > 0 && (
+      {activeView && activeView.standings.length > 0 && (mealView ? (
+        <Card>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
+            Tab so far
+          </div>
+          <p className="mt-1 text-[12px] text-muted">
+            {activeView.notStartedYet
+              ? `Starts ${activeView.startLabel} · ${activeView.periodWeeks}-week period`
+              : `Week ${activeView.displayWeek} of ${activeView.periodWeeks} · started ${activeView.startedLabel} · ${activeView.daysLeft} ${activeView.daysLeft === 1 ? "day" : "days"} left`}
+          </p>
+          <div className="mt-3 space-y-2">
+            {mealView.rows.map((r, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between text-[15px]"
+              >
+                <span className="text-ink">{r.name}</span>
+                {r.paused ? (
+                  <span className="text-[13px] text-muted">⏸ Paused</span>
+                ) : !r.hasGoal ? (
+                  <span className="text-[13px] text-muted">No goal set</span>
+                ) : r.locked > 0 ? (
+                  <span className="font-semibold text-terra">
+                    owes {unitPhrase(mealView.unit, r.locked)}
+                    {r.atRisk ? " · at risk this week" : ""}
+                  </span>
+                ) : r.atRisk ? (
+                  <span className="text-[13px] font-semibold text-terra">
+                    at risk this week
+                  </span>
+                ) : (
+                  <span className="text-[13px] text-muted">all clear</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[12px] text-muted">
+            {activeView.notStartedYet
+              ? `Scoring starts ${activeView.startLabel} — nothing on the line yet.`
+              : "Meals locked in from finished weeks — not final until settlement."}
+          </p>
+        </Card>
+      ) : (
         <Card>
           <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">
             Standings so far
@@ -759,7 +927,7 @@ export default function StakesPanel({
               : "Running total this period — not final until settlement."}
           </p>
         </Card>
-      )}
+      ))}
 
       {activeView?.lastSettlement && (
         <Card>
@@ -773,23 +941,47 @@ export default function StakesPanel({
                 className="flex items-center justify-between text-[15px]"
               >
                 <span className="text-ink">{s.name}</span>
-                <span
-                  className={`font-semibold ${
-                    s.net > 0
-                      ? "text-sage"
-                      : s.net < 0
-                        ? "text-terra"
-                        : "text-muted"
-                  }`}
-                >
-                  {fmtNet(s.net)}
-                </span>
+                <SettleValue
+                  s={s}
+                  unit={activeView?.lastSettlement?.unit}
+                  fmtNet={fmtNet}
+                />
               </div>
             ))}
           </div>
         </Card>
       )}
     </div>
+  );
+}
+
+// One settlement row's value: "+$5 / -$5" for cash, "owes 2 dinners" for a meal tab.
+function SettleValue({
+  s,
+  unit,
+  fmtNet,
+}: {
+  s: { net: number; owes?: number };
+  unit?: string | null;
+  fmtNet: (n: number) => string;
+}) {
+  if (s.owes !== undefined) {
+    return s.owes > 0 ? (
+      <span className="font-semibold text-terra">
+        owes {unitPhrase(unit, s.owes)}
+      </span>
+    ) : (
+      <span className="text-[13px] text-muted">all clear</span>
+    );
+  }
+  return (
+    <span
+      className={`font-semibold ${
+        s.net > 0 ? "text-sage" : s.net < 0 ? "text-terra" : "text-muted"
+      }`}
+    >
+      {fmtNet(s.net)}
+    </span>
   );
 }
 

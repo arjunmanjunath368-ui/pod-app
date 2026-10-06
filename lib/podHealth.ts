@@ -44,6 +44,7 @@ export type PHPodInput = {
   members: PHMember[];
   sessions: PHSession[];
   staked: boolean;
+  proof?: boolean; // pod requires a live photo with every workout
 };
 
 export type WeekCell = {
@@ -57,6 +58,7 @@ export type PodHealth = {
   podId: string;
   name: string;
   staked: boolean;
+  proof: boolean;
   counts: { total: number; active: number; paused: number; left: number };
   startDate: Date | null;
   tz: string;
@@ -254,6 +256,7 @@ export function computePodHealth(
     podId: pod.podId,
     name: pod.name,
     staked: pod.staked,
+    proof: !!pod.proof,
     counts,
     startDate,
     tz,

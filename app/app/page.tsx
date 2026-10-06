@@ -9,6 +9,7 @@ import { activityMeta, type ActivityKey } from "@/lib/activities";
 import { parseGoal, goalProgress, splitBreakdown, goalHit } from "@/lib/goals";
 import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
+import { unitEmoji, unitPhrase } from "@/lib/meals";
 import PodSync from "@/components/PodSync";
 import InviteButton from "@/components/InviteButton";
 import NudgeButton from "@/components/NudgeButton";
@@ -95,11 +96,17 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
   // settings menu (it's the thing people most need to keep an eye on).
   const { data: stakeRow } = await supabase
     .from("pod_stakes")
-    .select("status, stake_amount, period_start, period_weeks")
+    .select("*")
     .eq("pod_id", podId)
     .eq("status", "active")
     .maybeSingle();
-  let stake: { amount: number; weekNow: number; weeks: number } | null = null;
+  let stake: {
+    amount: number;
+    weekNow: number;
+    weeks: number;
+    kind: "money" | "meal";
+    unit: string | null;
+  } | null = null;
   if (stakeRow) {
     const startMs = new Date(stakeRow.period_start as string).getTime();
     const weeks = (stakeRow.period_weeks as number) ?? 1;
@@ -108,6 +115,9 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
       amount: Number(stakeRow.stake_amount ?? 0),
       weekNow: Math.min(Math.max(elapsed, 1), weeks),
       weeks,
+      // `select("*")` carries these only once the meal migration has been run.
+      kind: stakeRow.kind === "meal" ? "meal" : "money",
+      unit: (stakeRow.unit_label as string | null) ?? null,
     };
   }
 
@@ -256,6 +266,20 @@ export default async function Home({
   const sections = await Promise.all(
     podsList.map((pod: any) => buildSection(supabase, pod, user.id, now))
   );
+
+  // Which pods require a live photo with every workout. A separate query so a
+  // missing migration can't break Home.
+  const { data: proofRows } = await supabase
+    .from("pods")
+    .select("id, proof_mode")
+    .in(
+      "id",
+      podsList.map((p: any) => p.id)
+    );
+  const proofByPod: Record<string, boolean> = {};
+  (proofRows ?? []).forEach((r: any) => {
+    if (r.proof_mode === "photo") proofByPod[r.id] = true;
+  });
 
   // Momentum banner: shown until I've hit my goal somewhere this week. If I
   // hit it last week, celebrate the momentum; if not, offer a clean-slate nudge.
@@ -527,6 +551,11 @@ export default async function Home({
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
                   {sec.pod.name}
+                  {proofByPod[sec.pod.id] && (
+                    <span className="ml-2 rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-semibold normal-case tracking-normal text-ink-soft">
+                      📸 photo proof
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Link
@@ -687,13 +716,18 @@ export default async function Home({
                 <div className="min-w-0">
                   <div className="text-[15px] font-semibold text-ink">
                     {sec.stake
-                      ? `💰 $${sec.stake.amount} on the line`
-                      : "💰 Add stakes"}
+                      ? sec.stake.kind === "meal"
+                        ? `${unitEmoji(sec.stake.unit)} ${(() => {
+                            const p = unitPhrase(sec.stake.unit, 1);
+                            return p.charAt(0).toUpperCase() + p.slice(1);
+                          })()} on the line`
+                        : `💰 $${sec.stake.amount} on the line`
+                      : "🎯 Add stakes"}
                   </div>
                   <div className="mt-0.5 text-[13px] text-muted">
                     {sec.stake
                       ? `Week ${sec.stake.weekNow} of ${sec.stake.weeks} · see standings`
-                      : "Put real money on the week — miss your goal, you pay in."}
+                      : "Put cash or a meal on the week — miss your goal, you owe the pod."}
                   </div>
                 </div>
                 <span className="ml-3 shrink-0 text-[18px] text-muted" aria-hidden>

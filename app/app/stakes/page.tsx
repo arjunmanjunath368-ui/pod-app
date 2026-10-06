@@ -8,6 +8,8 @@ import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz } from "@/lib/days";
 import { computeStakes, periodStartInstant } from "@/lib/stakes";
 import { parseGoal } from "@/lib/goals";
+import MealTabs from "@/components/MealTabs";
+import { mealTabs, normalizeUnit, openTabsFrom } from "@/lib/meals";
 
 export default async function StakesPage({
   searchParams,
@@ -73,6 +75,14 @@ export default async function StakesPage({
     .select("*")
     .eq("pod_id", current.podId)
     .maybeSingle();
+
+  // What the stake puts on the line. `select("*")` above returns the new
+  // columns only once the meal migration has been run, so a pod with no
+  // migration (or an existing cash stake) is simply "money", as before.
+  const stakeKind: "money" | "meal" = stake?.kind === "meal" ? "meal" : "money";
+  const stakeUnit: string | null = stake?.unit_label ?? null;
+  const hasKindColumn =
+    !!stake && Object.prototype.hasOwnProperty.call(stake, "kind");
 
   // ---- Stage 2: lazy settlement + live standings (only when active) ----
   let activeView: any = null;
@@ -239,9 +249,17 @@ export default async function StakesPage({
           // Settle the completed weeks only (firmNet). An in-progress partial
           // week is voided — nobody forfeits a week that didn't finish.
           const periodEndDate = dayKeyInTz(now, tz);
+          const settleTabs = stakeKind === "meal" ? mealTabs(res.weeks) : null;
           const results = res.standings.map((s) => ({
             userId: s.userId,
             net: s.firmNet,
+            // A meal tab also records how many meals each person owes.
+            ...(settleTabs
+              ? {
+                  owes: settleTabs.locked[s.userId] ?? 0,
+                  unit: normalizeUnit(stakeUnit),
+                }
+              : {}),
           }));
           await supabase.from("stake_settlements").insert({
             pod_id: current.podId,
@@ -302,6 +320,7 @@ export default async function StakesPage({
     }).format(new Date(`${periodStartDate}T12:00:00Z`));
     const notStartedYet = now.getTime() < startInstant0.getTime();
 
+    const mealTab = stakeKind === "meal" ? mealTabs(res.weeks) : null;
     activeView = {
       stakeAmount: stake.stake_amount,
       periodWeeks: stake.period_weeks,
@@ -329,8 +348,34 @@ export default async function StakesPage({
         ? {
             periodLabel: `${latest.period_start} → ${latest.period_end}`,
             rows: (latest.results as any[])
-              .map((r) => ({ name: nameOf(r.userId), net: r.net }))
-              .sort((a, b) => b.net - a.net),
+              .map((r) => ({
+                name: nameOf(r.userId),
+                net: r.net,
+                ...(r.owes !== undefined ? { owes: Number(r.owes) } : {}),
+              }))
+              .sort((a, b) => (b.owes ?? 0) - (a.owes ?? 0) || b.net - a.net),
+            unit: (latest.results as any[])[0]?.unit ?? null,
+          }
+        : null,
+      meal: mealTab
+        ? {
+            unit: normalizeUnit(stakeUnit),
+            rows: podMembers
+              .map((m) => ({
+                name: m.name,
+                locked: mealTab.locked[m.userId] ?? 0,
+                atRisk: !!mealTab.atRisk[m.userId],
+                hasGoal: m.target >= 1,
+                paused: m.status === "paused",
+              }))
+              .sort((a, b) => {
+                const rank = (x: { paused: boolean; hasGoal: boolean }) =>
+                  x.paused ? 2 : x.hasGoal ? 0 : 1;
+                if (rank(a) !== rank(b)) return rank(a) - rank(b);
+                return (
+                  b.locked - a.locked || Number(b.atRisk) - Number(a.atRisk)
+                );
+              }),
           }
         : null,
     };
@@ -370,11 +415,45 @@ export default async function StakesPage({
       offLastSettlement = {
         periodLabel: `${ls.period_start} → ${ls.period_end}`,
         rows: (ls.results as any[])
-          .map((r) => ({ name: nameOf(r.userId), net: r.net }))
-          .sort((a, b) => b.net - a.net),
+          .map((r) => ({
+            name: nameOf(r.userId),
+            net: r.net,
+            ...(r.owes !== undefined ? { owes: Number(r.owes) } : {}),
+          }))
+          .sort((a, b) => (b.owes ?? 0) - (a.owes ?? 0) || b.net - a.net),
+        unit: (ls.results as any[])[0]?.unit ?? null,
       };
     }
   }
+
+  // Meals still owed from past periods — shown whatever the pod is doing now.
+  // (Both queries come back empty if the migration hasn't been run.)
+  const { data: tabSettlements } = await supabase
+    .from("stake_settlements")
+    .select("period_start, period_end, results")
+    .eq("pod_id", current.podId)
+    .order("settled_at", { ascending: false })
+    .limit(20);
+  const { data: tabStatus } = await supabase
+    .from("meal_tab_status")
+    .select("period_start, user_id")
+    .eq("pod_id", current.podId);
+  const dayLabel = (d: string) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(`${d}T12:00:00Z`));
+  const openTabs = openTabsFrom(tabSettlements ?? [], tabStatus ?? []).map(
+    (t) => ({
+      periodStart: t.periodStart,
+      periodLabel: `${dayLabel(t.periodStart)} – ${dayLabel(t.periodEnd)}`,
+      userId: t.userId,
+      name: nameOf(t.userId),
+      owes: t.owes,
+      unit: t.unit as string,
+    })
+  );
 
   const ws = weekStartUtc(tz, wso);
   const currentWeekStart = new Intl.DateTimeFormat("en-CA", {
@@ -412,8 +491,8 @@ export default async function StakesPage({
           Stakes
         </h1>
         <p className="mb-4 text-[14px] leading-relaxed text-muted">
-          Put a number on the line each week. Hit your goal, stay in the green —
-          the pod keeps score, and how you settle is up to you.
+          Put cash or a meal on the line each week. Hit your goal, stay in the
+          clear — the pod keeps score, and how you settle is up to you.
         </p>
 
         {rows.length === 1 ? (
@@ -440,6 +519,8 @@ export default async function StakesPage({
             })}
           </div>
         )}
+
+        <MealTabs podId={current.podId} userId={user.id} tabs={openTabs} />
 
         <StakesPanel
           podId={current.podId}
@@ -470,6 +551,11 @@ export default async function StakesPage({
           pendingById={stake?.pending_by ?? null}
           pendingByName={pendingByName}
           offLastSettlement={offLastSettlement}
+          kind={stakeKind}
+          unit={stakeUnit}
+          propKind={stake?.prop_kind === "meal" ? "meal" : "money"}
+          propUnit={stake?.prop_unit ?? null}
+          hasKindColumn={hasKindColumn}
         />
       </main>
       <BottomNav active="settings" podId={current.podId} userId={user.id} />
