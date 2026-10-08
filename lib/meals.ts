@@ -11,16 +11,25 @@ import type { WeekOutcome } from "./stakes";
 
 export type MealUnit = "dinner" | "lunch" | "coffee" | "round";
 
-export const MEAL_UNITS: {
+type UnitInfo = {
   key: MealUnit;
   label: string;
   emoji: string;
   noun: string;
   plural: string;
-}[] = [
+};
+
+// What a pod can pick today.
+export const MEAL_UNITS: UnitInfo[] = [
   { key: "dinner", label: "Dinner", emoji: "🍽️", noun: "dinner", plural: "dinners" },
   { key: "lunch", label: "Lunch", emoji: "🥪", noun: "lunch", plural: "lunches" },
   { key: "coffee", label: "Coffee", emoji: "☕", noun: "coffee", plural: "coffees" },
+];
+
+// Offered earlier and since taken out of the picker (a round of drinks sits
+// badly with a health product). Kept only so a tab that already uses it still
+// reads correctly instead of silently turning into a dinner.
+const RETIRED_UNITS: UnitInfo[] = [
   {
     key: "round",
     label: "Round of drinks",
@@ -30,21 +39,23 @@ export const MEAL_UNITS: {
   },
 ];
 
+const KNOWN_UNITS: UnitInfo[] = MEAL_UNITS.concat(RETIRED_UNITS);
+
 export function normalizeUnit(u: string | null | undefined): MealUnit {
-  const hit = MEAL_UNITS.filter((m) => m.key === u)[0];
+  const hit = KNOWN_UNITS.filter((m) => m.key === u)[0];
   return hit ? hit.key : "dinner";
 }
 
 function unitInfo(u: string | null | undefined) {
   const key = normalizeUnit(u);
-  return MEAL_UNITS.filter((m) => m.key === key)[0];
+  return KNOWN_UNITS.filter((m) => m.key === key)[0];
 }
 
 export function unitEmoji(u: string | null | undefined): string {
   return unitInfo(u).emoji;
 }
 
-// "a dinner" / "2 dinners" / "a round of drinks" / "3 lunches"
+// "a dinner" / "2 dinners" / "a coffee" / "3 lunches"
 export function unitPhrase(u: string | null | undefined, n: number): string {
   const info = unitInfo(u);
   if (n === 1) return `a ${info.noun}`;
