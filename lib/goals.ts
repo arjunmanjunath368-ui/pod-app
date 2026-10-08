@@ -69,6 +69,31 @@ export function parseGoal(row: RawGoalRow): MemberGoal {
   };
 }
 
+// Setting a weekly goal is required to be in a pod. Given a member's own
+// (non-left) pod_members rows, which pod still needs one? Returns that pod's
+// id, or null when every pod has a goal. Home sends people there before
+// showing anything else.
+//
+// Two cases deliberately never gate: a first-time member (the welcome
+// walk-through sets their goal in two taps, and gating first would skip it)
+// and someone replaying the tour from Settings.
+export function podNeedingGoal(
+  rows: ({ pod_id: string } & RawGoalRow)[] | null | undefined
+): string | null {
+  for (const r of rows ?? []) {
+    if (!parseGoal(r).hasGoal) return r.pod_id;
+  }
+  return null;
+}
+
+export function goalGateTarget(
+  rows: ({ pod_id: string } & RawGoalRow)[] | null | undefined,
+  opts: { onboarded: boolean; replayingTour: boolean }
+): string | null {
+  if (!opts.onboarded || opts.replayingTour) return null;
+  return podNeedingGoal(rows);
+}
+
 type WeekSession = { activity?: string | null; activities?: string[] | null };
 
 // A session counts toward an activity if that activity is among the ones it

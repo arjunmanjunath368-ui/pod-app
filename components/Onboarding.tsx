@@ -12,14 +12,20 @@ import { ACTIVITIES, type ActivityKey } from "@/lib/activities";
 // set a goal, you're not in the count"). Stakes and Pause are taught
 // contextually, where they matter: the stakes card on Home, and the pause
 // prompt that appears when someone goes quiet.
+//
+// A weekly goal is required, so Skip only exists when every pod already has
+// one (replaying the tour from Settings). Anyone still missing a goal has to
+// pick one here.
 export default function Onboarding({
   userId,
   pods,
   open,
+  canSkip = true,
 }: {
   userId: string;
   pods: { id: string; name: string }[];
   open: boolean;
+  canSkip?: boolean;
 }) {
   const router = useRouter();
   const [show, setShow] = useState(open);
@@ -93,12 +99,18 @@ export default function Onboarding({
       `}</style>
 
       <div className="flex justify-end px-5 pt-5">
-        <button
-          onClick={skip}
-          className="text-[14px] font-semibold text-muted active:scale-95"
-        >
-          Skip
-        </button>
+        {canSkip ? (
+          <button
+            onClick={skip}
+            className="text-[14px] font-semibold text-muted active:scale-95"
+          >
+            Skip
+          </button>
+        ) : (
+          <span aria-hidden="true" className="invisible text-[14px] font-semibold">
+            Skip
+          </span>
+        )}
       </div>
 
       {/* 0 · Welcome — the only screen that just shows. */}

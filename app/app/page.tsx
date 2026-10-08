@@ -6,7 +6,14 @@ import { weekStartUtc, weekRangeLabel } from "@/lib/week";
 import { computeStreaks } from "@/lib/streaks";
 import { dayKeyInTz, shortDate } from "@/lib/days";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
-import { parseGoal, goalProgress, splitBreakdown, goalHit } from "@/lib/goals";
+import {
+  parseGoal,
+  goalProgress,
+  splitBreakdown,
+  goalHit,
+  goalGateTarget,
+  podNeedingGoal,
+} from "@/lib/goals";
 import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
 import { unitEmoji, unitPhrase } from "@/lib/meals";
@@ -251,12 +258,21 @@ export default async function Home({
   const { data: memberships } = await supabase
     .from("pod_members")
     .select(
-      "pod_id, pods(id, name, invite_code, max_members, timezone, week_starts_on, created_at)"
+      "pod_id, goal_activity, goal_label, goal_target_per_week, goal_mode, goal_activities, goal_splits, pods(id, name, invite_code, max_members, timezone, week_starts_on, created_at)"
     )
     .eq("user_id", user.id)
     .neq("status", "left");
 
   if (!memberships || memberships.length === 0) redirect("/app/start");
+
+  // A weekly goal is required. If a pod still lacks yours, set it before
+  // anything else (first-time members get it from the welcome walk-through).
+  const goalPod = goalGateTarget(memberships as any[], {
+    onboarded: !!(myProfile as any)?.onboarded_at,
+    replayingTour: searchParams.tour === "1",
+  });
+  if (goalPod) redirect(`/app/goal?pod=${goalPod}&onboarding=1`);
+  const allHaveGoals = podNeedingGoal(memberships as any[]) === null;
 
   const podsList = memberships
     .map((m: any) => (Array.isArray(m.pods) ? m.pods[0] : m.pods))
@@ -470,6 +486,7 @@ export default async function Home({
             name: s.pod.name as string,
           }))}
           open={!(myProfile as any)?.onboarded_at || searchParams.tour === "1"}
+          canSkip={allHaveGoals}
         />
 
         {/* Header */}

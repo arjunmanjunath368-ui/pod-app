@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ACTIVITIES, activityMeta, type ActivityKey } from "@/lib/activities";
+import { parseGoal } from "@/lib/goals";
 
 type Mode = "combined" | "split";
 
@@ -14,6 +15,10 @@ function GoalForm() {
   const podId = params.get("pod") ?? "";
 
   const [loading, setLoading] = useState(true);
+  // True while this pod has no goal for you yet. A weekly goal is required to
+  // be in a pod, so there's no way back until one is saved (editing later,
+  // from You → Your weekly goals, keeps the normal back link).
+  const [required, setRequired] = useState(false);
   const [userId, setUserId] = useState("");
   const [mode, setMode] = useState<Mode>("combined");
   const [selected, setSelected] = useState<ActivityKey[]>(["strength"]);
@@ -55,6 +60,7 @@ function GoalForm() {
         if (data && (data.goal_target_per_week || data.goal_splits)) {
           hydrate(data);
         }
+        setRequired(!!data && !parseGoal(data).hasGoal);
 
         // Other pods where you've already set a goal — offer to copy it.
         const { data: others } = await supabase
@@ -201,19 +207,25 @@ function GoalForm() {
 
   return (
     <div className="flex flex-1 flex-col px-7 py-9">
-      <Link
-        href={`/app?pod=${podId}`}
-        className="text-[15px] font-semibold text-muted"
-      >
-        ← Back
-      </Link>
+      {!required && (
+        <Link
+          href={`/app?pod=${podId}`}
+          className="text-[15px] font-semibold text-muted"
+        >
+          ← Back
+        </Link>
+      )}
 
-      <h1 className="mt-6 font-serif text-[26px] font-semibold text-ink">
+      <h1
+        className={`${required ? "mt-2" : "mt-6"} font-serif text-[26px] font-semibold text-ink`}
+      >
         Your weekly goal
       </h1>
       <p className="mt-2 text-[15px] text-muted">
         This is yours alone — pick what you'll commit to. The pod is scored on
         everyone showing up to their own goal, not on matching each other.
+        {required &&
+          " Everyone in a pod sets one, and you can change yours any time from You → Your weekly goals."}
       </p>
 
       {otherGoals.length > 0 && (
@@ -388,8 +400,16 @@ function GoalForm() {
         disabled={saving}
         className="mt-7 w-full rounded-2xl bg-ink py-4 text-[16px] font-semibold text-paper transition active:scale-[0.98] disabled:opacity-60"
       >
-        {saving ? "Saving…" : "Save goal"}
+        {saving ? "Saving…" : required ? "Save and continue" : "Save goal"}
       </button>
+      {required && (
+        <Link
+          href={`/app/pod-settings?pod=${podId}`}
+          className="mt-4 block text-center text-[14px] font-semibold text-muted"
+        >
+          Not the right pod? Leave it
+        </Link>
+      )}
     </div>
   );
 }
