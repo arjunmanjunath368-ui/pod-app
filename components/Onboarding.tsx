@@ -229,10 +229,11 @@ export default function Onboarding({
         <>
           <div className="flex flex-1 flex-col justify-center px-7">
             <h2 className="font-serif text-[26px] font-semibold leading-tight text-ink">
-              What counts as showing up?
+              What will you mostly do?
             </h2>
             <p className="mt-2 text-[15px] text-muted">
-              Anything that should count toward your {days}.
+              Any activity counts toward your {days} active days. This just
+              tells your pod what to expect.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               {ACTIVITIES.map((a) => {
@@ -259,10 +260,11 @@ export default function Onboarding({
                 style={{ animation: "podRise .35s ease-out both" }}
               >
                 <div className="text-[15px] font-semibold text-ink">
-                  {days}× a week
+                  {days === 7 ? "Active every day" : `${days} active days a week`}
                 </div>
                 <div className="mt-0.5 text-[14px] text-ink-soft">
-                  Your pod sees every one of them.
+                  A day counts once, however much you do. Your pod sees every
+                  one.
                 </div>
               </div>
             )}

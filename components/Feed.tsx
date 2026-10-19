@@ -65,6 +65,10 @@ export type FeedItem = {
   durationSeconds: number | null;
   calories: number | null;
   caloriesUnits: string | null;
+  // The synced sport's own name ("pickleball"), shown instead of the category.
+  sportLabel: string | null;
+  // A rest day logged on a red-recovery day. Counts toward the goal.
+  restDay: boolean;
 };
 
 type Me = { userId: string; name: string; initials: string; color: string; avatarUrl: string | null };
@@ -195,6 +199,8 @@ export default function Feed({
               typeof s.duration_seconds === "number" ? s.duration_seconds : null,
             calories: typeof s.calories === "number" ? s.calories : null,
             caloriesUnits: s.calories_units ?? null,
+            sportLabel: s.sport_label ?? null,
+            restDay: !!s.rest_day,
           };
           setFeedItems((prev) =>
             prev.some((p) => p.id === s.id) ? prev : [item, ...prev]
@@ -629,9 +635,10 @@ export default function Feed({
         const metas = (it.activities?.length ? it.activities : [it.activity]).map(
           (k) => activityMeta(k)
         );
-        const activityLabel = metas
-          .map((m) => `${m.emoji} ${m.label.toLowerCase()}`)
-          .join(" + ");
+        const activityLabel =
+          it.sportLabel && metas.length === 1
+            ? `${metas[0].emoji} ${it.sportLabel}`
+            : metas.map((m) => `${m.emoji} ${m.label.toLowerCase()}`).join(" + ");
         const comments = cstate[it.id] ?? [];
         const isOpen = open[it.id];
         return (
@@ -648,10 +655,15 @@ export default function Feed({
                   <span className="font-semibold">
                     {it.isMine ? "You" : it.authorName}
                   </span>{" "}
-                  logged {activityLabel}
+                  {it.restDay ? "took a 💤 rest day" : <>logged {activityLabel}</>}
                 </div>
                 <div className="text-[13px] text-muted">{it.timeLabel}</div>
-                {(it.source === "healthkit" || it.source === "whoop") && (
+                {it.restDay && (
+                  <div className="mt-1 w-fit rounded-full bg-sage/15 px-2 py-0.5 text-[11px] font-semibold text-sage">
+                    Recovering counts as showing up
+                  </div>
+                )}
+                {!it.restDay && (it.source === "healthkit" || it.source === "whoop") && (
                   <div className="mt-1 flex w-fit flex-wrap items-center gap-1.5">
                     <span className="rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-semibold text-muted">
                       {it.source === "whoop" ? "⌚ WHOOP" : "⌚ Apple Health"}
@@ -669,7 +681,7 @@ export default function Feed({
                   </div>
                 )}
               </div>
-              {it.isMine && (
+              {it.isMine && !it.restDay && (
                 <button
                   onClick={() => setEditing(it)}
                   className="shrink-0 self-start text-[13px] font-semibold text-muted"

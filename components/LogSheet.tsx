@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ACTIVITIES, activityMeta, type ActivityKey } from "@/lib/activities";
-import { parseGoal, goalHit } from "@/lib/goals";
+import { parseGoal, goalHit, type WeekSession } from "@/lib/goals";
 import { weekStartUtc } from "@/lib/week";
 import { enablePush, pushSupported, isIOS, isStandalone } from "@/lib/push";
 import LiveCamera from "@/components/LiveCamera";
@@ -76,22 +76,37 @@ async function computeCelebration(
 
   const { data: weekSessions } = await supabase
     .from("sessions")
-    .select("user_id, activity")
+    .select("user_id, activity, activities, logged_at, rest_day")
     .eq("pod_id", podId)
     .gte("logged_at", weekStart);
-  const byUser: Record<string, { activity: string | null }[]> = {};
+  const byUser: Record<string, WeekSession[]> = {};
   (weekSessions ?? []).forEach((s: any) => {
-    (byUser[s.user_id] ??= []).push({ activity: s.activity ?? null });
+    (byUser[s.user_id] ??= []).push({
+      activity: s.activity ?? null,
+      activities: s.activities ?? null,
+      logged_at: s.logged_at,
+      rest_day: s.rest_day ?? false,
+    });
   });
   const mine = byUser[userId] ?? [];
 
-  // Celebrate only on the session that tips you over: hit now, but not hit if
-  // you back out the one we just logged. Works for combined and split alike.
-  if (!goalHit(myGoal, mine)) return null;
-  const idx = mine.findIndex((s) => s.activity === loggedActivity);
+  // Celebrate only on the log that tips you over: hit now, but not hit if you
+  // back out the one we just logged (the latest matching log). A second log on
+  // a day that already counted changes nothing, so it never celebrates twice.
+  if (!goalHit(myGoal, mine, tz)) return null;
+  let idx = -1;
+  mine.forEach((s, i) => {
+    if (s.rest_day || s.activity !== loggedActivity) return;
+    if (
+      idx === -1 ||
+      new Date(s.logged_at as string).getTime() >
+        new Date(mine[idx].logged_at as string).getTime()
+    )
+      idx = i;
+  });
   const without =
     idx >= 0 ? mine.filter((_, i) => i !== idx) : mine.slice(0, -1);
-  if (goalHit(myGoal, without)) return null;
+  if (goalHit(myGoal, without, tz)) return null;
 
   // Pod Perfect week: every active member with a goal has met it.
   const { data: members } = await supabase
@@ -109,7 +124,9 @@ async function computeCelebration(
   );
   const allHit =
     goalMembers.length > 1 &&
-    goalMembers.every((m: any) => goalHit(parseGoal(m), byUser[m.user_id] ?? []));
+    goalMembers.every((m: any) =>
+      goalHit(parseGoal(m), byUser[m.user_id] ?? [], tz)
+    );
 
   if (allHit) {
     return {
@@ -122,7 +139,7 @@ async function computeCelebration(
     detail:
       myGoal.mode === "split"
         ? "You hit every target this week. You showed up."
-        : `That's ${myGoal.target} of ${myGoal.target} this week. You showed up.`,
+        : `That's ${myGoal.target} of ${myGoal.target} active days this week. You showed up.`,
   };
 }
 

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { activityMeta, type ActivityKey } from "@/lib/activities";
-import { parseGoal, goalProgress } from "@/lib/goals";
+import { parseGoal, goalProgress, goalLine } from "@/lib/goals";
 import { weekStartUtc } from "@/lib/week";
 import { computeYouStats } from "@/lib/youStats";
 import YouStats from "@/components/YouStats";
@@ -54,7 +54,7 @@ export default async function YouPage() {
   const since = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString();
   const { data: mySessions } = await supabase
     .from("sessions")
-    .select("pod_id, logged_at, activity, activities")
+    .select("pod_id, logged_at, activity, activities, rest_day")
     .eq("user_id", user.id)
     .gte("logged_at", since);
 
@@ -72,6 +72,7 @@ export default async function YouPage() {
       loggedAt: new Date(s.logged_at),
       activity: (s.activity ?? null) as string | null,
       activities: (s.activities ?? null) as string[] | null,
+      restDay: (s.rest_day ?? false) as boolean,
     })),
     memberships: (memberships ?? []).map((m: any) => ({
       podId: m.pod_id as string,
@@ -108,8 +109,10 @@ export default async function YouPage() {
       .map((s: any) => ({
         activity: s.activity ?? null,
         activities: s.activities ?? null,
+        logged_at: s.logged_at,
+        rest_day: s.rest_day ?? false,
       }));
-    const { done, target, ratio } = goalProgress(goal, mine);
+    const { done, target, ratio } = goalProgress(goal, mine, tz);
     const joinedAt = m.joined_at ? new Date(m.joined_at) : null;
     const goalNotStarted =
       goal.hasGoal && !!joinedAt && joinedAt.getTime() > weekStart.getTime();
@@ -216,9 +219,13 @@ export default async function YouPage() {
                 </div>
                 <div className="mt-1 text-[13px] text-muted">
                   {p.hasGoal
-                    ? `${meta.emoji} ${p.label ?? meta.label} · ${p.target}×/week${
-                        p.detail ? ` · ${p.detail}` : ""
-                      }`
+                    ? goalLine({
+                        emoji: meta.emoji,
+                        label: p.label,
+                        activity: p.activity,
+                        target: p.target,
+                        detail: p.detail,
+                      })
                     : "No weekly goal set yet"}
                 </div>
 

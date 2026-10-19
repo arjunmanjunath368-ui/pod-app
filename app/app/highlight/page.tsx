@@ -54,7 +54,7 @@ export default async function HighlightPage() {
   const since = new Date(Date.now() - 190 * 24 * 60 * 60 * 1000).toISOString();
   const { data: rawMine } = await supabase
     .from("sessions")
-    .select("pod_id, logged_at, activity, activities")
+    .select("pod_id, logged_at, activity, activities, rest_day")
     .eq("user_id", user.id)
     .gte("logged_at", since);
   const myAll = (rawMine ?? []).map((s: any) => ({
@@ -62,6 +62,7 @@ export default async function HighlightPage() {
     loggedAt: new Date(s.logged_at),
     activity: (s.activity ?? null) as string | null,
     activities: (s.activities ?? null) as string[] | null,
+    restDay: (s.rest_day ?? false) as boolean,
   }));
 
   // A workout logged into several pods is stored once per pod (same instant).
@@ -72,7 +73,9 @@ export default async function HighlightPage() {
   // activity set) rather than exact time. You don't realistically log two
   // separate identical workouts on the same day, so this counts each once.
   const seenKey = new Set<string>();
+  // Rest days count toward goals but aren't workouts, so the recap skips them.
   const myUnique = myAll.filter((s) => {
+    if (s.restDay) return false;
     const day = dayKeyInTz(s.loggedAt, tz);
     const acts = (
       s.activities && s.activities.length
@@ -145,8 +148,10 @@ export default async function HighlightPage() {
         .map((s) => ({
           activity: (s.activity ?? "other") as any,
           activities: s.activities ?? null,
+          logged_at: s.loggedAt,
+          rest_day: s.restDay,
         }));
-      if (goalHit(goal, podMine)) hitPods++;
+      if (goalHit(goal, podMine, tz)) hitPods++;
     }
     personalWeeks.push({
       hasGoal: goalPods > 0,
@@ -180,8 +185,10 @@ export default async function HighlightPage() {
         .map((s) => ({
           activity: (s.activity ?? "other") as any,
           activities: s.activities ?? null,
+          logged_at: s.loggedAt,
+          rest_day: s.restDay,
         }));
-      if (goalHit(goal, podMine)) hitPods++;
+      if (goalHit(goal, podMine, tz)) hitPods++;
     }
     return {
       hasGoal: goalPods > 0,

@@ -84,7 +84,7 @@ export default async function AdminPage({
       fetchAll((f, t) =>
         svc
           .from("sessions")
-          .select("pod_id, user_id, logged_at, activity, activities")
+          .select("pod_id, user_id, logged_at, activity, activities, rest_day")
           .order("logged_at", { ascending: true })
           .order("id", { ascending: true })
           .range(f, t)
@@ -129,6 +129,7 @@ export default async function AdminPage({
         loggedAt: new Date(s.logged_at),
         activity: s.activity ?? null,
         activities: s.activities ?? null,
+        restDay: s.rest_day ?? false,
       });
     }
     const stakedPods: Record<string, boolean> = {};

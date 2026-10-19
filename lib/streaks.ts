@@ -1,6 +1,8 @@
 import { weekStartUtc } from "./week";
+import { goalCredit, type WeekSession } from "./goals";
 
-// A week is "complete" for a member when sessions logged that week >= their target.
+// A week is "complete" for a member when they hit their goal that week, counted
+// in active days by the same rule as everywhere else (lib/goals.ts).
 // Individual streak = consecutive completed weeks.
 // Pod streak = consecutive "Pod Perfect weeks" (every eligible member completed theirs).
 // Optimistic rule: the in-progress (current) week never BREAKS a streak; completing
@@ -26,6 +28,7 @@ export type StreakSession = {
   loggedAt: Date;
   activity?: string | null;
   activities?: string[] | null;
+  restDay?: boolean | null;
 };
 
 export function computeStreaks(opts: {
@@ -59,35 +62,37 @@ export function computeStreaks(opts: {
   const weekUpper = (i: number): number =>
     i === 0 ? now.getTime() + 1 : weekStarts[i - 1].getTime();
 
-  const countInWeek = (userId: string, i: number, activity?: string): number => {
+  const weekSessions = (userId: string, i: number): WeekSession[] => {
     const lo = weekStarts[i].getTime();
     const hi = weekUpper(i);
-    let c = 0;
+    const out: WeekSession[] = [];
     for (const s of sessions) {
       if (s.userId !== userId) continue;
-      if (activity !== undefined) {
-        const covers =
-          s.activities && s.activities.length
-            ? s.activities.includes(activity)
-            : s.activity === activity;
-        if (!covers) continue;
-      }
       const t = s.loggedAt.getTime();
-      if (t >= lo && t < hi) c++;
+      if (t >= lo && t < hi)
+        out.push({
+          activity: s.activity ?? null,
+          activities: s.activities ?? null,
+          logged_at: s.loggedAt,
+          rest_day: s.restDay ?? false,
+        });
     }
-    return c;
+    return out;
   };
 
-  // Did this member hit their goal in week i? Combined => total >= target;
-  // split => every per-activity target met.
-  const hitWeek = (m: StreakMember, i: number): boolean => {
-    if (m.mode === "split" && m.splits && m.splits.length > 0) {
-      return m.splits.every(
-        (s) => countInWeek(m.userId, i, s.activity) >= s.target
-      );
-    }
-    return countInWeek(m.userId, i) >= m.target;
-  };
+  // Did this member hit their goal in week i? Active days, split targets each
+  // filled by a different day (see lib/goals.ts).
+  const hitWeek = (m: StreakMember, i: number): boolean =>
+    goalCredit(
+      {
+        hasGoal: m.hasGoal,
+        mode: m.mode === "split" && m.splits && m.splits.length ? "split" : "combined",
+        target: m.target,
+        splits: (m.splits ?? []) as any,
+      },
+      weekSessions(m.userId, i),
+      tz
+    ).hit;
 
   const eligible = opts.members.filter(
     (m) => m.hasGoal && m.status === "active"

@@ -21,12 +21,15 @@ function GoalForm() {
   const [required, setRequired] = useState(false);
   const [userId, setUserId] = useState("");
   const [mode, setMode] = useState<Mode>("combined");
-  const [selected, setSelected] = useState<ActivityKey[]>(["strength"]);
+  // Active days is the default: any activity counts, and the activities picked
+  // here are optional (they only label the goal). Specific activities need at
+  // least one.
+  const [selected, setSelected] = useState<ActivityKey[]>([]);
   const [combinedTarget, setCombinedTarget] = useState(3);
   const [splitTargets, setSplitTargets] = useState<
     Partial<Record<ActivityKey, number>>
-  >({ strength: 2 });
-  const [label, setLabel] = useState("Strength");
+  >({});
+  const [label, setLabel] = useState("");
   const [labelTouched, setLabelTouched] = useState(false);
   const [detail, setDetail] = useState("");
   const [saving, setSaving] = useState(false);
@@ -109,13 +112,13 @@ function GoalForm() {
       const sel =
         Array.isArray(data.goal_activities) && data.goal_activities.length
           ? (data.goal_activities as ActivityKey[])
-          : data.goal_activity
+          : data.goal_activity && data.goal_activity !== "other"
             ? [data.goal_activity as ActivityKey]
-            : ["strength" as ActivityKey];
+            : [];
       setSelected(sel);
-      setCombinedTarget(data.goal_target_per_week || 3);
+      setCombinedTarget(Math.min(data.goal_target_per_week || 3, 7));
     }
-    setLabel(data.goal_label ?? activityMeta(data.goal_activity).label);
+    setLabel(data.goal_label ?? "");
     setLabelTouched(true);
     setDetail(data.goal_detail ?? "");
   }
@@ -124,18 +127,26 @@ function GoalForm() {
     setSelected((prev) => {
       const has = prev.includes(k);
       const next = has ? prev.filter((x) => x !== k) : [...prev, k];
-      // Never allow empty.
-      const safe = next.length ? next : prev;
       if (!has) {
-        setSplitTargets((t) => (t[k] ? t : { ...t, [k]: 2 }));
-        if (!labelTouched && safe.length === 1) setLabel(activityMeta(k).label);
+        // A new activity starts at 1 day, or whatever still fits in the week.
+        setSplitTargets((t) => {
+          if (t[k]) return t;
+          const used = prev.reduce((s, a) => s + (t[a] ?? 1), 0);
+          return { ...t, [k]: Math.max(1, Math.min(2, 7 - used)) };
+        });
       }
-      return safe;
+      return next;
     });
   }
 
+  // Each day counts once, so per-activity days can't add up to more than 7.
   function setSplit(k: ActivityKey, n: number) {
-    setSplitTargets((t) => ({ ...t, [k]: Math.max(1, Math.min(7, n)) }));
+    setSplitTargets((t) => {
+      const others = selected
+        .filter((a) => a !== k)
+        .reduce((s, a) => s + (t[a] ?? 1), 0);
+      return { ...t, [k]: Math.max(1, Math.min(7 - others, n)) };
+    });
   }
 
   async function save() {
@@ -143,16 +154,26 @@ function GoalForm() {
       setError("Missing pod. Go back to Home and try again.");
       return;
     }
-    if (selected.length === 0) {
+    if (mode === "split" && selected.length === 0) {
       setError("Pick at least one activity.");
+      return;
+    }
+    if (mode === "split" && splitSum > 7) {
+      setError("A week only has 7 days. Lower one of the targets.");
       return;
     }
     setSaving(true);
     setError("");
     const supabase = createClient();
 
-    const primary = selected[0];
-    const labelOut = label.trim() || activityMeta(primary).label;
+    const primary: ActivityKey = selected[0] ?? "other";
+    const labelOut =
+      label.trim() ||
+      (mode === "split"
+        ? selected.length === 1
+          ? activityMeta(primary).label
+          : "Active days"
+        : "Active days");
 
     let payload: Record<string, any>;
     if (mode === "split") {
@@ -173,9 +194,9 @@ function GoalForm() {
       payload = {
         goal_mode: "combined",
         goal_activity: primary,
-        goal_activities: selected,
+        goal_activities: selected.length ? selected : ["other"],
         goal_splits: null,
-        goal_target_per_week: combinedTarget,
+        goal_target_per_week: Math.min(combinedTarget, 7),
         goal_label: labelOut,
         goal_detail: detail.trim() || null,
       };
@@ -255,7 +276,7 @@ function GoalForm() {
             mode === "combined" ? "bg-card text-ink shadow-sm" : "text-muted"
           }`}
         >
-          One combined goal
+          Active days
         </button>
         <button
           onClick={() => setMode("split")}
@@ -263,18 +284,53 @@ function GoalForm() {
             mode === "split" ? "bg-card text-ink shadow-sm" : "text-muted"
           }`}
         >
-          A goal per activity
+          Specific activities
         </button>
       </div>
       <p className="mt-2 text-[13px] leading-relaxed text-muted">
         {mode === "combined"
-          ? "One weekly number — any of your chosen activities counts toward it."
-          : "Set a separate weekly target for each activity. You hit your goal only when every one is met."}
+          ? "Any activity counts. A day counts once, however much you do on it."
+          : "Days for each activity. Each day counts once, so 3 days of swimming and 2 of strength means 5 different days."}
       </p>
+
+      {mode === "combined" && (
+        <>
+          <div className="mt-6 text-[13px] font-semibold uppercase tracking-wide text-muted">
+            Active days a week
+          </div>
+          <div className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card px-5 py-3">
+            <button
+              onClick={() => setCombinedTarget((t) => Math.max(1, t - 1))}
+              aria-label="One fewer day"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-paper-2 text-[22px] text-ink active:scale-95"
+            >
+              −
+            </button>
+            <div className="text-center">
+              <div className="font-serif text-[30px] font-semibold text-ink">
+                {combinedTarget}
+              </div>
+              <div className="text-[12px] text-muted">
+                {combinedTarget === 7 ? "every day" : combinedTarget === 1 ? "day / week" : "days / week"}
+              </div>
+            </div>
+            <button
+              onClick={() => setCombinedTarget((t) => Math.min(7, t + 1))}
+              aria-label="One more day"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-paper-2 text-[22px] text-ink active:scale-95"
+            >
+              +
+            </button>
+          </div>
+          <p className="mt-2 text-[13px] text-muted">
+            Pick the number you'd hit on a bad week, not a good one.
+          </p>
+        </>
+      )}
 
       {/* Activity picker (multi-select) */}
       <div className="mt-6 text-[13px] font-semibold uppercase tracking-wide text-muted">
-        {mode === "combined" ? "Activities" : "Activities & targets"}
+        {mode === "combined" ? "What you'll mostly do (optional)" : "Activities & days"}
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2.5">
         {ACTIVITIES.map((a) => {
@@ -296,33 +352,7 @@ function GoalForm() {
         })}
       </div>
 
-      {mode === "combined" ? (
-        <>
-          <div className="mt-6 text-[13px] font-semibold uppercase tracking-wide text-muted">
-            Times per week
-          </div>
-          <div className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card px-5 py-3">
-            <button
-              onClick={() => setCombinedTarget((t) => Math.max(1, t - 1))}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-paper-2 text-[22px] text-ink active:scale-95"
-            >
-              −
-            </button>
-            <div className="text-center">
-              <div className="font-serif text-[30px] font-semibold text-ink">
-                {combinedTarget}
-              </div>
-              <div className="text-[12px] text-muted">times / week</div>
-            </div>
-            <button
-              onClick={() => setCombinedTarget((t) => Math.min(7, t + 1))}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-paper-2 text-[22px] text-ink active:scale-95"
-            >
-              +
-            </button>
-          </div>
-        </>
-      ) : (
+      {mode === "split" && (
         <>
           <div className="mt-4 flex flex-col gap-2.5">
             {selected.map((a) => {
@@ -351,7 +381,9 @@ function GoalForm() {
                     </div>
                     <button
                       onClick={() => setSplit(a, n + 1)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-paper-2 text-[20px] text-ink active:scale-95"
+                      disabled={splitSum >= 7}
+                      aria-label={`One more day of ${meta.label}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-paper-2 text-[20px] text-ink active:scale-95 disabled:opacity-35"
                     >
                       +
                     </button>
@@ -360,11 +392,18 @@ function GoalForm() {
               );
             })}
           </div>
-          <p className="mt-2.5 text-[13px] text-muted">
-            That's <b className="text-ink">{splitSum}</b> session
-            {splitSum === 1 ? "" : "s"} a week across {selected.length} activit
-            {selected.length === 1 ? "y" : "ies"}.
-          </p>
+          {selected.length === 0 ? (
+            <p className="mt-2.5 text-[13px] text-muted">
+              Pick the activities you want to commit to.
+            </p>
+          ) : (
+            <p className="mt-2.5 text-[13px] text-muted">
+              That's <b className="text-ink">{splitSum}</b> active day
+              {splitSum === 1 ? "" : "s"} a week across {selected.length} activit
+              {selected.length === 1 ? "y" : "ies"}.
+              {splitSum >= 7 ? " That's every day of the week." : ""}
+            </p>
+          )}
         </>
       )}
 
@@ -377,7 +416,7 @@ function GoalForm() {
           setLabel(e.target.value);
           setLabelTouched(true);
         }}
-        placeholder="Weight training"
+        placeholder={mode === "split" ? "Swim and lift" : "Active days"}
         maxLength={30}
         className="mt-3 w-full rounded-2xl border border-line bg-card px-4 py-3.5 text-[16px] text-ink outline-none focus:border-terra"
       />

@@ -1,5 +1,6 @@
 import { weekStartUtc } from "@/lib/week";
 import { dayKeyInTz } from "@/lib/days";
+import { goalCredit, type WeekSession } from "@/lib/goals";
 
 export type StakeMember = {
   userId: string;
@@ -176,11 +177,11 @@ export function computeStakes(opts: {
     const { start, end } = stakeWeekBounds(tz, weekStartsOn, startInstant, i);
     const isComplete = end.getTime() <= nowMs;
 
-    // Gather each roster member's sessions for this week as the set of
-    // activities each session covered, so a split goal can be checked per
-    // activity (a multi-activity log credits each) and a combined goal by the
-    // number of sessions.
-    const weekSess: Record<string, string[][]> = {};
+    // Gather each roster member's verified sessions for this week and score
+    // them in active days, by the same rule as the goal itself (lib/goals.ts).
+    // Rest days and synced activities are saved unverified, so they never
+    // count toward the stake.
+    const weekSess: Record<string, WeekSession[]> = {};
     roster.forEach((id) => (weekSess[id] = []));
     for (const s of sessions) {
       if (weekSess[s.userId] === undefined) continue;
@@ -188,26 +189,27 @@ export function computeStakes(opts: {
       if (s.voided === true) continue; // upheld dispute / conceded: no credit
       const t = s.loggedAt.getTime();
       if (t >= start.getTime() && t < end.getTime()) {
-        const acts =
-          s.activities && s.activities.length
-            ? s.activities
-            : s.activity
-              ? [s.activity]
-              : [];
-        weekSess[s.userId].push(acts.filter(Boolean) as string[]);
+        weekSess[s.userId].push({
+          activity: s.activity ?? null,
+          activities: s.activities ?? null,
+          logged_at: s.loggedAt,
+        });
       }
     }
 
     const hitters = roster.filter((id) => {
+      const target = targetOf[id] ?? 0;
       const splits = splitOf[id];
-      if (splits) {
-        return splits.every(
-          (sp) =>
-            weekSess[id].filter((acts) => acts.includes(sp.activity)).length >=
-            sp.target
-        );
-      }
-      return weekSess[id].length >= (targetOf[id] ?? Infinity);
+      return goalCredit(
+        {
+          hasGoal: target > 0,
+          mode: splits ? "split" : "combined",
+          target,
+          splits: (splits ?? []) as any,
+        },
+        weekSess[id],
+        tz
+      ).hit;
     });
     outcomes.push({ index: i, complete: isComplete, roster, hitters });
     const pot = roster.length * stakeAmount;

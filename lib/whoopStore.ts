@@ -166,6 +166,8 @@ export async function findUserByWhoopId(
 export async function removeConnection(svc: any, userId: string) {
   await svc.from("whoop_connections").delete().eq("user_id", userId);
   await setProfileStatus(svc, userId, null, null);
+  // Rest days depend on WHOOP recovery, so they switch off with it.
+  await svc.from("profiles").update({ rest_days_on: false }).eq("id", userId);
 }
 
 // Daily safety net: WHOOP says webhooks can be missed, and for an

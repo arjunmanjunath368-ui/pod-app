@@ -10,6 +10,9 @@ export const WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";
 // used to learn the member's WHOOP user id (webhooks identify people by it).
 // We never store their name or email.
 export const WHOOP_SCOPES = "offline read:workout read:profile";
+// Added only for members who turn on rest days (Settings). Recovery is read
+// on demand to check one thing, whether today is in the red, and never stored.
+export const WHOOP_RECOVERY_SCOPE = "read:recovery";
 
 export type WhoopConfig = { clientId: string; clientSecret: string };
 
@@ -23,13 +26,14 @@ export function whoopConfig(): WhoopConfig | null {
 export function buildAuthorizeUrl(
   cfg: WhoopConfig,
   redirectUri: string,
-  state: string
+  state: string,
+  opts: { recovery?: boolean } = {}
 ): string {
   const p = new URLSearchParams({
     response_type: "code",
     client_id: cfg.clientId,
     redirect_uri: redirectUri,
-    scope: WHOOP_SCOPES,
+    scope: opts.recovery ? `${WHOOP_SCOPES} ${WHOOP_RECOVERY_SCOPE}` : WHOOP_SCOPES,
     state,
   });
   return `${WHOOP_AUTH_URL}?${p.toString()}`;
@@ -275,6 +279,7 @@ export type SessionRow = {
   duration_seconds: number;
   calories: null;
   calories_units: null;
+  sport_label: string | null;
 };
 
 // Invariants worth keeping:
@@ -302,6 +307,7 @@ export function buildSessionRows(
     duration_seconds: f.durationSeconds,
     calories: null,
     calories_units: null,
+    sport_label: f.sportLabel,
   }));
 }
 

@@ -13,6 +13,8 @@ import {
   goalHit,
   goalGateTarget,
   podNeedingGoal,
+  type WeekSession,
+  goalLine,
 } from "@/lib/goals";
 import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
@@ -21,6 +23,7 @@ import PodSync from "@/components/PodSync";
 import InviteButton from "@/components/InviteButton";
 import NudgeButton from "@/components/NudgeButton";
 import NudgeBanner from "@/components/NudgeBanner";
+import RestDayCard from "@/components/RestDayCard";
 import ChallengeButton from "@/components/ChallengeButton";
 import ChallengeInbox, {
   type IncomingChallenge,
@@ -49,27 +52,34 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
 
   const { data: sessions } = await supabase
     .from("sessions")
-    .select("user_id, logged_at, activity, activities")
+    .select("user_id, logged_at, activity, activities, rest_day")
     .eq("pod_id", podId)
     .gte("logged_at", podCreatedAt.toISOString());
 
-  const weekSess: Record<
-    string,
-    { activity: string | null; activities: string[] | null }[]
-  > = {};
+  const weekSess: Record<string, WeekSession[]> = {};
   const lastLogAt: Record<string, number> = {};
   const monthPrefix = dayKeyInTz(now, tz).slice(0, 7);
   const monthDays: Record<string, Set<string>> = {};
   const allDays: Record<string, Set<string>> = {};
+  const todayKey = dayKeyInTz(now, tz);
+  let meActiveToday = false;
+  let meRestedToday = false;
   (sessions ?? []).forEach((s: any) => {
     const t = new Date(s.logged_at).getTime();
+    if (s.user_id === userId && dayKeyInTz(new Date(s.logged_at), tz) === todayKey) {
+      meActiveToday = true;
+      if (s.rest_day) meRestedToday = true;
+    }
     if (!lastLogAt[s.user_id] || t > lastLogAt[s.user_id])
       lastLogAt[s.user_id] = t;
     if (new Date(s.logged_at) >= weekStart)
       (weekSess[s.user_id] ??= []).push({
         activity: s.activity ?? null,
         activities: s.activities ?? null,
+        logged_at: s.logged_at,
+        rest_day: s.rest_day ?? false,
       });
+    if (s.rest_day) return; // rest days count toward goals, not the activity tallies
     const k = dayKeyInTz(new Date(s.logged_at), tz);
     (allDays[s.user_id] ??= new Set()).add(k);
     if (k.startsWith(monthPrefix)) (monthDays[s.user_id] ??= new Set()).add(k);
@@ -93,6 +103,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
       loggedAt: new Date(s.logged_at),
       activity: s.activity ?? null,
       activities: s.activities ?? null,
+      restDay: s.rest_day ?? false,
     })),
     tz,
     weekStartsOn: wso,
@@ -134,7 +145,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
       const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
       const goal = parseGoal(m);
       const mine = weekSess[m.user_id] ?? [];
-      const { done, target, ratio } = goalProgress(goal, mine);
+      const { done, target, ratio } = goalProgress(goal, mine, tz);
       const joinedAt = m.joined_at ? new Date(m.joined_at) : podCreatedAt;
       // Joined after this week's Monday → weekly goal hasn't started yet.
       const goalNotStarted =
@@ -154,7 +165,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
         ratio,
         mode: goal.mode,
         breakdown:
-          goal.mode === "split" ? splitBreakdown(goal, mine) : [],
+          goal.mode === "split" ? splitBreakdown(goal, mine, tz) : [],
         fire: monthDays[m.user_id]?.size ?? 0,
         total: allDays[m.user_id]?.size ?? 0,
         shareStats: prof?.share_stats ?? false,
@@ -194,14 +205,13 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     (acc: number, r: any) => acc + Math.max(r.target - r.done, 0),
     0
   );
-  // A "Pod Perfect week" = every member hit their own goal. Naming it as a
-  // milestone (rather than describing the arithmetic) is what stops the count
-  // reading as days — these are sessions summed across the pod, so >7 is normal.
+  // A "Pod Perfect week" = every member hit their own goal. The count is active
+  // days still needed, summed across the pod, so more than 7 is normal.
   const remainingLabel =
     totalRemaining === 0
       ? "Pod Perfect week — everyone showed up 🎉"
-      : `${totalRemaining} ${
-          totalRemaining === 1 ? "session" : "sessions"
+      : `${totalRemaining} active ${
+          totalRemaining === 1 ? "day" : "days"
         } from a Pod Perfect week.`;
 
   // The current user's own goal status in this pod, for the momentum banner:
@@ -213,7 +223,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
   let meHitLastWeek = false;
   if (myGoal?.hasGoal) {
     meHasGoal = true;
-    meHitThisWeek = goalHit(myGoal, weekSess[userId] ?? []);
+    meHitThisWeek = goalHit(myGoal, weekSess[userId] ?? [], tz);
     const lastWeekStart = new Date(weekStart.getTime() - 7 * 86400000);
     const lastWeekMine = (sessions ?? [])
       .filter(
@@ -225,11 +235,13 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
       .map((s: any) => ({
         activity: s.activity ?? null,
         activities: s.activities ?? null,
+        logged_at: s.logged_at,
+        rest_day: s.rest_day ?? false,
       }));
-    meHitLastWeek = goalHit(myGoal, lastWeekMine);
+    meHitLastWeek = goalHit(myGoal, lastWeekMine, tz);
   }
 
-  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, totalRemaining, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso), meHasGoal, meHitThisWeek, meHitLastWeek, stake };
+  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, totalRemaining, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso), meHasGoal, meHitThisWeek, meHitLastWeek, stake, meActiveToday, meRestedToday };
 }
 
 export default async function Home({
@@ -303,6 +315,18 @@ export default async function Home({
   const meHitThisWeekAny = sections.some((s: any) => s.meHitThisWeek);
   const meHitLastWeekAny = sections.some((s: any) => s.meHitLastWeek);
   const showMomentum = meHasGoalAny && !meHitThisWeekAny;
+
+  // Rest days (opt-in, WHOOP recovery). Its own query so Home still loads
+  // before the migration. Offered until today counts somewhere.
+  const { data: restRow } = await supabase
+    .from("profiles")
+    .select("rest_days_on")
+    .eq("id", user.id)
+    .maybeSingle();
+  const restOn = !!(restRow as any)?.rest_days_on;
+  const restedToday = sections.some((s: any) => s.meRestedToday);
+  const activeTodayAny = sections.some((s: any) => s.meActiveToday);
+  const showRestCard = restOn && (restedToday || !activeTodayAny);
   const momentum = meHitLastWeekAny
     ? {
         text: "Strong week behind you — keep the momentum going.",
@@ -527,6 +551,8 @@ export default async function Home({
           </div>
         )}
 
+        {showRestCard && <RestDayCard restedToday={restedToday} />}
+
         {showMomentum && (
           <div
             className={`mt-4 flex items-center gap-3 rounded-2xl border p-4 ${
@@ -611,7 +637,7 @@ export default async function Home({
                     Set your weekly goal →
                   </div>
                   <div className="mt-0.5 text-[13px] text-muted">
-                    Pick how many times you'll show up. Until you do, you're not
+                    Pick how many days you'll show up. Until you do, you're not
                     in the count.
                   </div>
                 </Link>
@@ -658,7 +684,7 @@ export default async function Home({
                           {sec.totalRemaining}
                         </span>
                         <span className="text-[15px] text-sage-soft">
-                          {sec.totalRemaining === 1 ? "session" : "sessions"} from
+                          active {sec.totalRemaining === 1 ? "day" : "days"} from
                           a Pod Perfect week
                         </span>
                       </div>
@@ -842,9 +868,13 @@ export default async function Home({
                               </div>
                             ) : (
                               <div className="mt-0.5 text-[15px] text-muted">
-                                {meta.emoji} {r.label ?? meta.label} ·{" "}
-                                {r.target}×/week
-                                {r.detail ? ` · ${r.detail}` : ""}
+                                {goalLine({
+                                  emoji: meta.emoji,
+                                  label: r.label,
+                                  activity: r.activity,
+                                  target: r.target,
+                                  detail: r.detail,
+                                })}
                               </div>
                             )
                           ) : r.isMe ? (

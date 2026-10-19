@@ -42,6 +42,7 @@ export async function GET(req: Request) {
   const cookieState = parts[0];
   const cookieUser = parts[1];
   const consentMs = Number(parts[2]);
+  const wantsRest = parts[3] === "1";
   const age = Date.now() - consentMs;
   if (
     !code ||
@@ -79,6 +80,22 @@ export async function GET(req: Request) {
     if (saved.linkedElsewhere) return done("linked");
     if (!saved.ok) return done("error");
 
+    // Rest days: on only if the member asked for them AND WHOOP granted
+    // recovery access. A plain reconnect switches them off only when WHOOP no
+    // longer grants recovery.
+    // (When WHOOP doesn't report scopes, assume it granted what we asked for.)
+    const grantedRecovery = tokens.scope
+      ? tokens.scope.split(" ").indexOf("read:recovery") !== -1
+      : wantsRest;
+    if (wantsRest) {
+      await svc
+        .from("profiles")
+        .update({ rest_days_on: grantedRecovery })
+        .eq("id", user.id);
+    } else if (tokens.scope && !grantedRecovery) {
+      await svc.from("profiles").update({ rest_days_on: false }).eq("id", user.id);
+    }
+
     // Pull the last week so a member who connects mid-week is credited
     // right away. Best-effort: the daily reconcile will catch up if it fails.
     try {
@@ -86,6 +103,7 @@ export async function GET(req: Request) {
     } catch {
       /* non-fatal */
     }
+    if (wantsRest) return done(grantedRecovery ? "rest_on" : "rest_denied");
     return done("connected");
   } catch {
     return done("error");

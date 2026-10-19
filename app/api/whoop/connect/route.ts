@@ -28,11 +28,15 @@ export async function GET(req: Request) {
   // CSRF guard: a random state, held in an httpOnly cookie, must come back
   // unchanged. The cookie also records who started this and when they
   // consented, which the callback stores.
+  // rest=1: the member also opted in to rest days, so ask for recovery too.
+  const rest = url.searchParams.get("rest") === "1";
   const state = randomBytes(16).toString("hex");
   const res = NextResponse.redirect(
-    buildAuthorizeUrl(cfg, `${url.origin}/api/whoop/callback`, state)
+    buildAuthorizeUrl(cfg, `${url.origin}/api/whoop/callback`, state, {
+      recovery: rest,
+    })
   );
-  res.cookies.set("whoop_oauth", `${state}.${user.id}.${Date.now()}`, {
+  res.cookies.set("whoop_oauth", `${state}.${user.id}.${Date.now()}.${rest ? 1 : 0}`, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

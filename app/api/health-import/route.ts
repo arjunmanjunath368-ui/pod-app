@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { mapHealthKitWorkout } from "@/lib/healthkitMap";
+import { sportLabelFrom } from "@/lib/activities";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -105,6 +106,7 @@ export async function POST(req: Request) {
     duration_seconds: number | null;
     calories: number | null;
     calories_units: string | null;
+    sport_label: string | null;
   }[] = [];
 
   for (const w of workouts) {
@@ -149,6 +151,7 @@ export async function POST(req: Request) {
         duration_seconds: Math.round(duration),
         calories: calQty,
         calories_units: calUnits,
+        sport_label: sportLabelFrom(w.name),
       });
     }
     imported++;

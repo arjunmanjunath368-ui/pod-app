@@ -34,6 +34,7 @@ export type PHSession = {
   loggedAt: Date;
   activity: string | null;
   activities: string[] | null;
+  restDay?: boolean | null;
 };
 
 export type PHPodInput = {
@@ -146,8 +147,10 @@ export function computePodHealth(
           .map((s) => ({
             activity: (s.activity ?? "other") as any,
             activities: s.activities ?? null,
+            logged_at: s.loggedAt,
+            rest_day: s.restDay ?? false,
           }));
-        if (goalHit(m.goal, mine)) hit++;
+        if (goalHit(m.goal, mine, tz)) hit++;
       }
       return { eligible, hit, hi, lo };
     };

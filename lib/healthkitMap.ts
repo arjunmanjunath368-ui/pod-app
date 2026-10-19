@@ -62,6 +62,8 @@ const RULES: { keys: string[]; activity: ActivityKey }[] = [
       "cricket",
       "rugby",
       "pickleball",
+      "padel",
+      "paddle",
       "lacrosse",
     ],
   },

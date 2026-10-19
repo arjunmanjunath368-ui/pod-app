@@ -1,4 +1,4 @@
-import type { ActivityKey } from "./activities";
+import { sportLabelFrom, type ActivityKey } from "./activities";
 import { mapHealthKitWorkout } from "./healthkitMap";
 
 // WHOOP sport names are lowercase and hyphenated ("functional-fitness",
@@ -40,6 +40,7 @@ const RULES: { activity: ActivityKey; keys: string[] }[] = [
       "surf",
       "skat",
       "paddle",
+      "padel",
       "kayak",
       "canoe",
       "sail",
@@ -77,6 +78,7 @@ export type SessionFields = {
   activity: ActivityKey;
   loggedAt: Date;
   durationSeconds: number;
+  sportLabel: string | null; // e.g. "pickleball", shown in the feed
 };
 
 // Deliberately minimal. Per WHOOP's API terms Pod must not build a store of
@@ -98,5 +100,6 @@ export function workoutToSessionFields(
     activity: mapWhoopSport(w.sport_name),
     loggedAt: start,
     durationSeconds: seconds,
+    sportLabel: sportLabelFrom(w.sport_name),
   };
 }

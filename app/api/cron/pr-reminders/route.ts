@@ -650,17 +650,18 @@ async function stakeStatusPings(
             .map((s: any) => ({
               activity: (s.activity as string | null) ?? null,
               activities: (s.activities as string[] | null) ?? null,
+              logged_at: s.logged_at as string,
             }));
           const goal = goalOf[m.userId];
-          if (goalHit(goal, mine)) continue;
-          const { done, target } = goalProgress(goal, mine);
+          if (goalHit(goal, mine, tz)) continue;
+          const { done, target } = goalProgress(goal, mine, tz);
           const short = Math.max(target - done, 0);
           if (short <= 0) continue;
           const title = `⏳ ${daysLeft} day${daysLeft === 1 ? "" : "s"} left this ${
             isMeal ? "week" : "stake week"
           }`;
-          const body = `You're ${short} ${
-            short === 1 ? "session" : "sessions"
+          const body = `You're ${short} active ${
+            short === 1 ? "day" : "days"
           } short of your goal in ${podName} — log one ${
             isMeal
               ? `so you don't owe the pod ${unitPhrase(unitKey, 1)}.`

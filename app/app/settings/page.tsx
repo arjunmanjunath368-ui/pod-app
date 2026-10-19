@@ -85,6 +85,12 @@ export default async function SettingsPage({
     .select("whoop_connected_at, whoop_status")
     .eq("id", user.id)
     .maybeSingle();
+  // Its own query too, so Settings still loads before the rest-day migration.
+  const { data: restRow } = await supabase
+    .from("profiles")
+    .select("rest_days_on")
+    .eq("id", user.id)
+    .maybeSingle();
 
   return (
     <>
@@ -132,6 +138,7 @@ export default async function SettingsPage({
             <WhoopPanel
               connected={!!(whoopStatus as any)?.whoop_connected_at}
               needsReconnect={(whoopStatus as any)?.whoop_status === "needs_reconnect"}
+              restOn={!!(restRow as any)?.rest_days_on}
               flash={searchParams.whoop ?? null}
             />
           </div>

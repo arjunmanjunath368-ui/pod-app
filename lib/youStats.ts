@@ -9,6 +9,7 @@ export type YouSession = {
   loggedAt: Date;
   activity: string | null;
   activities: string[] | null;
+  restDay?: boolean | null;
 };
 
 export type YouMembership = {
@@ -53,6 +54,8 @@ export function computeYouStats(opts: {
     const seen = new Set<string>();
     const out: YouSession[] = [];
     for (const s of list) {
+      // Rest days count toward goals but aren't workouts.
+      if (s.restDay) continue;
       const day = dayKeyInTz(s.loggedAt, tz);
       const acts = (
         s.activities?.length ? s.activities : s.activity ? [s.activity] : []
@@ -93,8 +96,10 @@ export function computeYouStats(opts: {
         .map((s) => ({
           activity: (s.activity ?? "other") as any,
           activities: s.activities ?? null,
+          logged_at: s.loggedAt,
+          rest_day: s.restDay ?? false,
         }));
-      if (goalHit(m.goal, podMine)) hitPods++;
+      if (goalHit(m.goal, podMine, tz)) hitPods++;
     }
     const count = uniqueAll.filter(
       (s) => s.loggedAt.getTime() >= lo && s.loggedAt.getTime() < hi

@@ -44,7 +44,8 @@ const SECTIONS: Section[] = [
     optional: true,
     bullets: [
       "What we ask WHOOP for: your workouts, and your WHOOP user ID, which we use only to match WHOOP's notifications to your account. We do not store your WHOOP name or email.",
-      "What we keep: for each workout, only the activity type, start time and length. We do not store strain, heart rate, calories, recovery or sleep.",
+      "What we keep: for each workout, only the activity type, its name (for example, pickleball), start time and length. We do not store strain, heart rate, calories, recovery or sleep.",
+      "Rest days (optional, off by default): if you turn them on, we also ask WHOOP for permission to read recovery. We read today's recovery score only when you tap Take a rest day, check whether it is in WHOOP's red zone, and then discard it. We never store the score or show it to anyone. If it is red, a rest day is logged, and your pods see only that you took a rest day. You can turn rest days off in Settings at any time.",
       "Your consent: before connecting, you explicitly agree that workouts synced from WHOOP will be visible to the members of your pods.",
       "Stakes: synced workouts never count toward stakes.",
       "Security: your WHOOP access tokens are encrypted before they are stored and can't be read from the app.",
@@ -117,7 +118,7 @@ export default function PrivacyPage() {
           use it to train AI.
         </p>
         <p className="mt-3 text-[12px] text-paper/60">
-          Last updated: October 5, 2026
+          Last updated: October 18, 2026
         </p>
       </header>
 
