@@ -20,6 +20,7 @@ const SECTIONS: Section[] = [
       "Your activity: your weekly goal, the workouts you log (activity type, time, notes, and any photos you take or add), personal bests, and the reactions, comments, challenges and nudges you send.",
       "Stakes (cash or a meal), only if your pod uses them: the amount or treat, who agreed, and weekly results. Pod keeps track of who owes what. It does not hold or move money.",
       "Notifications, only if you turn them on: your device's push address, so we can send them.",
+      "Move times, only if you choose them: the times of day you usually move and your time zone, so we can nudge you at the right moment.",
       "Synced workouts, only if you connect Apple Health or WHOOP (sections 3 and 4).",
     ],
     after: [
@@ -44,8 +45,8 @@ const SECTIONS: Section[] = [
     optional: true,
     bullets: [
       "What we ask WHOOP for: your workouts, and your WHOOP user ID, which we use only to match WHOOP's notifications to your account. We do not store your WHOOP name or email.",
-      "What we keep: for each workout, only the activity type, its name (for example, pickleball), start time and length. We do not store strain, heart rate, calories, recovery or sleep.",
-      "Rest days (optional, off by default): if you turn them on, we also ask WHOOP for permission to read recovery. We read today's recovery score only when you tap Take a rest day, check whether it is in WHOOP's red zone, and then discard it. We never store the score or show it to anyone. If it is red, a rest day is logged, and your pods see only that you took a rest day. You can turn rest days off in Settings at any time.",
+      "What we keep: for each workout, only the activity type, its name (for example, pickleball), start time and length. We do not store strain, heart rate, calories, recovery or sleep. Workouts from before you joined a pod are not added to it.",
+      "Recovery & sleep (optional, off by default): if you turn them on, we also ask WHOOP for permission to read recovery and sleep. We read today's recovery score and last night's sleep performance when you open Home, and when WHOOP tells us a new recovery is ready, so we can show them to you and check whether recovery is in WHOOP's red zone. We then discard them. We never store these scores and never show them to anyone but you. On a red-recovery day a rest day is logged automatically (up to 2 a week), and your pods see only that you took a rest day. You can turn Recovery & sleep off in Settings at any time.",
       "Your consent: before connecting, you explicitly agree that workouts synced from WHOOP will be visible to the members of your pods.",
       "Stakes: synced workouts never count toward stakes.",
       "Security: your WHOOP access tokens are encrypted before they are stored and can't be read from the app.",
@@ -118,7 +119,7 @@ export default function PrivacyPage() {
           use it to train AI.
         </p>
         <p className="mt-3 text-[12px] text-paper/60">
-          Last updated: October 18, 2026
+          Last updated: October 22, 2026
         </p>
       </header>
 

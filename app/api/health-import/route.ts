@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { mapHealthKitWorkout } from "@/lib/healthkitMap";
 import { sportLabelFrom } from "@/lib/activities";
+import { podsForActivity, resumeAutoPaused, syncTargets } from "@/lib/membership";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,12 +81,8 @@ export async function POST(req: Request) {
 
   // Sync into every pod the person is actively part of (paused/left pods are
   // excluded, matching how a manual multi-pod log already behaves).
-  const { data: mems } = await supabase
-    .from("pod_members")
-    .select("pod_id")
-    .eq("user_id", userId)
-    .eq("status", "active");
-  const podIds: string[] = (mems ?? []).map((m: any) => m.pod_id);
+  const targets = await syncTargets(supabase, userId);
+  const podIds: string[] = targets.map((t) => t.podId);
   if (podIds.length === 0) {
     return NextResponse.json({ imported: 0, skipped: workouts.length });
   }
@@ -136,7 +133,13 @@ export async function POST(req: Request) {
         : null;
     const calUnits = calQty !== null ? (w.activeEnergyBurned?.units ?? null) : null;
 
-    for (const podId of podIds) {
+    // Only pods they had joined when the workout started.
+    const forPods = podsForActivity(targets, start).map((t) => t.podId);
+    if (forPods.length === 0) {
+      skipped++;
+      continue;
+    }
+    for (const podId of forPods) {
       rows.push({
         pod_id: podId,
         user_id: userId,
@@ -174,6 +177,14 @@ export async function POST(req: Request) {
       imported = 0;
       skipped = workouts.length;
     }
+  }
+
+  if (!dbError && imported > 0) {
+    await resumeAutoPaused(
+      supabase,
+      userId,
+      targets.filter((t) => t.autoPaused).map((t) => t.podId)
+    );
   }
 
   return NextResponse.json({ imported, skipped, dbError });

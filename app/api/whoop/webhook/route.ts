@@ -7,6 +7,7 @@ import {
   whoopConfig,
 } from "@/lib/whoop";
 import { buildDeps, findUserByWhoopId, getServiceClient } from "@/lib/whoopStore";
+import { assessRecovery, autoLogRestDay } from "@/lib/restDay";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,8 @@ export const dynamic = "force-dynamic";
 const ok = (extra: Record<string, any> = {}) =>
   NextResponse.json({ ok: true, ...extra });
 
-// WHOOP calls this when a workout is created, edited or deleted. It sends only
+// WHOOP calls this when a workout is created, edited or deleted, and when a
+// new recovery is scored. It sends only
 // the workout's id, so we fetch the workout itself. WHOOP retries any non-2xx
 // five times over about an hour, so: 2xx for anything we deliberately ignore
 // (so it stops retrying), 5xx only for failures worth retrying. Every write is
@@ -48,12 +50,34 @@ export async function POST(req: Request) {
   const workoutId = String(evt?.id ?? "");
   const whoopUserId = Number(evt?.user_id);
 
-  // Sleep and recovery events also arrive here; Pod uses neither.
-  if (
-    (type !== "workout.updated" && type !== "workout.deleted") ||
-    !workoutId ||
-    !isFinite(whoopUserId)
-  ) {
+  if (!isFinite(whoopUserId)) return ok({ ignored: true });
+
+  // A new recovery: if the member turned on Recovery & sleep and today is in
+  // the red, their rest day is logged automatically. The score itself is read,
+  // compared and dropped.
+  if (type === "recovery.updated") {
+    try {
+      const userId = await findUserByWhoopId(svc, whoopUserId);
+      if (!userId) return ok({ ignored: "unknown member" });
+      const { data: prof } = await svc
+        .from("profiles")
+        .select("rest_days_on")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!prof?.rest_days_on) return ok({ ignored: "rest days off" });
+      const r = await whoopCall(buildDeps(svc, cfg), userId, "GET", "/v2/recovery?limit=1");
+      if (!r || r.status !== 200) return ok({ ignored: "no recovery" });
+      const latest = Array.isArray(r.json?.records) ? r.json.records[0] : null;
+      if (assessRecovery(latest) !== "red") return ok({ rest: false });
+      const res = await autoLogRestDay(svc, userId);
+      return ok({ rest: res.logged > 0 });
+    } catch {
+      return NextResponse.json({ error: "retry" }, { status: 500 });
+    }
+  }
+
+  // Sleep events also arrive here; Home reads sleep live, so nothing to do.
+  if ((type !== "workout.updated" && type !== "workout.deleted") || !workoutId) {
     return ok({ ignored: true });
   }
 

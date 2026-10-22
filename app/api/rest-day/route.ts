@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { whoopCall, whoopConfig } from "@/lib/whoop";
 import { buildDeps, getServiceClient } from "@/lib/whoopStore";
-import { assessRecovery, restExternalId, REST_DAYS_PER_WEEK } from "@/lib/restDay";
+import { assessRecovery, autoLogRestDay, REST_DAYS_PER_WEEK } from "@/lib/restDay";
 import { dayKeyInTz } from "@/lib/days";
-import { weekStartUtc } from "@/lib/week";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,56 +61,10 @@ export async function POST() {
   const check = assessRecovery(latest);
   if (check !== "red") return json(check);
 
-  // Red: log the rest day in every active pod where today doesn't already
-  // count and this week's rest days aren't used up.
-  const { data: mems } = await svc
-    .from("pod_members")
-    .select("pod_id, pods(timezone, week_starts_on)")
-    .eq("user_id", user.id)
-    .eq("status", "active");
-  const now = new Date();
-  let logged = 0;
-  let alreadyActive = 0;
-  let capped = 0;
-  for (const m of (mems ?? []) as any[]) {
-    const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
-    const tz = pod?.timezone ?? "America/Chicago";
-    const weekStart = weekStartUtc(tz, pod?.week_starts_on ?? 1, now);
-    const todayKey = dayKeyInTz(now, tz);
-    const { data: week } = await svc
-      .from("sessions")
-      .select("logged_at, rest_day")
-      .eq("pod_id", m.pod_id)
-      .eq("user_id", user.id)
-      .gte("logged_at", weekStart.toISOString());
-    const rows = (week ?? []) as any[];
-    const today = rows.filter((s) => dayKeyInTz(new Date(s.logged_at), tz) === todayKey);
-    if (today.length > 0) {
-      alreadyActive++; // an activity or a rest day already counts today
-      continue;
-    }
-    if (rows.filter((s) => s.rest_day).length >= REST_DAYS_PER_WEEK) {
-      capped++;
-      continue;
-    }
-    const { error } = await svc.from("sessions").upsert(
-      {
-        pod_id: m.pod_id,
-        user_id: user.id,
-        activity: "other",
-        activities: ["other"],
-        photo_url: null,
-        logged_at: now.toISOString(),
-        verified: false, // never counts toward stakes
-        voided: false,
-        source: "whoop",
-        external_id: restExternalId(todayKey),
-        rest_day: true,
-      },
-      { onConflict: "pod_id,user_id,external_id", ignoreDuplicates: true }
-    );
-    if (!error) logged++;
-  }
+  const r2 = await autoLogRestDay(svc, user.id);
+  const logged = r2.logged;
+  const capped = r2.capped;
+  const alreadyActive = r2.alreadyActive;
 
   if (logged > 0) return json("logged", { pods: logged });
   if (capped > 0 && alreadyActive === 0) return json("cap", { perWeek: REST_DAYS_PER_WEEK });

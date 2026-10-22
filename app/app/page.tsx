@@ -1,36 +1,60 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import Avatar from "@/components/Avatar";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { weekStartUtc, weekRangeLabel } from "@/lib/week";
+import { weekStartUtc, daysLeftInWeek } from "@/lib/week";
 import { computeStreaks } from "@/lib/streaks";
 import { dayKeyInTz, shortDate } from "@/lib/days";
-import { activityMeta, type ActivityKey } from "@/lib/activities";
+import { activityMeta } from "@/lib/activities";
+import { timeAgo } from "@/lib/timeago";
 import {
   parseGoal,
   goalProgress,
-  splitBreakdown,
-  goalHit,
   goalGateTarget,
   podNeedingGoal,
   type WeekSession,
-  goalLine,
 } from "@/lib/goals";
+import {
+  weekKeys,
+  weekLetters,
+  buildWeek,
+  weekRangeShort,
+  dateLabel,
+  monthName,
+  pct,
+} from "@/lib/homeModel";
+import { cleanSlots, nextNudgeLabel } from "@/lib/moveSlots";
+import { whoopConfig } from "@/lib/whoop";
+import { buildDeps, getServiceClient } from "@/lib/whoopStore";
+import { loadWhoopHealth } from "@/lib/whoopHealth";
+import { autoLogRestDay } from "@/lib/restDay";
+import { unitEmoji, unitPhrase } from "@/lib/meals";
 import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
-import { unitEmoji, unitPhrase } from "@/lib/meals";
 import PodSync from "@/components/PodSync";
 import InviteButton from "@/components/InviteButton";
 import NudgeButton from "@/components/NudgeButton";
 import NudgeBanner from "@/components/NudgeBanner";
-import RestDayCard from "@/components/RestDayCard";
 import ChallengeButton from "@/components/ChallengeButton";
-import ChallengeInbox, {
-  type IncomingChallenge,
-} from "@/components/ChallengeInbox";
-import PrCelebrations, {
-  type PrCelebration,
-} from "@/components/PrCelebrations";
+import ChallengeInbox, { type IncomingChallenge } from "@/components/ChallengeInbox";
+import PrCelebrations, { type PrCelebration } from "@/components/PrCelebrations";
+import TodayCard from "@/components/home/TodayCard";
+import PodCard from "@/components/home/PodCard";
+import YourTurnCard from "@/components/home/YourTurnCard";
+import HowItWorks from "@/components/home/HowItWorks";
+import RefreshOnce from "@/components/home/RefreshOnce";
+import { OpenLogButton } from "@/components/home/LogButton";
+import type {
+  MemberRow,
+  PodData,
+  TodayActivity,
+  TodayData,
+  WhoopState,
+  YourTurnData,
+} from "@/components/home/types";
+
+const QUIET_DAYS = 5;
+const SYNCED = new Set(["whoop", "healthkit"]);
 
 async function buildSection(supabase: any, pod: any, userId: string, now: Date) {
   const podId = pod.id as string;
@@ -45,43 +69,72 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     .eq("pod_id", podId)
     .neq("status", "left");
 
-  const weekStart = weekStartUtc(tz, wso);
+  // Who Pod paused after a quiet week. Its own query, so Home still loads
+  // before the migration that adds the column.
+  const autoPaused = new Set<string>();
+  {
+    const { data: ap, error } = await supabase
+      .from("pod_members")
+      .select("user_id, auto_paused_at")
+      .eq("pod_id", podId)
+      .not("auto_paused_at", "is", null);
+    if (!error) (ap ?? []).forEach((r: any) => autoPaused.add(r.user_id));
+  }
+
+  const weekStart = weekStartUtc(tz, wso, now);
   const podCreatedAt = pod.created_at
     ? new Date(pod.created_at)
-    : new Date(Date.now() - 26 * 7 * 86400000);
+    : new Date(now.getTime() - 26 * 7 * 86400000);
 
-  const { data: sessions } = await supabase
+  const { data: rawSessions } = await supabase
     .from("sessions")
-    .select("user_id, logged_at, activity, activities, rest_day")
+    .select("user_id, logged_at, activity, activities, rest_day, source, sport_label")
     .eq("pod_id", podId)
     .gte("logged_at", podCreatedAt.toISOString());
 
+  const joinedAtOf: Record<string, number> = {};
+  (members ?? []).forEach((m: any) => {
+    joinedAtOf[m.user_id] = m.joined_at
+      ? new Date(m.joined_at).getTime()
+      : podCreatedAt.getTime();
+  });
+  // Synced activities from before someone joined never belong to the pod
+  // (older versions imported a week of history on connect).
+  const sessions = ((rawSessions ?? []) as any[]).filter((s) => {
+    if (s.rest_day || !SYNCED.has(s.source)) return true;
+    const j = joinedAtOf[s.user_id];
+    return j === undefined || new Date(s.logged_at).getTime() >= j - 60000;
+  });
+
+  const todayKey = dayKeyInTz(now, tz);
+  const monthPrefix = todayKey.slice(0, 7);
+  const keys = weekKeys(tz, wso, now);
+  const letters = weekLetters(wso);
+
   const weekSess: Record<string, WeekSession[]> = {};
   const lastLogAt: Record<string, number> = {};
-  const monthPrefix = dayKeyInTz(now, tz).slice(0, 7);
+  const weekActive: Record<string, Set<string>> = {};
+  const weekRest: Record<string, Set<string>> = {};
   const monthDays: Record<string, Set<string>> = {};
-  const allDays: Record<string, Set<string>> = {};
-  const todayKey = dayKeyInTz(now, tz);
-  let meActiveToday = false;
-  let meRestedToday = false;
-  (sessions ?? []).forEach((s: any) => {
-    const t = new Date(s.logged_at).getTime();
-    if (s.user_id === userId && dayKeyInTz(new Date(s.logged_at), tz) === todayKey) {
-      meActiveToday = true;
-      if (s.rest_day) meRestedToday = true;
-    }
-    if (!lastLogAt[s.user_id] || t > lastLogAt[s.user_id])
-      lastLogAt[s.user_id] = t;
-    if (new Date(s.logged_at) >= weekStart)
+  const todayLogs: { userId: string; at: number; s: any }[] = [];
+
+  sessions.forEach((s: any) => {
+    const at = new Date(s.logged_at);
+    const t = at.getTime();
+    const k = dayKeyInTz(at, tz);
+    if (!lastLogAt[s.user_id] || t > lastLogAt[s.user_id]) lastLogAt[s.user_id] = t;
+    if (at >= weekStart) {
       (weekSess[s.user_id] ??= []).push({
         activity: s.activity ?? null,
         activities: s.activities ?? null,
         logged_at: s.logged_at,
         rest_day: s.rest_day ?? false,
       });
-    if (s.rest_day) return; // rest days count toward goals, not the activity tallies
-    const k = dayKeyInTz(new Date(s.logged_at), tz);
-    (allDays[s.user_id] ??= new Set()).add(k);
+      if (s.rest_day) (weekRest[s.user_id] ??= new Set()).add(k);
+      else (weekActive[s.user_id] ??= new Set()).add(k);
+    }
+    if (k === todayKey) todayLogs.push({ userId: s.user_id, at: t, s });
+    if (s.rest_day) return; // rest days count toward goals, not activity tallies
     if (k.startsWith(monthPrefix)) (monthDays[s.user_id] ??= new Set()).add(k);
   });
 
@@ -93,12 +146,12 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
         target: g.target,
         hasGoal: g.hasGoal,
         status: m.status,
-        joinedAt: m.joined_at ? new Date(m.joined_at) : podCreatedAt,
+        joinedAt: new Date(joinedAtOf[m.user_id]),
         mode: g.mode,
         splits: g.splits,
       };
     }),
-    sessions: (sessions ?? []).map((s: any) => ({
+    sessions: sessions.map((s: any) => ({
       userId: s.user_id,
       loggedAt: new Date(s.logged_at),
       activity: s.activity ?? null,
@@ -108,140 +161,241 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     tz,
     weekStartsOn: wso,
     podCreatedAt,
+    now,
   });
 
-  // Active stake for this pod — surfaced on Home so the money isn't buried in a
-  // settings menu (it's the thing people most need to keep an eye on).
+  // Active stake: a compact line under the pod card.
   const { data: stakeRow } = await supabase
     .from("pod_stakes")
     .select("*")
     .eq("pod_id", podId)
     .eq("status", "active")
     .maybeSingle();
-  let stake: {
-    amount: number;
-    weekNow: number;
-    weeks: number;
-    kind: "money" | "meal";
-    unit: string | null;
-  } | null = null;
+  let stake: { label: string; sub: string } | null = null;
   if (stakeRow) {
     const startMs = new Date(stakeRow.period_start as string).getTime();
     const weeks = (stakeRow.period_weeks as number) ?? 1;
     const elapsed = Math.floor((now.getTime() - startMs) / (7 * 86400000)) + 1;
-    stake = {
-      amount: Number(stakeRow.stake_amount ?? 0),
-      weekNow: Math.min(Math.max(elapsed, 1), weeks),
-      weeks,
-      // `select("*")` carries these only once the meal migration has been run.
-      kind: stakeRow.kind === "meal" ? "meal" : "money",
-      unit: (stakeRow.unit_label as string | null) ?? null,
-    };
+    const weekNow = Math.min(Math.max(elapsed, 1), weeks);
+    const label =
+      stakeRow.kind === "meal"
+        ? (() => {
+            const p = unitPhrase((stakeRow.unit_label as string | null) ?? null, 1);
+            return `${unitEmoji((stakeRow.unit_label as string | null) ?? null)} ${p.charAt(0).toUpperCase() + p.slice(1)} on the line`;
+          })()
+        : `💰 $${Number(stakeRow.stake_amount ?? 0)} on the line`;
+    stake = { label, sub: `Week ${weekNow} of ${weeks}` };
   }
 
-  const rows = (members ?? [])
-    .filter((m: any) => m.status === "active" || m.status === "paused")
-    .map((m: any) => {
+  const firstName = (n: string) => n.split(/\s+/)[0];
+
+  type Row = MemberRow & { eligible: boolean; activeToday: boolean };
+  const rows: Row[] = ((members ?? []) as any[])
+    .filter((m) => m.status === "active" || m.status === "paused")
+    .map((m) => {
       const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
       const goal = parseGoal(m);
-      const mine = weekSess[m.user_id] ?? [];
-      const { done, target, ratio } = goalProgress(goal, mine, tz);
-      const joinedAt = m.joined_at ? new Date(m.joined_at) : podCreatedAt;
-      // Joined after this week's Monday → weekly goal hasn't started yet.
-      const goalNotStarted =
-        goal.hasGoal && joinedAt.getTime() > weekStart.getTime();
+      const { done, target } = goalProgress(goal, weekSess[m.user_id] ?? [], tz);
+      const joined = joinedAtOf[m.user_id];
+      const isMe = m.user_id === userId;
+      const paused = m.status === "paused";
+      const startsMonday = goal.hasGoal && joined > weekStart.getTime();
+      const name = prof?.display_name ?? "Member";
+      const goalText =
+        goal.mode === "split"
+          ? goal.splits
+              .map((s) => `${activityMeta(s.activity).emoji} ${s.target}`)
+              .join("  ") + ` · ${target} days a week`
+          : `${target} active ${target === 1 ? "day" : "days"} a week`;
+      // You page treats sharing as on until someone turns it off; so does Home.
+      const shares = prof?.share_stats ?? true;
+      const pauseUntil =
+        m.pause_until && (m.pause_until as string).slice(0, 10) >= todayKey
+          ? shortDate(m.pause_until as string)
+          : null;
+      const auto = autoPaused.has(m.user_id);
       return {
         userId: m.user_id,
-        name: prof?.display_name ?? "Member",
+        name,
         initials: prof?.initials ?? "?",
         color: prof?.avatar_color ?? "#c8553d",
         avatarUrl: prof?.avatar_url ?? null,
-        activity: m.goal_activity as ActivityKey | null,
-        label: m.goal_label as string | null,
-        target,
-        detail: m.goal_detail as string | null,
-        done,
+        isMe,
+        goalText,
         hasGoal: goal.hasGoal,
-        ratio,
-        mode: goal.mode,
-        breakdown:
-          goal.mode === "split" ? splitBreakdown(goal, mine, tz) : [],
-        fire: monthDays[m.user_id]?.size ?? 0,
-        total: allDays[m.user_id]?.size ?? 0,
-        shareStats: prof?.share_stats ?? false,
-        paused: m.status === "paused",
-        pauseUntil:
-          m.pause_until &&
-          (m.pause_until as string).slice(0, 10) >= dayKeyInTz(now, tz)
-            ? shortDate(m.pause_until as string)
-            : null,
-        pauseOverdue:
-          !!m.pause_until &&
-          (m.pause_until as string).slice(0, 10) < dayKeyInTz(now, tz),
-        goalNotStarted,
-        isMe: m.user_id === userId,
-        // Days since their last log in this pod (from joining if never logged).
-        // Drives the quiet-member label and the self "pause?" prompt.
+        pct: pct(done, target),
+        done,
+        target,
+        week: buildWeek({
+          keys,
+          letters,
+          todayKey,
+          activeKeys: weekActive[m.user_id] ?? new Set(),
+          restKeys: weekRest[m.user_id] ?? new Set(),
+          joinedKey: dayKeyInTz(new Date(joined), tz),
+        }),
+        paused,
+        pausedText: paused
+          ? auto
+            ? isMe
+              ? "⏸ Paused after 7 quiet days. Log anything to come back"
+              : "⏸ Paused after a quiet week"
+            : `⏸ Paused${pauseUntil ? ` · back ~${pauseUntil}` : " this week"}`
+          : undefined,
+        autoPaused: auto,
         quietDays: Math.floor(
-          (now.getTime() -
-            (lastLogAt[m.user_id] ?? joinedAt.getTime())) /
-            86400000
+          (now.getTime() - (lastLogAt[m.user_id] ?? joined)) / 86400000
         ),
-      };
+        startsMonday,
+        restToday: (weekRest[m.user_id] ?? new Set()).has(todayKey),
+        monthActive: isMe || shares ? monthDays[m.user_id]?.size ?? 0 : null,
+        canNudge: false,
+        eligible: goal.hasGoal && !paused && !startsMonday,
+        activeToday: (weekActive[m.user_id] ?? new Set()).has(todayKey),
+        _first: firstName(name),
+      } as Row & { _first: string };
     })
-    .sort((a: any, b: any) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
+    .sort((a, b) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
 
-  const goalRows = rows.filter(
-    (r: any) => r.hasGoal && !r.paused && !r.goalNotStarted
-  );
-  const podPct = goalRows.length
+  rows.forEach((r) => {
+    r.canNudge =
+      !r.isMe && r.hasGoal && !r.paused && r.done < r.target && !r.activeToday && !r.restToday;
+  });
+
+  // The pod's number counts members whose week started with them. A brand-new
+  // pod (everyone joined mid-week) gets a warm-up week that counts everyone.
+  const eligible = rows.filter((r) => r.eligible);
+  const counted = eligible.length
+    ? eligible
+    : rows.filter((r) => r.hasGoal && !r.paused);
+  const podPct = counted.length
     ? Math.round(
-        (goalRows.reduce((acc: number, r: any) => acc + r.ratio, 0) /
-          goalRows.length) *
+        (counted.reduce((a, r) => a + Math.min(r.done / (r.target || 1), 1), 0) /
+          counted.length) *
           100
       )
     : 0;
-  const totalRemaining = goalRows.reduce(
-    (acc: number, r: any) => acc + Math.max(r.target - r.done, 0),
-    0
-  );
-  // A "Pod Perfect week" = every member hit their own goal. The count is active
-  // days still needed, summed across the pod, so more than 7 is normal.
-  const remainingLabel =
-    totalRemaining === 0
-      ? "Pod Perfect week — everyone showed up 🎉"
-      : `${totalRemaining} active ${
-          totalRemaining === 1 ? "day" : "days"
-        } from a Pod Perfect week.`;
+  const remaining = counted.reduce((a, r) => a + Math.max(r.target - r.done, 0), 0);
+  const hasEligible = eligible.length > 0;
+  // Only call out mid-week joiners when others are already counting.
+  if (!hasEligible) rows.forEach((r) => (r.startsMonday = false));
 
-  // The current user's own goal status in this pod, for the momentum banner:
-  // did I hit my goal this week yet, and did I hit it last week?
-  const meMember = (members ?? []).find((m: any) => m.user_id === userId);
-  const myGoal = meMember ? parseGoal(meMember) : null;
-  let meHasGoal = false;
-  let meHitThisWeek = false;
-  let meHitLastWeek = false;
-  if (myGoal?.hasGoal) {
-    meHasGoal = true;
-    meHitThisWeek = goalHit(myGoal, weekSess[userId] ?? [], tz);
-    const lastWeekStart = new Date(weekStart.getTime() - 7 * 86400000);
-    const lastWeekMine = (sessions ?? [])
-      .filter(
-        (s: any) =>
-          s.user_id === userId &&
-          new Date(s.logged_at) >= lastWeekStart &&
-          new Date(s.logged_at) < weekStart
-      )
-      .map((s: any) => ({
-        activity: s.activity ?? null,
-        activities: s.activities ?? null,
-        logged_at: s.logged_at,
-        rest_day: s.rest_day ?? false,
-      }));
-    meHitLastWeek = goalHit(myGoal, lastWeekMine, tz);
+  const podData: PodData = {
+    id: podId,
+    name: pod.name,
+    weekRange: weekRangeShort(tz, wso, now),
+    inviteCode: pod.invite_code,
+    photoProof: false,
+    pct: podPct,
+    remaining,
+    perfect: counted.length > 0 && remaining === 0,
+    streak: podStreak,
+    hasGoalRows: hasEligible,
+    goalsSet: rows.filter((r) => r.hasGoal).length,
+    members: rows,
+  };
+
+  const me = rows.find((r) => r.isMe) ?? null;
+  const meCounted = !!me && counted.some((r) => r.userId === me.userId);
+  const othersCounted = counted.filter((r) => !r.isMe);
+  const lastOne =
+    meCounted &&
+    !!me &&
+    me.done < me.target &&
+    othersCounted.length > 0 &&
+    othersCounted.every((r) => r.done >= r.target);
+
+  // Pod-mates who showed up today, newest first, one line each.
+  const nameById: Record<string, string> = {};
+  rows.forEach((r: any) => (nameById[r.userId] = r._first));
+  const seen = new Set<string>();
+  const othersToday: TodayActivity[] = todayLogs
+    .filter((l) => l.userId !== userId && !l.s.rest_day && nameById[l.userId])
+    .sort((a, b) => b.at - a.at)
+    .filter((l) => (seen.has(l.userId) ? false : (seen.add(l.userId), true)))
+    .map((l) => {
+      const key = (l.s.activities && l.s.activities[0]) || l.s.activity;
+      const meta = activityMeta(key);
+      return {
+        name: nameById[l.userId],
+        label: (l.s.sport_label as string | null) ?? meta.label.toLowerCase(),
+        emoji: meta.emoji,
+        ago: timeAgo(new Date(l.at), now),
+      };
+    });
+
+  return {
+    pod,
+    tz,
+    wso,
+    podData,
+    me,
+    stake,
+    lastOne,
+    remaining,
+    othersToday,
+    myMonthKeys: monthDays[userId] ?? new Set<string>(),
+    myWeekActive: weekActive[userId] ?? new Set<string>(),
+    myWeekRest: weekRest[userId] ?? new Set<string>(),
+    myJoinedKey: dayKeyInTz(new Date(joinedAtOf[userId] ?? podCreatedAt.getTime()), tz),
+    keys,
+    letters,
+    todayKey,
+  };
+}
+
+type Section = Awaited<ReturnType<typeof buildSection>>;
+
+// Recovery and sleep load after the rest of Home, so a slow WHOOP response
+// never holds up the screen. On a red-recovery day this also logs the rest day
+// if WHOOP's notification hasn't already.
+async function TodayWithWhoop({ base, userId }: { base: TodayData; userId: string }) {
+  const svc = getServiceClient();
+  const cfg = whoopConfig();
+  if (!svc || !cfg) return <TodayCard data={{ ...base, whoop: "none" }} />;
+  const { data: conn } = await svc
+    .from("whoop_connections")
+    .select("scopes")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!conn) return <TodayCard data={{ ...base, whoop: "reconnect" }} />;
+
+  let health;
+  try {
+    health = await loadWhoopHealth(buildDeps(svc, cfg), userId, String(conn.scopes ?? ""));
+  } catch {
+    return <TodayCard data={base} />;
   }
 
-  return { pod, rows, goalRows, goalsSet: rows.filter((r: any) => r.hasGoal).length, podPct, totalRemaining, remainingLabel, podStreak, weekRange: weekRangeLabel(tz, wso), meHasGoal, meHitThisWeek, meHitLastWeek, stake, meActiveToday, meRestedToday };
+  let restToday = base.restToday;
+  let logged = false;
+  if (health.recoveryCheck === "red" && !base.activeToday && !base.restToday) {
+    try {
+      const r = await autoLogRestDay(svc, userId);
+      logged = r.logged > 0;
+      restToday = restToday || logged;
+    } catch {
+      /* the webhook or the next visit will catch it */
+    }
+  }
+
+  const data: TodayData = {
+    ...base,
+    whoop: health.needsReconnect ? "reconnect" : "on",
+    recovery: health.recovery,
+    sleep: health.sleep,
+    sleepNeedsReconnect: health.sleepNeedsReconnect,
+    restToday,
+    week: logged
+      ? base.week.map((d) => (d.isToday ? { ...d, state: "rest" as const } : d))
+      : base.week,
+  };
+  return (
+    <>
+      {logged && <RefreshOnce />}
+      <TodayCard data={data} />
+    </>
+  );
 }
 
 export default async function Home({
@@ -277,10 +431,9 @@ export default async function Home({
 
   if (!memberships || memberships.length === 0) redirect("/app/start");
 
-  // A weekly goal is required. If a pod still lacks yours, set it before
-  // anything else (first-time members get it from the welcome walk-through).
+  const onboarded = !!(myProfile as any)?.onboarded_at;
   const goalPod = goalGateTarget(memberships as any[], {
-    onboarded: !!(myProfile as any)?.onboarded_at,
+    onboarded,
     replayingTour: searchParams.tour === "1",
   });
   if (goalPod) redirect(`/app/goal?pod=${goalPod}&onboarding=1`);
@@ -291,12 +444,18 @@ export default async function Home({
     .filter(Boolean);
 
   const now = new Date();
-  const sections = await Promise.all(
+  const built: Section[] = await Promise.all(
     podsList.map((pod: any) => buildSection(supabase, pod, user.id, now))
   );
+  // The pod in the URL first, then the rest.
+  const focusIdx = Math.max(
+    0,
+    built.findIndex((s) => s.pod.id === searchParams.pod)
+  );
+  const sections = [built[focusIdx], ...built.filter((_, i) => i !== focusIdx)];
+  const focus = sections[0];
 
-  // Which pods require a live photo with every workout. A separate query so a
-  // missing migration can't break Home.
+  // Photo-proof pods (separate query so a missing migration can't break Home).
   const { data: proofRows } = await supabase
     .from("pods")
     .select("id, proof_mode")
@@ -304,69 +463,112 @@ export default async function Home({
       "id",
       podsList.map((p: any) => p.id)
     );
-  const proofByPod: Record<string, boolean> = {};
   (proofRows ?? []).forEach((r: any) => {
-    if (r.proof_mode === "photo") proofByPod[r.id] = true;
+    const s = sections.find((x) => x.pod.id === r.id);
+    if (s && r.proof_mode === "photo") s.podData.photoProof = true;
   });
 
-  // Momentum banner: shown until I've hit my goal somewhere this week. If I
-  // hit it last week, celebrate the momentum; if not, offer a clean-slate nudge.
-  const meHasGoalAny = sections.some((s: any) => s.meHasGoal);
-  const meHitThisWeekAny = sections.some((s: any) => s.meHitThisWeek);
-  const meHitLastWeekAny = sections.some((s: any) => s.meHitLastWeek);
-  const showMomentum = meHasGoalAny && !meHitThisWeekAny;
-
-  // Rest days (opt-in, WHOOP recovery). Its own query so Home still loads
-  // before the migration. Offered until today counts somewhere.
+  // Optional profile bits, each in its own query so Home loads before the
+  // matching migration has been run.
   const { data: restRow } = await supabase
     .from("profiles")
     .select("rest_days_on")
     .eq("id", user.id)
     .maybeSingle();
-  const restOn = !!(restRow as any)?.rest_days_on;
-  const restedToday = sections.some((s: any) => s.meRestedToday);
-  const activeTodayAny = sections.some((s: any) => s.meActiveToday);
-  const showRestCard = restOn && (restedToday || !activeTodayAny);
-  const momentum = meHitLastWeekAny
-    ? {
-        text: "Strong week behind you — keep the momentum going.",
-        icon: "🔥",
-        tone: "sage" as const,
-      }
-    : {
-        text: "New week, fresh start. It's never too late to show up.",
-        icon: "🌱",
-        tone: "terra" as const,
-      };
+  const { data: whoopRow } = await supabase
+    .from("profiles")
+    .select("whoop_connected_at, whoop_status")
+    .eq("id", user.id)
+    .maybeSingle();
+  const { data: slotRow } = await supabase
+    .from("profiles")
+    .select("move_slots, timezone")
+    .eq("id", user.id)
+    .maybeSingle();
 
-  // Header greeting (uses the first pod's timezone)
-  const tz = podsList[0]?.timezone ?? "America/Chicago";
-  const weekday = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    weekday: "long",
-  }).format(now);
+  const restOn = !!(restRow as any)?.rest_days_on;
+  const whoopConnected = !!(whoopRow as any)?.whoop_connected_at;
+  const whoopState: WhoopState = !whoopConnected || !whoopConfig()
+    ? "none"
+    : (whoopRow as any)?.whoop_status === "needs_reconnect"
+      ? "reconnect"
+      : restOn
+        ? "on"
+        : "connected_off";
+
+  const slots = cleanSlots((slotRow as any)?.move_slots);
+  const myTz = ((slotRow as any)?.timezone as string | null) || focus.tz;
+  let nextNudge: string | null = null;
+  try {
+    nextNudge = slots.length ? nextNudgeLabel(slots, myTz, now) : null;
+  } catch {
+    nextNudge = null;
+  }
+
+  // ---- Today (yours) ----
+  const me = focus.me;
+  const myActiveWeek = new Set<string>();
+  const myRestWeek = new Set<string>();
+  const myMonth = new Set<string>();
+  sections.forEach((s) => {
+    s.myWeekActive.forEach((k) => myActiveWeek.add(k));
+    s.myWeekRest.forEach((k) => myRestWeek.add(k));
+    s.myMonthKeys.forEach((k) => myMonth.add(k));
+  });
+  const activeToday = myActiveWeek.has(focus.todayKey);
+  const restToday = myRestWeek.has(focus.todayKey) && !activeToday;
+  const baseToday: TodayData = {
+    dateLabel: dateLabel(focus.tz, now),
+    my: {
+      pct: me?.pct ?? 0,
+      done: me?.done ?? 0,
+      target: me?.target ?? 0,
+      hasGoal: !!me?.hasGoal,
+    },
+    whoop: whoopState,
+    recovery: null,
+    sleep: null,
+    restToday,
+    activeToday,
+    daysLeft: daysLeftInWeek(focus.tz, focus.wso, now),
+    nextNudge,
+    week: buildWeek({
+      keys: focus.keys,
+      letters: focus.letters,
+      todayKey: focus.todayKey,
+      activeKeys: myActiveWeek,
+      restKeys: myRestWeek,
+      joinedKey: focus.myJoinedKey,
+    }),
+    monthLabel: monthName(focus.tz, now),
+    monthActive: myMonth.size,
+  };
+
+  const yourTurn: YourTurnData = {
+    podId: focus.pod.id,
+    podName: focus.pod.name,
+    others: focus.othersToday,
+    meActive: activeToday,
+    meRested: restToday,
+    lastOne: focus.lastOne,
+    remainingForPerfect: focus.remaining,
+    nextNudge,
+    hasMoveTimes: slots.length > 0,
+  };
+
+  // ---- Header ----
   const hour = Number(
     new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
+      timeZone: focus.tz,
       hour: "numeric",
-      hour12: false,
+      hourCycle: "h23",
     }).format(now)
   );
   const greeting =
-    hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : hour < 22 ? "Evening" : "Hey";
+    hour < 5 ? "Hey" : hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : hour < 22 ? "Evening" : "Hey";
   const firstName = (myProfile?.display_name ?? "there").split(/\s+/)[0];
-  const DAY_TWIST: Record<string, string> = {
-    Monday: "Make it count",
-    Tuesday: "Keep it rolling",
-    Wednesday: "Halfway strong",
-    Thursday: "Earn the weekend",
-    Friday: "Finish strong",
-    Saturday: "Show up for you",
-    Sunday: "Close it out",
-  };
-  const twist = DAY_TWIST[weekday] ?? "Let's move";
 
-  // Unseen nudges for me
+  // ---- Nudges, challenges, PRs (unchanged) ----
   const { data: rawNudges } = await supabase
     .from("nudges")
     .select("id, from_user")
@@ -374,9 +576,7 @@ export default async function Home({
     .eq("seen", false)
     .order("created_at", { ascending: false })
     .limit(20);
-  const fromIds = Array.from(
-    new Set((rawNudges ?? []).map((n: any) => n.from_user))
-  );
+  const fromIds = Array.from(new Set((rawNudges ?? []).map((n: any) => n.from_user)));
   const nameMap: Record<string, string> = {};
   if (fromIds.length) {
     const { data: profs } = await supabase
@@ -390,13 +590,6 @@ export default async function Home({
     fromName: nameMap[n.from_user] ?? "Someone",
   }));
 
-  // Challenges sent to me that are still open (due today or later).
-  const todayTz = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
   const podNameById: Record<string, string> = {};
   podsList.forEach((p: any) => (podNameById[p.id] = p.name));
   const { data: rawCh } = await supabase
@@ -404,15 +597,13 @@ export default async function Home({
     .select("id, from_user, title, link, note, pod_id, due_date")
     .eq("to_user", user.id)
     .eq("status", "active")
-    .gte("due_date", todayTz)
+    .gte("due_date", focus.todayKey)
     .in(
       "pod_id",
       podsList.map((p: any) => p.id)
     )
     .order("created_at", { ascending: false });
-  const challengeFromIds = Array.from(
-    new Set((rawCh ?? []).map((c: any) => c.from_user))
-  );
+  const challengeFromIds = Array.from(new Set((rawCh ?? []).map((c: any) => c.from_user)));
   const chNameMap: Record<string, string> = {};
   if (challengeFromIds.length) {
     const { data: cprofs } = await supabase
@@ -431,8 +622,7 @@ export default async function Home({
     podName: podNameById[c.pod_id] ?? "your pod",
   }));
 
-  // Recent PR milestones from pod-mates (last ~36h, not mine) — a gentle cheer.
-  const prSince = new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString();
+  const prSince = new Date(now.getTime() - 36 * 60 * 60 * 1000).toISOString();
   const { data: rawPrs } = await supabase
     .from("pod_pr_events")
     .select("id, user_id, pb_name, pod_id, created_at")
@@ -444,9 +634,7 @@ export default async function Home({
     .gte("created_at", prSince)
     .order("created_at", { ascending: false })
     .limit(10);
-  const prUserIds = Array.from(
-    new Set((rawPrs ?? []).map((e: any) => e.user_id))
-  );
+  const prUserIds = Array.from(new Set((rawPrs ?? []).map((e: any) => e.user_id)));
   const prNameMap: Record<string, string> = {};
   if (prUserIds.length) {
     const { data: pprofs } = await supabase
@@ -462,80 +650,70 @@ export default async function Home({
     podName: podNameById[e.pod_id] ?? "your pod",
   }));
 
-  const navPodId = podsList[0].id as string;
-
-  const welcomePod =
-    sections.find((s: any) => s.pod.id === searchParams.pod) ?? sections[0];
-  const welcomeLone = !!welcomePod && welcomePod.rows.length <= 1;
-
-  // ---- Absence, across pods ----
-  // Quiet everywhere → say it ONCE at the top. Quiet in only some pods → say it
-  // inside those pods, worded against the ones you HAVE been logging in (a
-  // generic "you've been away" would be plainly false for the active pod).
-  const QUIET_DAYS = 5;
-  const myPodStates = sections
-    .map((s: any) => {
-      const me = s.rows.find((r: any) => r.isMe);
-      return me
-        ? {
-            podId: s.pod.id,
-            podName: s.pod.name,
-            quietDays: me.quietDays as number,
-            paused: !!me.paused,
-          }
-        : null;
-    })
-    .filter(Boolean)
-    .filter((x: any) => !x.paused) as {
-    podId: string;
-    podName: string;
-    quietDays: number;
-    paused: boolean;
-  }[];
-  const quietPods = myPodStates.filter((p) => p.quietDays >= QUIET_DAYS);
-  const activePods = myPodStates.filter((p) => p.quietDays < QUIET_DAYS);
-  const quietEverywhere = quietPods.length > 0 && activePods.length === 0;
+  // ---- Quiet in every pod: one message at the top ----
+  const myStates = sections
+    .map((s) => (s.me && !s.me.paused ? { podId: s.pod.id, podName: s.pod.name, quietDays: s.me.quietDays } : null))
+    .filter(Boolean) as { podId: string; podName: string; quietDays: number }[];
+  const quietPods = myStates.filter((p) => p.quietDays >= QUIET_DAYS);
+  const quietEverywhere = quietPods.length > 0 && quietPods.length === myStates.length;
   const maxQuiet = quietPods.reduce((m, p) => Math.max(m, p.quietDays), 0);
-  const activeNames = activePods.map((p) => p.podName).join(" and ");
+
+  const welcomeSection =
+    sections.find((s) => s.pod.id === searchParams.pod) ?? focus;
+  const welcomeLone = welcomeSection.podData.members.length <= 1;
+
+  // Pod-mates to show in the welcome, so a new member sees their real pod.
+  const mates = focus.podData.members
+    .filter((m) => !m.isMe)
+    .slice(0, 3)
+    .map((m) => ({ name: m.name.split(/\s+/)[0], initials: m.initials, color: m.color }));
 
   return (
     <>
       <main className="px-5 pb-28 pt-8">
-        {/* First run (or replayed from Settings) — explain what Pod is before
-            anything else on the screen has to make sense on its own. */}
         <Onboarding
           userId={user.id}
-          pods={sections.map((s: any) => ({
-            id: s.pod.id as string,
-            name: s.pod.name as string,
-          }))}
-          open={!(myProfile as any)?.onboarded_at || searchParams.tour === "1"}
+          pods={sections.map((s) => ({ id: s.pod.id as string, name: s.pod.name as string }))}
+          podName={focus.pod.name}
+          mates={mates}
+          needsGoal={!allHaveGoals}
+          hasMoveTimes={slots.length > 0}
+          open={!onboarded || searchParams.tour === "1"}
           canSkip={allHaveGoals}
         />
 
-        {/* Header */}
-        <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-muted">
-          {weekday} · {twist}
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="min-w-0 truncate font-serif text-[28px] font-semibold leading-tight text-ink">
+            {greeting}, {firstName}
+          </h1>
+          <HowItWorks />
         </div>
-        <h1 className="font-serif text-[27px] font-semibold leading-tight text-ink">
-          {greeting}, {firstName}
-        </h1>
 
         <NudgeBanner nudges={nudgeList} userId={user.id} />
-
         <ChallengeInbox challenges={incomingChallenges} userId={user.id} />
-
         <PrCelebrations events={prEvents} />
 
-        {/* Away from all your pods — one message, not one per pod. */}
+        {searchParams.welcome === "1" && onboarded && (
+          <div className="mt-4 rounded-2xl border border-terra/30 bg-terra/[0.08] p-4">
+            <div className="text-[16px] font-semibold text-ink">
+              Welcome to {welcomeSection.pod.name} 🎉
+            </div>
+            <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
+              Your active days count from today. Tap + to log your first one.
+              {welcomeLone ? " It's just you so far, so use Invite to bring your people in." : ""}
+            </p>
+          </div>
+        )}
+
         {quietEverywhere && (
           <div className="mt-4 rounded-2xl border border-gold/45 bg-gold/[0.08] p-4">
             <div className="text-[16px] font-semibold text-ink">
-              {maxQuiet} days since your last workout
+              {maxQuiet} days since your last activity
             </div>
             <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
-              Travel, work, life — it happens. Pause a week and it won't count
-              against you. Or log one today and you're right back in.
+              Life happens. Log anything today and you're right back in, or pause
+              the week so it doesn't count against you. After 7 quiet days Pod
+              pauses you automatically.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {quietPods.map((p) => (
@@ -551,429 +729,92 @@ export default async function Home({
           </div>
         )}
 
-        {showRestCard && <RestDayCard restedToday={restedToday} />}
-
-        {showMomentum && (
-          <div
-            className={`mt-4 flex items-center gap-3 rounded-2xl border p-4 ${
-              momentum.tone === "sage"
-                ? "border-sage/30 bg-sage/[0.08]"
-                : "border-terra/30 bg-terra/[0.08]"
-            }`}
-          >
-            <span className="text-[22px] leading-none">{momentum.icon}</span>
-            <p className="text-[14px] font-medium leading-snug text-ink">
-              {momentum.text}
-            </p>
-          </div>
+        {whoopState === "on" ? (
+          <Suspense fallback={<TodayCard data={baseToday} loadingWhoop />}>
+            <TodayWithWhoop base={baseToday} userId={user.id} />
+          </Suspense>
+        ) : (
+          <TodayCard data={baseToday} />
         )}
 
-        {searchParams.welcome === "1" && (
-          <div className="mt-4 rounded-2xl border border-terra/30 bg-terra/[0.08] p-4">
-            <div className="text-[16px] font-semibold text-ink">
-              You're all set 🎉
-            </div>
-            <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
-              Welcome to{" "}
-              {sections.find((s: any) => s.pod.id === searchParams.pod)?.pod
-                .name ?? "your pod"}
-              . Tap the + below to log your first session — that's all it takes
-              to show up for your pod.
-              {welcomeLone
-                ? " It's just you so far — use Invite to bring your people in."
-                : ""}
-            </p>
-          </div>
+        {me && !me.paused && (
+          <YourTurnCard data={yourTurn} cta={<OpenLogButton />} />
         )}
 
-        {sections.map((sec: any) => {
-          const me = sec.rows.find((r: any) => r.isMe);
-          return (
-            <div key={sec.pod.id} className="mt-7">
-              {/* Pod label */}
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
-                  {sec.pod.name}
-                  {proofByPod[sec.pod.id] && (
-                    <span className="ml-2 rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-semibold normal-case tracking-normal text-ink-soft">
-                      📸 photo proof
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
+        {sections.map((sec) => (
+          <div key={sec.pod.id}>
+            <PodCard
+              pod={sec.podData}
+              headerActions={
+                <>
                   <Link
                     href={`/app/pod-settings?pod=${sec.pod.id}`}
                     aria-label="Manage pod"
                     className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-card text-ink-soft transition active:scale-95"
                   >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="3" />
                       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                     </svg>
                   </Link>
-                  <InviteButton
-                    code={sec.pod.invite_code}
-                    podName={sec.pod.name}
-                  />
-                </div>
-              </div>
-
-              {/* Set-your-goal prompt */}
-              {me && !me.hasGoal && (
-                <Link
-                  href={`/app/goal?pod=${sec.pod.id}`}
-                  className="mt-3 block rounded-2xl border border-terra bg-terra/[0.06] p-4"
-                >
-                  <div className="text-[15px] font-semibold text-ink">
-                    Set your weekly goal →
-                  </div>
-                  <div className="mt-0.5 text-[13px] text-muted">
-                    Pick how many days you'll show up. Until you do, you're not
-                    in the count.
-                  </div>
-                </Link>
-              )}
-
-              {/* Consistency card */}
-              <div className="mt-3 rounded-3xl bg-ink p-6 text-paper shadow-pod-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-sage-soft">
-                      Your pod · this week
-                    </div>
-                    <div className="mt-0.5 text-[12px] text-sage-soft/80">
-                      {sec.weekRange}
-                    </div>
-                  </div>
-                  {sec.podStreak > 0 ? (
-                    <div className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-semibold text-paper">
-                      🔥 {sec.podStreak}-week pod streak
-                    </div>
-                  ) : (
-                    <div className="text-[12px] text-sage-soft">
-                      {sec.goalsSet} of {sec.rows.length} have goals set
-                    </div>
-                  )}
-                </div>
-
-                {sec.goalRows.length > 0 ? (
+                  <InviteButton code={sec.pod.invite_code} podName={sec.pod.name} />
+                </>
+              }
+              renderActions={(m) =>
+                m.canNudge ? (
                   <>
-                    {sec.podPct > 0 ? (
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="font-serif text-[52px] font-semibold leading-none text-paper">
-                          {sec.podPct}%
-                        </span>
-                        <span className="text-[15px] text-sage-soft">
-                          of the pod's goals hit
-                        </span>
-                      </div>
-                    ) : (
-                      // Nobody's logged yet. A big "0%" reads like failure before
-                      // the week has even started — show what's ahead instead.
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="font-serif text-[52px] font-semibold leading-none text-paper">
-                          {sec.totalRemaining}
-                        </span>
-                        <span className="text-[15px] text-sage-soft">
-                          active {sec.totalRemaining === 1 ? "day" : "days"} from
-                          a Pod Perfect week
-                        </span>
-                      </div>
-                    )}
-                    <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/12">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-[#4ADE80] to-[#60A5FA]"
-                        style={{ width: `${sec.podPct}%` }}
-                      />
-                    </div>
-                    <div className="mt-3 text-[15px] font-semibold text-gold">
-                      {sec.podPct > 0
-                        ? sec.remainingLabel
-                        : "The week's wide open — first log sets the tone."}
-                    </div>
-                    <p className="mt-3 text-[15px] leading-relaxed text-sage-soft">
-                      It's not about who does the most. The pod rises when
-                      everyone shows up to their own goal.
-                    </p>
+                    <ChallengeButton
+                      podId={sec.pod.id}
+                      fromUserId={user.id}
+                      toUserId={m.userId}
+                      toName={m.name}
+                    />
+                    <NudgeButton
+                      podId={sec.pod.id}
+                      fromUserId={user.id}
+                      toUserId={m.userId}
+                      fromName={myProfile?.display_name ?? "Someone"}
+                    />
                   </>
-                ) : sec.goalsSet > 0 ? (
-                  <p className="mt-3 text-[15px] leading-relaxed text-sage-soft">
-                    Goals are set 🌱 Your pod's week kicks off Monday — tracking
-                    starts then.
-                  </p>
-                ) : (
-                  <p className="mt-3 text-[15px] leading-relaxed text-sage-soft">
-                    Once people set their weekly goals, you'll see how the pod is
-                    tracking together here.
-                  </p>
-                )}
-              </div>
-
-              {/* Quiet in THIS pod while logging in another — the one case a
-                  pod-specific message is truer than a blanket one. */}
-              {(() => {
-                const mine = sec.rows.find((r: any) => r.isMe);
-                if (!mine || mine.paused || mine.quietDays < QUIET_DAYS)
-                  return null;
-                if (quietEverywhere) return null; // already said at the top
-                return (
-                  <div className="mt-3 rounded-2xl border border-gold/45 bg-gold/[0.08] p-4">
-                    <div className="text-[15px] font-semibold text-ink">
-                      Nothing logged here in {mine.quietDays} days
-                    </div>
-                    <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
-                      {activeNames
-                        ? `You've been showing up in ${activeNames} — this pod just hasn't seen it. Log here too, or pause the week.`
-                        : "Log one to pick things back up, or pause the week if you're away."}
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Link
-                        href={`/app/pod-settings?pod=${sec.pod.id}`}
-                        className="rounded-full border border-line bg-card px-3.5 py-2 text-[14px] font-semibold text-ink-soft active:scale-95"
-                      >
-                        ⏸ Pause my week
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Stakes — visible on Home, not buried in the gear menu. */}
-              <Link
-                href={`/app/stakes?pod=${sec.pod.id}`}
-                className={`mt-3 flex items-center justify-between rounded-2xl border p-4 active:scale-[0.99] ${
-                  sec.stake
-                    ? "border-gold/50 bg-gold/[0.08]"
-                    : "border-line bg-card"
-                }`}
-              >
-                <div className="min-w-0">
-                  <div className="text-[15px] font-semibold text-ink">
-                    {sec.stake
-                      ? sec.stake.kind === "meal"
-                        ? `${unitEmoji(sec.stake.unit)} ${(() => {
-                            const p = unitPhrase(sec.stake.unit, 1);
-                            return p.charAt(0).toUpperCase() + p.slice(1);
-                          })()} on the line`
-                        : `💰 $${sec.stake.amount} on the line`
-                      : "🎯 Add stakes"}
-                  </div>
-                  <div className="mt-0.5 text-[13px] text-muted">
-                    {sec.stake
-                      ? `Week ${sec.stake.weekNow} of ${sec.stake.weeks} · see standings`
-                      : "Put cash or a meal on the week — miss your goal, you owe the pod."}
-                  </div>
-                </div>
-                <span className="ml-3 shrink-0 text-[18px] text-muted" aria-hidden>
-                  ›
-                </span>
-              </Link>
-
-              {/* Member rows */}
-              <div className="mt-3 flex flex-col gap-2.5">
-                {sec.rows.map((r: any) => {
-                  const meta = activityMeta(r.activity);
-                  const behind =
-                    !r.isMe &&
-                    r.hasGoal &&
-                    !r.paused &&
-                    !r.goalNotStarted &&
-                    r.done < r.target;
-                  return (
-                    <div
-                      key={r.userId}
-                      className="rounded-2xl border border-line bg-card p-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          url={r.avatarUrl}
-                          initials={r.initials}
-                          color={r.color}
-                          size={44}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate text-[16px] font-semibold text-ink">
-                              {r.name}
-                            </span>
-                            {r.shareStats && r.total > 0 && (
-                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-paper-2 px-2 py-0.5 text-[12px] font-semibold text-terra">
-                                🔥 {r.total} {r.total === 1 ? "day" : "days"}
-                              </span>
-                            )}
-                            {r.isMe && (
-                              <span className="rounded-full bg-paper-2 px-2 py-0.5 text-[12px] font-semibold text-muted">
-                                you
-                              </span>
-                            )}
-                            {!r.paused && !r.isMe && r.quietDays >= 5 && (
-                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-paper-2 px-2 py-0.5 text-[12px] font-semibold text-muted">
-                                💤 quiet {r.quietDays}d
-                              </span>
-                            )}
-                          </div>
-                          {r.paused ? (
-                            r.isMe ? (
-                              <Link
-                                href={`/app/pod-settings?pod=${sec.pod.id}`}
-                                className="mt-0.5 inline-flex items-center gap-1 text-[15px] font-semibold text-terra"
-                              >
-                                <span>
-                                  ⏸ Paused
-                                  {r.pauseUntil
-                                    ? ` · back ~${r.pauseUntil}`
-                                    : ""}{" "}
-                                  · Resume
-                                </span>
-                                <span aria-hidden>›</span>
-                              </Link>
-                            ) : (
-                              <div className="mt-0.5 text-[15px] font-medium text-muted">
-                                ⏸ Paused
-                                {r.pauseUntil
-                                  ? ` · back ~${r.pauseUntil}`
-                                  : r.pauseOverdue
-                                    ? " · ready to resume"
-                                    : " this week"}
-                              </div>
-                            )
-                          ) : r.goalNotStarted ? (
-                            <div className="mt-0.5 text-[15px] text-muted">
-                              🌱 Goal starts Monday
-                            </div>
-                          ) : r.hasGoal ? (
-                            r.mode === "split" ? (
-                              <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[15px] text-muted">
-                                {r.breakdown.map((b: any) => {
-                                  const bm = activityMeta(b.activity);
-                                  const met = b.done >= b.target;
-                                  return (
-                                    <span
-                                      key={b.activity}
-                                      className={met ? "text-sage" : ""}
-                                    >
-                                      {bm.emoji} {b.done}/{b.target}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <div className="mt-0.5 text-[15px] text-muted">
-                                {goalLine({
-                                  emoji: meta.emoji,
-                                  label: r.label,
-                                  activity: r.activity,
-                                  target: r.target,
-                                  detail: r.detail,
-                                })}
-                              </div>
-                            )
-                          ) : r.isMe ? (
-                            <Link
-                              href={`/app/goal?pod=${sec.pod.id}`}
-                              className="mt-0.5 inline-block text-[15px] font-semibold text-terra"
-                            >
-                              Set your goal →
-                            </Link>
-                          ) : (
-                            <div className="mt-0.5 text-[15px] text-muted">
-                              Getting set up…
-                            </div>
-                          )}
-                        </div>
-                        {r.hasGoal && !r.paused && !r.goalNotStarted && (
-                          <div className="shrink-0 text-right">
-                            <div className="font-serif text-[18px] font-semibold text-ink">
-                              {r.done}
-                              <span className="text-[15px] text-muted">
-                                /{r.target}
-                              </span>
-                            </div>
-                            <div className="text-[12px] uppercase tracking-wide text-muted">
-                              this week
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {r.hasGoal && !r.paused && !r.goalNotStarted && (
-                        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-paper-2">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${Math.round(r.ratio * 100)}%`,
-                              backgroundColor:
-                                r.ratio >= 1 ? "#7a9471" : "#c8553d",
-                            }}
-                          />
-                        </div>
-                      )}
-
-                      {(!r.isMe || behind) && (
-                        <div className="mt-3 flex justify-end gap-2">
-                          {!r.isMe && (
-                            <ChallengeButton
-                              podId={sec.pod.id}
-                              fromUserId={user.id}
-                              toUserId={r.userId}
-                              toName={r.name}
-                            />
-                          )}
-                          {behind && (
-                            <NudgeButton
-                              podId={sec.pod.id}
-                              fromUserId={user.id}
-                              toUserId={r.userId}
-                              fromName={myProfile?.display_name ?? "Someone"}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-        {/* Start or join another pod */}
-        <div className="mt-8 rounded-2xl border border-line bg-card p-4">
-          <div className="text-[15px] font-semibold text-ink">
-            Another pod?
-          </div>
-          <p className="mt-0.5 text-[13px] text-muted">
-            Start one for a different circle, or join with a code.
-          </p>
-          <div className="mt-3 flex gap-2.5">
+                ) : null
+              }
+              footer={
+                sec.me && !sec.me.hasGoal ? (
+                  <Link
+                    href={`/app/goal?pod=${sec.pod.id}`}
+                    className="mb-2 mt-1 block rounded-2xl border border-terra bg-terra/[0.06] p-3.5 text-[14px] font-semibold text-ink"
+                  >
+                    Set your weekly goal to join the count ›
+                  </Link>
+                ) : null
+              }
+            />
             <Link
-              href="/app/start/create?from=home"
-              className="flex-1 rounded-xl bg-ink py-3 text-center text-[14px] font-semibold text-paper transition active:scale-[0.99]"
+              href={`/app/stakes?pod=${sec.pod.id}`}
+              className="mt-2.5 flex items-center justify-between rounded-2xl px-4 py-3 text-[14px] active:bg-paper-2/60"
             >
-              Start a pod
-            </Link>
-            <Link
-              href="/app/start/join?from=home"
-              className="flex-1 rounded-xl border border-line bg-paper-2/60 py-3 text-center text-[14px] font-semibold text-ink-soft transition active:scale-[0.99]"
-            >
-              Join with a code
+              <span className="font-semibold text-ink-soft">
+                {sec.stake ? sec.stake.label : "🎯 Add stakes"}
+              </span>
+              <span className="text-muted">
+                {sec.stake ? `${sec.stake.sub} ›` : "Optional ›"}
+              </span>
             </Link>
           </div>
+        ))}
+
+        <div className="mt-6 flex justify-center gap-5 text-[13px] font-semibold text-muted">
+          <Link href="/app/start/create?from=home" className="underline-offset-2 hover:underline">
+            Start another pod
+          </Link>
+          <Link href="/app/start/join?from=home" className="underline-offset-2 hover:underline">
+            Join with a code
+          </Link>
         </div>
-
       </main>
 
-
       <PodSync />
-      <BottomNav active="home" podId={navPodId} userId={user.id} />
+      <BottomNav active="home" podId={focus.pod.id} userId={user.id} />
     </>
   );
 }

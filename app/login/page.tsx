@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { BRAND_NAME, BRAND_MARK } from "@/lib/brand";
 
@@ -18,6 +18,10 @@ export default function LoginPage() {
   const [resendNote, setResendNote] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [next, setNext] = useState("/app");
+  // One verify at a time: a second tap (or Enter plus tap) would reuse a code
+  // the first attempt had already used up, and show a false "incorrect code".
+  const verifyingRef = useRef(false);
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     const n = new URLSearchParams(window.location.search).get("next");
@@ -37,7 +41,10 @@ export default function LoginPage() {
 
   async function sendLink() {
     const trimmed = email.trim();
-    if (!trimmed) return;
+    // Guard against Enter plus a tap: two sends mean two codes, and only the
+    // newest works, so the first email's code would fail.
+    if (!trimmed || sendingRef.current) return;
+    sendingRef.current = true;
     setLoading(true);
     setError("");
     try {
@@ -71,6 +78,7 @@ export default function LoginPage() {
     } catch (e: any) {
       setError(e?.message || "Something went wrong. Please try again.");
     } finally {
+      sendingRef.current = false;
       setLoading(false);
     }
   }
@@ -80,20 +88,32 @@ export default function LoginPage() {
   // emailed magic link can't reach.
   async function verify() {
     const token = code.trim();
-    if (token.length < 6) return;
+    if (token.length < 6 || verifyingRef.current) return;
+    verifyingRef.current = true;
     setVerifying(true);
     setError("");
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token,
-        type: "email",
-      });
+      const addr = email.trim();
+      // "email" covers both sign-in and sign-up codes on current Supabase.
+      // Older projects send new accounts a "signup" code, so try that before
+      // calling the code wrong.
+      let { error } = await supabase.auth.verifyOtp({ email: addr, token, type: "email" });
+      if (error && /expired|invalid|token/i.test(error.message)) {
+        const retry = await supabase.auth.verifyOtp({ email: addr, token, type: "signup" });
+        if (!retry.error) error = null;
+      }
       if (error) {
+        // The code may already have worked (a double tap, or the emailed link
+        // opened in this browser). If we're signed in, carry on.
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          window.location.href = next;
+          return;
+        }
         setError(
           /expired|invalid|token/i.test(error.message)
-            ? "Incorrect or expired code. Please re-enter it, or request a new one."
+            ? "That code didn't work. Check it's from the newest email, or tap Resend code."
             : error.message
         );
         return;
@@ -103,6 +123,7 @@ export default function LoginPage() {
     } catch (e: any) {
       setError(e?.message || "Couldn't verify that code. Please try again.");
     } finally {
+      verifyingRef.current = false;
       setVerifying(false);
     }
   }
@@ -249,7 +270,10 @@ export default function LoginPage() {
               pattern="[0-9]*"
               maxLength={8}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => {
+                setCode(e.target.value.replace(/\D/g, ""));
+                if (error) setError("");
+              }}
               onKeyDown={(e) => e.key === "Enter" && verify()}
               placeholder="Enter code"
               className="mt-5 w-full rounded-2xl border border-line bg-paper-2/60 px-4 py-4 text-center text-[22px] font-semibold tracking-[0.28em] text-ink outline-none placeholder:text-[16px] placeholder:tracking-normal placeholder:font-normal focus:border-terra"

@@ -183,6 +183,15 @@ export async function GET(req: Request) {
   // staked week. ----
   const resumed = await autoResumeEnded(supabase);
 
+  // ---- Seven quiet days: pause them automatically so the pod isn't held back,
+  // and tell them. Any new activity brings them straight back. ----
+  let autoPaused = 0;
+  try {
+    autoPaused = await autoPauseQuiet(supabase);
+  } catch {
+    /* non-fatal (e.g. before the auto-pause migration) */
+  }
+
   // ---- Nudge anyone who's gone quiet: a gentle check-in that offers Pause at
   // the moment it's actually useful (this is the drop-off we lose people to). ----
   const absent = await nudgeAbsent(supabase);
@@ -214,6 +223,7 @@ export async function GET(req: Request) {
     usersNotified,
     pushesSent,
     autoResumed: resumed,
+    autoPaused,
     absentNudged: absent,
     stakeWeeklyRecaps: digest.weeklyRecaps,
     stakeFinalStretchWarnings: digest.finalStretch,
@@ -343,6 +353,72 @@ async function nudgeAbsent(supabase: any): Promise<number> {
   }
 
   return nudged;
+}
+
+// Seven days with nothing logged in a pod (counted from joining if they never
+// logged): Pod pauses them so the pod's Pod Perfect week isn't held hostage,
+// and says so. Logging anything (by hand or synced) resumes them.
+async function autoPauseQuiet(supabase: any): Promise<number> {
+  const AUTO_PAUSE_DAYS = 7;
+  const nowMs = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+
+  const { data: members, error } = await supabase
+    .from("pod_members")
+    .select("user_id, pod_id, joined_at, auto_paused_at, pods(name)")
+    .eq("status", "active");
+  if (error) throw new Error(error.message);
+  if (!members?.length) return 0;
+
+  const podIds: string[] = Array.from(
+    new Set((members as any[]).map((m) => m.pod_id as string))
+  );
+  const { data: sessions } = await supabase
+    .from("sessions")
+    .select("user_id, pod_id, logged_at")
+    .in("pod_id", podIds)
+    .gte("logged_at", new Date(nowMs - 60 * day).toISOString());
+  const lastLog: Record<string, number> = {};
+  for (const s of (sessions ?? []) as any[]) {
+    const k = `${s.user_id}::${s.pod_id}`;
+    const t = new Date(s.logged_at).getTime();
+    if (!lastLog[k] || t > lastLog[k]) lastLog[k] = t;
+  }
+
+  const pausedByUser: Record<string, string[]> = {};
+  for (const m of members as any[]) {
+    const joined = m.joined_at ? new Date(m.joined_at).getTime() : nowMs;
+    const last = Math.max(lastLog[`${m.user_id}::${m.pod_id}`] ?? 0, joined);
+    if (nowMs - last < AUTO_PAUSE_DAYS * day) continue;
+    const { error: upErr } = await supabase
+      .from("pod_members")
+      .update({
+        status: "paused",
+        pause_until: null,
+        auto_paused_at: new Date().toISOString(),
+      })
+      .eq("pod_id", m.pod_id)
+      .eq("user_id", m.user_id)
+      .eq("status", "active");
+    if (upErr) continue;
+    const pod = Array.isArray(m.pods) ? m.pods[0] : m.pods;
+    (pausedByUser[m.user_id] ??= []).push(pod?.name ?? "your pod");
+  }
+
+  let count = 0;
+  for (const userId of Object.keys(pausedByUser)) {
+    const names = pausedByUser[userId];
+    const where = names.length === 1 ? names[0] : `${names.length} pods`;
+    await sendToUser(
+      supabase,
+      userId,
+      "We paused your week",
+      `7 quiet days, so we paused you in ${where}. It won't count against your pod. Log anything and you're straight back in.`,
+      "/app"
+    );
+    count += names.length;
+  }
+  return count;
 }
 
 async function autoResumeEnded(supabase: any): Promise<number> {

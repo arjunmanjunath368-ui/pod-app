@@ -87,14 +87,14 @@ export default function CreatePodPage() {
       }
     }
     setLoading(false);
-    router.push(podId ? `/app/goal?pod=${podId}&onboarding=1` : "/app");
+    router.push(podId ? `/app?pod=${podId}&welcome=1` : "/app");
     router.refresh();
   }
 
   function continueWithoutRule() {
     if (!partial) return;
     router.push(
-      partial.podId ? `/app/goal?pod=${partial.podId}&onboarding=1` : "/app"
+      partial.podId ? `/app?pod=${partial.podId}&welcome=1` : "/app"
     );
     router.refresh();
   }

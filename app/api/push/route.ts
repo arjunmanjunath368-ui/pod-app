@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { createClient } from "@/lib/supabase/server";
+import { planPodPing, yourTurnMessage, alsoInMessage } from "@/lib/podPing";
 
 export const runtime = "nodejs";
 
@@ -152,7 +153,8 @@ export async function POST(req: Request) {
     recipientIds = [user.id];
     message = body.body || "Test notification — push is working 🎉";
   } else if (podId) {
-    // Broadcast to active pod-mates (everyone in the pod except the sender).
+    // Someone just logged: tell the pod. Pod-mates who haven't moved yet today
+    // hear "your turn"; those already in hear a lighter note.
     const { data: members } = await supabase
       .from("pod_members")
       .select("user_id, status")
@@ -162,28 +164,25 @@ export async function POST(req: Request) {
     if (!ids.includes(user.id)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    recipientIds = ids.filter((id: string) => id !== user.id);
-
-    // Compose the message server-side with the sender's name.
-    const { data: me } = await supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle();
-    const name = me?.display_name || "Someone in your pod";
-    const label = body.activityLabel ? ` ${body.activityLabel}` : " a workout";
-    message =
-      body.body ||
-      pick([
-        `${name} just logged${label} 💪`,
-        `${name} showed up today 🔥`,
-        `${name} got${label} in — the pod's rolling.`,
-        `${name} just put in the work 💪`,
-        `${name} checked in. Cheer 'em on?`,
-        `${name} trained today 🙌`,
-        `${name} logged${label}. The pod's moving.`,
-        `${name} showed up. That's the whole game.`,
-      ]);
+    const label = (body.activityLabel as string) || "an activity";
+    const plan = await planPodPing(supabase, podId, user.id);
+    if (!plan) return NextResponse.json({ sent: 0, note: "no-recipients" });
+    let total = 0;
+    total += await deliver(
+      supabase,
+      plan.notYet,
+      plan.podName,
+      body.body || yourTurnMessage(plan.actorName, label),
+      url
+    );
+    total += await deliver(
+      supabase,
+      plan.already,
+      plan.podName,
+      body.body || alsoInMessage(plan.actorName, label),
+      url
+    );
+    return NextResponse.json({ sent: total });
   } else {
     const toUserId: string | undefined = body.toUserId;
     if (!toUserId) {

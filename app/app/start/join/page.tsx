@@ -66,7 +66,7 @@ export default function JoinPodPage() {
       podId = pod?.id ?? null;
     }
     setLoading(false);
-    router.push(podId ? `/app/goal?pod=${podId}&onboarding=1` : "/app");
+    router.push(podId ? `/app?pod=${podId}&welcome=1` : "/app");
     router.refresh();
   }
 

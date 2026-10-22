@@ -1,0 +1,86 @@
+// View models for Home. The live page builds these from the database; the demo
+// pod builds them from fixtures. Components only ever see these shapes.
+
+// off = before they joined.
+export type DayState = "active" | "rest" | "missed" | "today" | "future" | "off";
+
+export type WeekDay = { letter: string; state: DayState; isToday: boolean };
+
+export type WhoopState =
+  | "on" // Recovery & sleep turned on
+  | "connected_off" // WHOOP connected, Recovery & sleep not turned on
+  | "reconnect" // needs reconnecting (or sleep not granted yet)
+  | "none"; // no WHOOP connected
+
+export type TodayData = {
+  dateLabel: string; // "Thu, Oct 22"
+  my: { pct: number; done: number; target: number; hasGoal: boolean };
+  whoop: WhoopState;
+  recovery: { score: number; zone: "red" | "yellow" | "green" } | null;
+  sleep: { performance: number } | null;
+  sleepNeedsReconnect?: boolean;
+  restToday: boolean; // red recovery: today counts as a rest day
+  activeToday: boolean;
+  daysLeft: number; // including today
+  nextNudge: string | null; // "6 pm"
+  week: WeekDay[];
+  monthLabel: string; // "October"
+  monthActive: number;
+};
+
+export type MemberRow = {
+  userId: string;
+  name: string;
+  initials: string;
+  color: string;
+  avatarUrl: string | null;
+  isMe: boolean;
+  goalText: string; // "4 days a week"
+  hasGoal: boolean;
+  pct: number;
+  done: number;
+  target: number;
+  week: WeekDay[];
+  paused: boolean;
+  pausedText?: string; // "Paused · back ~Oct 30"
+  autoPaused?: boolean;
+  quietDays: number;
+  startsMonday: boolean; // joined mid-week: counts for them now, for the pod from Monday
+  restToday: boolean;
+  monthActive: number | null; // null when they don't share it
+  canNudge: boolean;
+};
+
+export type PodData = {
+  id: string;
+  name: string;
+  weekRange: string; // "Oct 19 – 25"
+  inviteCode: string;
+  photoProof: boolean;
+  pct: number; // pod goals completed
+  remaining: number; // active days to a Pod Perfect week
+  perfect: boolean;
+  streak: number;
+  hasGoalRows: boolean;
+  goalsSet: number;
+  members: MemberRow[];
+};
+
+export type TodayActivity = {
+  name: string;
+  label: string; // "pickleball"
+  emoji: string;
+  ago: string; // "2h ago"
+};
+
+export type YourTurnData = {
+  podId: string;
+  podName: string;
+  others: TodayActivity[]; // pod-mates who showed up today, newest first
+  meActive: boolean;
+  meRested: boolean;
+  lastOne: boolean; // everyone else has hit their goal; you're the one left
+  remainingForPerfect: number;
+  nextNudge: string | null;
+  hasMoveTimes: boolean;
+};

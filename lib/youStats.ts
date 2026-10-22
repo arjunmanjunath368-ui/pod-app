@@ -142,7 +142,14 @@ export function computeYouStats(opts: {
 
   const windows = {} as Record<WindowKey, WindowStats>;
   for (const d of defs) {
-    const startMs = d.days === null ? 0 : now.getTime() - d.days * 86400000;
+    // "Week" is the calendar week your pods run on (not the last 7 days), so it
+    // matches Home. Longer windows are rolling.
+    const startMs =
+      d.key === "week"
+        ? weekStartUtc(tz, wso, now).getTime()
+        : d.days === null
+          ? 0
+          : now.getTime() - d.days * 86400000;
     const winSessions = uniqueAll.filter((s) => s.loggedAt.getTime() >= startMs);
 
     const activeDays = new Set(

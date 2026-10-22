@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 const FLASH: Record<string, { text: string; good: boolean }> = {
   connected: {
-    text: "WHOOP connected. Your recent workouts are syncing now.",
+    text: "WHOOP connected. Activities since you joined your pods are syncing now.",
     good: true,
   },
   denied: {
@@ -24,11 +24,11 @@ const FLASH: Record<string, { text: string; good: boolean }> = {
   },
   unavailable: { text: "WHOOP isn't set up on this Pod yet.", good: false },
   rest_on: {
-    text: "Rest days are on. On a red-recovery day, tap Take a rest day on Home.",
+    text: "Recovery & sleep are on. They fill the rings on Home, and a red-recovery day now counts as rest automatically.",
     good: true,
   },
   rest_denied: {
-    text: "WHOOP didn't share recovery, so rest days are still off.",
+    text: "WHOOP didn't share recovery, so Recovery & sleep are still off.",
     good: false,
   },
 };
@@ -37,11 +37,13 @@ export default function WhoopPanel({
   connected,
   needsReconnect,
   restOn,
+  needsSleep = false,
   flash,
 }: {
   connected: boolean;
   needsReconnect: boolean;
   restOn: boolean;
+  needsSleep?: boolean; // turned on before sleep was added; reconnecting grants it
   flash: string | null;
 }) {
   const router = useRouter();
@@ -165,10 +167,10 @@ export default function WhoopPanel({
         <>
           <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
             Needs a WHOOP membership. Finished activities show up in your pods
-            automatically. Pod uses only the activity type, start time and
-            length. It never reads strain, heart rate, calories or sleep, and
-            reads recovery only if you turn on rest days. Synced activities
-            never count toward stakes.
+            automatically: your pod sees the activity type, start time and
+            length. Pod never reads strain, heart rate or calories, and reads
+            recovery and sleep only if you turn them on. Synced activities never
+            count toward stakes.
           </p>
           {consentBlock}
           <label className="mt-2.5 flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-soft">
@@ -179,9 +181,9 @@ export default function WhoopPanel({
               className="mt-0.5 h-4 w-4 shrink-0 accent-[#c8553d]"
             />
             <span>
-              Optional: also turn on rest days. When WHOOP puts my recovery in
-              the red, a rest day counts toward my week. Pod checks the score
-              only when I tap Take a rest day and never stores it.
+              Recommended: also show my recovery and sleep on Home. A
+              red-recovery day then counts as a rest day automatically. Only I
+              see the scores, and Pod never stores them.
             </span>
           </label>
           <button
@@ -229,13 +231,24 @@ export default function WhoopPanel({
 
           <div className="mt-3 rounded-xl border border-line bg-paper p-3">
             <div className="text-[14px] font-semibold text-ink">
-              💤 Rest days {restOn ? "· on" : ""}
+              💤 Recovery & sleep {restOn ? "· on" : ""}
             </div>
             <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">
               {restOn
-                ? "On a day WHOOP puts your recovery in the red, tap Take a rest day on Home and it counts toward your week, up to 2 a week. Pod checks the score only when you tap, never stores it, and your pod only sees that you rested."
-                : "Showing up includes recovering. Turn this on and, when WHOOP puts your recovery in the red, a rest day counts toward your week (up to 2 a week). Rest days never count toward stakes."}
+                ? "Today's recovery and last night's sleep fill the rings on your Home. On a red-recovery day Pod logs a rest day for you, up to 2 a week. Only you see the scores, Pod never stores them, and your pod only sees that you rested."
+                : "See today's recovery and last night's sleep on Home. Showing up includes recovering: a red-recovery day counts as a rest day automatically, up to 2 a week. Rest days never count toward stakes."}
             </p>
+            {restOn && needsSleep && (
+              <div className="mt-2 rounded-lg bg-gold/[0.12] px-3 py-2 text-[13px] text-ink">
+                Sleep is new. Reconnect once so WHOOP shares it.{" "}
+                <a
+                  href="/api/whoop/connect?consent=1&rest=1"
+                  className="font-semibold text-terra underline underline-offset-2"
+                >
+                  Add sleep
+                </a>
+              </div>
+            )}
             {!restOn && (
               <label className="mt-2 flex items-start gap-2.5 text-[13px] leading-relaxed text-ink-soft">
                 <input
@@ -245,8 +258,9 @@ export default function WhoopPanel({
                   className="mt-0.5 h-4 w-4 shrink-0 accent-[#c8553d]"
                 />
                 <span>
-                  I agree that Pod can check today's WHOOP recovery score when I
-                  tap Take a rest day. It's never stored or shown to my pod.
+                  I agree that Pod can read my WHOOP recovery and sleep to show
+                  me on Home and to log rest days. They're never stored or shown
+                  to my pod.
                 </span>
               </label>
             )}
@@ -258,7 +272,7 @@ export default function WhoopPanel({
                 restOn ? "border border-line bg-card text-muted" : "bg-ink text-paper"
               }`}
             >
-              {restBusy ? "Saving…" : restOn ? "Turn off rest days" : "Turn on rest days"}
+              {restBusy ? "Saving…" : restOn ? "Turn off Recovery & sleep" : "Turn on Recovery & sleep"}
             </button>
           </div>
 

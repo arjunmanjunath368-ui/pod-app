@@ -1,5 +1,9 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { workoutToSessionFields, type WhoopWorkoutLike } from "./whoopMap";
+import { podsForActivity, resumeAutoPaused, syncTargets } from "./membership";
+import { planPodPing, yourTurnMessage, alsoInMessage } from "./podPing";
+import { pushToUsers } from "./pushServer";
+import { activityMeta } from "./activities";
 
 // All endpoints and formats below were checked against WHOOP's developer docs
 // (OAuth 2.0, Webhooks, Workout API v2) rather than assumed.
@@ -10,9 +14,10 @@ export const WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";
 // used to learn the member's WHOOP user id (webhooks identify people by it).
 // We never store their name or email.
 export const WHOOP_SCOPES = "offline read:workout read:profile";
-// Added only for members who turn on rest days (Settings). Recovery is read
-// on demand to check one thing, whether today is in the red, and never stored.
-export const WHOOP_RECOVERY_SCOPE = "read:recovery";
+// Added only for members who turn on Recovery & sleep (Settings). Read live to
+// show the member their own recovery and sleep on Home, and to log a rest day
+// automatically on red-recovery days. Never stored, never shown to the pod.
+export const WHOOP_RECOVERY_SCOPE = "read:recovery read:sleep";
 
 export type WhoopConfig = { clientId: string; clientSecret: string };
 
@@ -314,16 +319,25 @@ export function buildSessionRows(
 export async function upsertWorkoutForUser(
   svc: any,
   userId: string,
-  w: WhoopWorkoutLike
+  w: WhoopWorkoutLike,
+  opts: { notify?: boolean } = {}
 ): Promise<number> {
-  if (!workoutToSessionFields(w)) return 0;
-  const { data: mems } = await svc
-    .from("pod_members")
+  const f = workoutToSessionFields(w);
+  if (!f) return 0;
+  // Only pods they had joined when the workout started (see lib/membership).
+  const targets = podsForActivity(await syncTargets(svc, userId), f.loggedAt);
+  const podIds = targets.map((t) => t.podId);
+  if (podIds.length === 0) return 0;
+
+  // Is this workout new to Pod? WHOOP re-sends a workout as it finishes
+  // scoring, so only the first arrival pings the pod.
+  const { data: existing } = await svc
+    .from("sessions")
     .select("pod_id")
     .eq("user_id", userId)
-    .eq("status", "active");
-  const podIds: string[] = (mems ?? []).map((m: any) => m.pod_id as string);
-  if (podIds.length === 0) return 0;
+    .eq("external_id", f.externalId);
+  const seen = new Set(((existing ?? []) as any[]).map((r) => r.pod_id));
+
   const rows = buildSessionRows(userId, podIds, w);
   // Default upsert = update on conflict, so WHOOP finishing its scoring (or
   // the member editing the workout) refreshes the row instead of freezing the
@@ -332,6 +346,30 @@ export async function upsertWorkoutForUser(
     .from("sessions")
     .upsert(rows, { onConflict: "pod_id,user_id,external_id" });
   if (error) throw new Error(error.message);
+
+  // New activity brings an auto-paused member straight back.
+  await resumeAutoPaused(
+    svc,
+    userId,
+    targets.filter((t) => t.autoPaused).map((t) => t.podId)
+  );
+
+  // Ping the pod about genuinely new, recent workouts (not the backfill).
+  const fresh = Date.now() - f.loggedAt.getTime() < 18 * 3600000;
+  if (opts.notify !== false && fresh) {
+    const label = f.sportLabel ?? activityMeta(f.activity).label.toLowerCase();
+    for (const podId of podIds) {
+      if (seen.has(podId)) continue;
+      try {
+        const plan = await planPodPing(svc, podId, userId);
+        if (!plan) continue;
+        await pushToUsers(svc, plan.notYet, plan.podName, yourTurnMessage(plan.actorName, label));
+        await pushToUsers(svc, plan.already, plan.podName, alsoInMessage(plan.actorName, label));
+      } catch {
+        /* a ping must never fail the sync */
+      }
+    }
+  }
   return rows.length;
 }
 
@@ -369,7 +407,8 @@ export async function syncRecentWorkouts(
     if (!r || r.status !== 200) return { ok: false, workouts };
     const records: any[] = Array.isArray(r.json?.records) ? r.json.records : [];
     for (const w of records) {
-      if (await upsertWorkoutForUser(svc, userId, w)) workouts++;
+      // Backfill: no pings for workouts pulled in after the fact.
+      if (await upsertWorkoutForUser(svc, userId, w, { notify: false })) workouts++;
     }
     next = r.json?.next_token ?? r.json?.nextToken ?? null;
     if (!next || records.length === 0) break;

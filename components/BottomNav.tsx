@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import LogSheet from "./LogSheet";
 import { type ActivityKey } from "@/lib/activities";
@@ -56,6 +56,13 @@ export default function BottomNav({
   defaultActivity?: ActivityKey;
 }) {
   const [open, setOpen] = useState(false);
+
+  // "Log an activity" buttons elsewhere on the page open this same sheet.
+  useEffect(() => {
+    const onLog = () => setOpen(true);
+    window.addEventListener("pod:log", onLog);
+    return () => window.removeEventListener("pod:log", onLog);
+  }, []);
 
   const itemCls = (on: boolean) =>
     `flex flex-1 flex-col items-center gap-1 text-[12px] font-semibold ${

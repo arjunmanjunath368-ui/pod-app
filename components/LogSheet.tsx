@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ACTIVITIES, activityMeta, type ActivityKey } from "@/lib/activities";
 import { parseGoal, goalHit, type WeekSession } from "@/lib/goals";
+import { resumeAutoPaused } from "@/lib/membership";
 import { weekStartUtc } from "@/lib/week";
 import { enablePush, pushSupported, isIOS, isStandalone } from "@/lib/push";
 import LiveCamera from "@/components/LiveCamera";
@@ -415,6 +416,9 @@ export default function LogSheet({
       setError(error.message);
       return;
     }
+
+    // Logging brings you straight back into any pod Pod auto-paused.
+    resumeAutoPaused(supabase, userId, selectedPods).catch(() => {});
 
     // Tell each pod someone showed up (best-effort; never blocks the log).
     const activityLabel = activities

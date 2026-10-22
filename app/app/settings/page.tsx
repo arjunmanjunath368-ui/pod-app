@@ -8,46 +8,9 @@ import HealthSyncPanel from "@/components/HealthSyncPanel";
 import { isAdminEmail } from "@/lib/admin";
 import WhoopPanel from "@/components/WhoopPanel";
 import { whoopConfig } from "@/lib/whoop";
-import { BRAND_NAME } from "@/lib/brand";
-import WalkthroughCards, { type WalkCard } from "@/components/WalkthroughCards";
-
-const ABOUT_CARDS: WalkCard[] = [
-  {
-    emoji: "🫛",
-    title: "What a pod is",
-    body: "A handful of people you trust, each chasing their own goal and keeping each other honest, week to week. No randoms, no global leaderboard.",
-  },
-  {
-    emoji: "🎯",
-    title: "Different goals, same game",
-    body: "Your goal is yours alone — nobody's ranked on who lifts more or runs farther. You're measured on one thing: showing up.",
-  },
-  {
-    emoji: "🔥",
-    title: "Streaks & Pod Perfect weeks",
-    body: "Hit your number on whatever days you like — order doesn't matter. When everyone in the pod hits theirs, that's a Pod Perfect week — and those build the pod's streak.",
-  },
-  {
-    emoji: "💪",
-    title: "Cheer, nudge, challenge",
-    body: "Cheer the wins. Nudge the no-shows. Short on time? Send a teammate a quick challenge — it clears the moment they show up. Keeping each other going is the whole point.",
-  },
-  {
-    emoji: "🏆",
-    title: "Chase your own bests",
-    body: "Log a personal best — your longest plank, your heaviest lift, that incline walk — and beat it next month. The only person you're racing is past-you.",
-  },
-  {
-    emoji: "💰",
-    title: "Stakes, if you want teeth",
-    body: "Put real money on the week. Staked logs need a live photo taken in the app, and your pod can flag anything that looks off — a log is only voided if most of the others agree. Miss your goal, you pay in.",
-  },
-  {
-    emoji: "⏸",
-    title: "Life happens — pause it",
-    body: "Travelling, sick, buried at work? Pause your week. It won't count against you, and your pod knows you're out rather than wondering where you went.",
-  },
-];
+import { getServiceClient } from "@/lib/whoopStore";
+import MoveTimesPanel from "@/components/MoveTimesPanel";
+import { cleanSlots } from "@/lib/moveSlots";
 
 export default async function SettingsPage({
   searchParams,
@@ -91,6 +54,27 @@ export default async function SettingsPage({
     .select("rest_days_on")
     .eq("id", user.id)
     .maybeSingle();
+  // Members who turned on rest days before sleep was added need to reconnect
+  // once for WHOOP to share it.
+  let needsSleep = false;
+  if ((restRow as any)?.rest_days_on && (whoopStatus as any)?.whoop_connected_at) {
+    const svc = getServiceClient();
+    if (svc) {
+      const { data: conn } = await svc
+        .from("whoop_connections")
+        .select("scopes")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const scopes = String(conn?.scopes ?? "");
+      needsSleep = !!scopes && scopes.split(" ").indexOf("read:sleep") === -1;
+    }
+  }
+  // And move times, which need the Home v2 migration.
+  const { data: slotRow, error: slotErr } = await supabase
+    .from("profiles")
+    .select("move_slots")
+    .eq("id", user.id)
+    .maybeSingle();
 
   return (
     <>
@@ -127,6 +111,14 @@ export default async function SettingsPage({
         </div>
 
         <div className="mt-4">
+          <MoveTimesPanel
+            userId={user.id}
+            initial={cleanSlots((slotRow as any)?.move_slots)}
+            available={!slotErr}
+          />
+        </div>
+
+        <div className="mt-4">
           <HealthSyncPanel
             userId={user.id}
             initialToken={(profile as any)?.health_sync_token ?? null}
@@ -134,29 +126,30 @@ export default async function SettingsPage({
         </div>
 
         {whoopConfig() && (
-          <div className="mt-4">
+          <div id="whoop" className="mt-4 scroll-mt-6">
             <WhoopPanel
               connected={!!(whoopStatus as any)?.whoop_connected_at}
               needsReconnect={(whoopStatus as any)?.whoop_status === "needs_reconnect"}
               restOn={!!(restRow as any)?.rest_days_on}
+              needsSleep={needsSleep}
               flash={searchParams.whoop ?? null}
             />
           </div>
         )}
 
-        {/* How it works */}
-        <div className="mt-7 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
-          How {BRAND_NAME} works
-        </div>
-        <div className="mt-3">
-          <WalkthroughCards cards={ABOUT_CARDS} />
-        </div>
-
         <Link
-          href="/app?tour=1"
-          className="mt-3 block rounded-2xl border border-line bg-card p-4 text-[15px] font-semibold text-ink-soft active:scale-[0.99]"
+          href="/app/demo"
+          className="mt-7 flex items-center justify-between rounded-2xl border border-line bg-card p-4 active:scale-[0.99]"
         >
-          ↺ Replay the walkthrough
+          <div className="min-w-0">
+            <div className="text-[15px] font-semibold text-ink">✨ Demo pod</div>
+            <div className="mt-0.5 text-[13px] text-muted">
+              A full pod with simulated data, for showing Pod to someone.
+            </div>
+          </div>
+          <span className="ml-3 shrink-0 text-[18px] text-muted" aria-hidden>
+            ›
+          </span>
         </Link>
 
         {isAdminEmail(user.email) && (
