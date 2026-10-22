@@ -21,7 +21,7 @@ const SECTIONS: Section[] = [
       "Stakes (cash or a meal), only if your pod uses them: the amount or treat, who agreed, and weekly results. Pod keeps track of who owes what. It does not hold or move money.",
       "Notifications, only if you turn them on: your device's push address, so we can send them.",
       "Move times, only if you choose them: the times of day you usually move and your time zone, so we can nudge you at the right moment.",
-      "Synced workouts, only if you connect Apple Health or WHOOP (sections 3 and 4).",
+      "Synced workouts, only if you connect WHOOP (section 3).",
     ],
     after: [
       "We do not collect your location, and we do not use advertising or third-party analytics trackers.",
@@ -31,13 +31,6 @@ const SECTIONS: Section[] = [
     title: "Who can see what",
     paragraphs: [
       `The members of a pod can see what you post in that pod: your goal and progress, and the workouts, notes, photos, reactions and comments you add. Nothing is public outside your pods. The people who run ${BRAND_NAME} can access data as needed to operate, support and improve the service.`,
-    ],
-  },
-  {
-    title: "Apple Health",
-    optional: true,
-    paragraphs: [
-      `If you turn on Apple Health auto-logging, a companion app on your phone sends your finished workouts to ${BRAND_NAME} (type, time, length and, if you enable it there, energy burned). They appear in your pods marked as synced, and they never count toward stakes. You can turn this off in Settings at any time.`,
     ],
   },
   {

@@ -41,6 +41,7 @@ import PrCelebrations, { type PrCelebration } from "@/components/PrCelebrations"
 import TodayCard from "@/components/home/TodayCard";
 import PodCard from "@/components/home/PodCard";
 import YourTurnCard from "@/components/home/YourTurnCard";
+import MoveTimesQuick from "@/components/home/MoveTimesQuick";
 import HowItWorks from "@/components/home/HowItWorks";
 import RefreshOnce from "@/components/home/RefreshOnce";
 import { OpenLogButton } from "@/components/home/LogButton";
@@ -321,6 +322,9 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
         label: (l.s.sport_label as string | null) ?? meta.label.toLowerCase(),
         emoji: meta.emoji,
         ago: timeAgo(new Date(l.at), now),
+        pod: pod.name as string,
+        userId: l.userId,
+        at: l.at,
       };
     });
 
@@ -480,11 +484,12 @@ export default async function Home({
     .select("whoop_connected_at, whoop_status")
     .eq("id", user.id)
     .maybeSingle();
-  const { data: slotRow } = await supabase
+  const { data: slotRow, error: slotErr } = await supabase
     .from("profiles")
     .select("move_slots, timezone")
     .eq("id", user.id)
     .maybeSingle();
+  const slotsAvailable = !slotErr;
 
   const restOn = !!(restRow as any)?.rest_days_on;
   const whoopConnected = !!(whoopRow as any)?.whoop_connected_at;
@@ -506,7 +511,13 @@ export default async function Home({
   }
 
   // ---- Today (yours) ----
-  const me = focus.me;
+  // With several pods, "My week" follows the pod you're furthest behind in:
+  // that's the one that needs today's activity.
+  const goalSections = sections.filter((s) => s.me && s.me.hasGoal && !s.me.paused);
+  const weekSection = goalSections.length
+    ? goalSections.reduce((a, b) => (b.me!.pct < a.me!.pct ? b : a))
+    : focus;
+  const me = weekSection.me;
   const myActiveWeek = new Set<string>();
   const myRestWeek = new Set<string>();
   const myMonth = new Set<string>();
@@ -538,20 +549,33 @@ export default async function Home({
       todayKey: focus.todayKey,
       activeKeys: myActiveWeek,
       restKeys: myRestWeek,
-      joinedKey: focus.myJoinedKey,
+      joinedKey: sections.map((s) => s.myJoinedKey).sort()[0],
     }),
     monthLabel: monthName(focus.tz, now),
     monthActive: myMonth.size,
   };
 
+  // Who showed up today across all your pods, newest first, once each.
+  const multiPod = sections.length > 1;
+  const seenMates = new Set<string>();
+  const othersAll = sections
+    .flatMap((s) => s.othersToday)
+    .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
+    .filter((o) => {
+      const k = o.userId ?? o.name;
+      if (seenMates.has(k)) return false;
+      seenMates.add(k);
+      return true;
+    });
+  const lastOneSection = sections.find((s) => s.lastOne);
   const yourTurn: YourTurnData = {
-    podId: focus.pod.id,
-    podName: focus.pod.name,
-    others: focus.othersToday,
+    podName: multiPod ? "your pods" : focus.pod.name,
+    multiPod,
+    others: othersAll,
     meActive: activeToday,
     meRested: restToday,
-    lastOne: focus.lastOne,
-    remainingForPerfect: focus.remaining,
+    lastOnePod: lastOneSection ? (lastOneSection.pod.name as string) : null,
+    remainingForPerfect: multiPod ? null : focus.remaining,
     nextNudge,
     hasMoveTimes: slots.length > 0,
   };
@@ -737,8 +761,12 @@ export default async function Home({
           <TodayCard data={baseToday} />
         )}
 
-        {me && !me.paused && (
-          <YourTurnCard data={yourTurn} cta={<OpenLogButton />} />
+        {sections.some((s) => s.me && !s.me.paused) && (
+          <YourTurnCard
+            data={yourTurn}
+            cta={<OpenLogButton />}
+            moveTimes={slotsAvailable ? <MoveTimesQuick userId={user.id} /> : null}
+          />
         )}
 
         {sections.map((sec) => (

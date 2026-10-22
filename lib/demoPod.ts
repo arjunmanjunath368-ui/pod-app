@@ -26,6 +26,7 @@ type Fixture = {
   joinedIdx?: number; // joined mid-week on this day
   month: number;
   me?: boolean;
+  whoop?: boolean;
   goalText?: string;
 };
 
@@ -37,10 +38,10 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
   const todayKey = keys[todayIdx];
 
   const people: Fixture[] = [
-    { id: "me", name: firstName || "You", initials: (firstName || "Y").slice(0, 2).toUpperCase(), color: "#c8553d", target: 4, active: [0, 1], rest: [2], month: 14, me: true },
-    { id: "maya", name: "Maya", initials: "MR", color: "#7a9471", target: 4, active: [0, 1, 2, 3], month: 17 },
-    { id: "jordan", name: "Jordan", initials: "JK", color: "#d9a441", target: 3, active: [1, 3], month: 11, goalText: "🎾 2  🏋️ 1 · 3 days a week" },
-    { id: "priya", name: "Priya", initials: "PS", color: "#5b7fa6", target: 5, active: [0, 2], rest: [3], month: 15 },
+    { id: "me", name: firstName || "You", initials: (firstName || "Y").slice(0, 2).toUpperCase(), color: "#c8553d", target: 4, active: [0, 1], rest: [2], month: 14, me: true, whoop: true },
+    { id: "maya", name: "Maya", initials: "MR", color: "#7a9471", target: 4, active: [0, 1, 2, 3], month: 17, whoop: true },
+    { id: "jordan", name: "Jordan", initials: "JK", color: "#d9a441", target: 3, active: [1, 3], month: 11, whoop: true, goalText: "🎾 2  🏋️ 1 · 3 days a week" },
+    { id: "priya", name: "Priya", initials: "PS", color: "#5b7fa6", target: 5, active: [0, 2], rest: [3], month: 15, whoop: true },
     { id: "sam", name: "Sam", initials: "SO", color: "#8a6f9e", target: 3, active: [1], month: 6 },
     { id: "leo", name: "Leo", initials: "LB", color: "#b07a4f", target: 3, active: [2], joinedIdx: 2, month: 1 },
   ];
@@ -76,6 +77,7 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
       restToday,
       monthActive: p.month,
       canNudge: !p.me && !startsMonday && done < p.target && !activeToday && !restToday,
+      whoop: !!p.whoop,
     };
   });
 
@@ -117,15 +119,15 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
   };
 
   const yourTurn: YourTurnData = {
-    podId: "demo",
     podName: pod.name,
+    multiPod: false,
     others: [
       { name: "Jordan", label: "padel", emoji: "🎾", ago: "25m ago" },
       { name: "Maya", label: "5k run", emoji: "🏃", ago: "2h ago" },
     ],
     meActive: false,
     meRested: false,
-    lastOne: false,
+    lastOnePod: null,
     remainingForPerfect: remaining,
     nextNudge: "6 pm",
     hasMoveTimes: true,
@@ -138,6 +140,7 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
 
   // Concept: pod rewards with WHOOP. Simulated.
   const rewards = {
+    whoopMembers: people.filter((p) => p.whoop).length,
     perfectWeeks: 3,
     goal: 4,
     pointsPerWeek: 250,

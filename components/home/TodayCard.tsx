@@ -3,6 +3,7 @@ import Ring from "./Ring";
 import { WeekStripLarge } from "./WeekStrip";
 import type { TodayData } from "./types";
 import { todayStatus } from "@/lib/homeModel";
+import WhoopJoin from "./WhoopJoin";
 
 // The member's own day, WHOOP-style: how far through their week they are,
 // and (with WHOOP) today's recovery and last night's sleep. Recovery and sleep
@@ -128,42 +129,6 @@ export default function TodayCard({
       )}
       {loadingWhoop && <div className="mt-4 h-[42px]" aria-hidden />}
 
-      {whoop !== "on" && (
-        <div className="mt-4 rounded-2xl bg-paper/[0.07] p-3.5">
-          <p className="text-[13px] leading-relaxed text-sage-soft">
-            {whoop === "none"
-              ? "With WHOOP, your recovery and sleep fill these rings, activities log themselves, and a red-recovery day counts as rest."
-              : whoop === "reconnect"
-                ? "WHOOP needs reconnecting before Pod can read recovery and sleep again."
-                : "Turn on Recovery & sleep to fill these rings. A red-recovery day then counts as rest, automatically."}
-          </p>
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-            {demo ? (
-              <span className="rounded-full bg-paper px-3.5 py-1.5 text-[13px] font-semibold text-ink">
-                Connect WHOOP
-              </span>
-            ) : (
-              <Link
-                href={connectHref}
-                className="rounded-full bg-paper px-3.5 py-1.5 text-[13px] font-semibold text-ink active:scale-95"
-              >
-                {whoop === "none" ? "Connect WHOOP" : whoop === "reconnect" ? "Reconnect WHOOP" : "Turn on Recovery & sleep"}
-              </Link>
-            )}
-            {whoop === "none" && (
-              <a
-                href="https://www.whoop.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[13px] font-semibold text-sage-soft underline underline-offset-2"
-              >
-                New to WHOOP? whoop.com
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="mt-5 border-t border-paper/10 pt-4">
         <WeekStripLarge days={data.week} />
         <div className="mt-3.5 flex items-center justify-between text-[13px]">
@@ -175,6 +140,32 @@ export default function TodayCard({
           )}
         </div>
       </div>
+      {whoop === "none" && (
+        <div className="mt-5">
+          <WhoopJoin connectHref={connectHref} demo={demo} />
+        </div>
+      )}
+      {(whoop === "reconnect" || whoop === "connected_off") && (
+        <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-paper/[0.07] p-3.5">
+          <p className="text-[13px] leading-relaxed text-sage-soft">
+            {whoop === "reconnect"
+              ? "WHOOP needs reconnecting before Pod can read recovery and sleep again."
+              : "Turn on Recovery & sleep to fill these rings. Red-recovery days then count as rest."}
+          </p>
+          {demo ? (
+            <span className="shrink-0 rounded-full bg-paper px-3.5 py-2 text-[13px] font-semibold text-ink">
+              {whoop === "reconnect" ? "Reconnect" : "Turn on"}
+            </span>
+          ) : (
+            <Link
+              href={connectHref}
+              className="shrink-0 rounded-full bg-paper px-3.5 py-2 text-[13px] font-semibold text-ink active:scale-95"
+            >
+              {whoop === "reconnect" ? "Reconnect" : "Turn on"}
+            </Link>
+          )}
+        </div>
+      )}
     </section>
   );
 }

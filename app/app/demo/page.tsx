@@ -6,6 +6,7 @@ import PodCard from "@/components/home/PodCard";
 import YourTurnCard from "@/components/home/YourTurnCard";
 import HowItWorks from "@/components/home/HowItWorks";
 import RewardsConcept from "@/components/home/RewardsConcept";
+import WhoopJoin from "@/components/home/WhoopJoin";
 import { SampleNudgeButton } from "@/components/home/LogButton";
 import { NotificationPreview, DemoActions } from "@/components/home/DemoParts";
 
@@ -66,7 +67,6 @@ export default async function DemoPod() {
 
       <YourTurnCard
         data={demo.yourTurn}
-        settingsHref={null}
         cta={<SampleNudgeButton title={demo.notification.title} body={demo.notification.body} />}
       />
 
@@ -80,7 +80,21 @@ export default async function DemoPod() {
         goal={demo.rewards.goal}
         pointsPerWeek={demo.rewards.pointsPerWeek}
         remaining={demo.pod.remaining}
+        whoopMembers={demo.rewards.whoopMembers}
       />
+
+      {/* A pod-mate without WHOOP: the acquisition side of the same loop. */}
+      <section className="mt-8">
+        <h2 className="font-serif text-[22px] font-semibold leading-tight text-ink">
+          Sam isn't on WHOOP yet
+        </h2>
+        <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
+          His rings stay empty until he joins. This is what his Home offers him.
+        </p>
+        <div className="mt-3 rounded-[28px] bg-ink p-4 shadow-pod-lg">
+          <WhoopJoin offer demo />
+        </div>
+      </section>
 
       <p className="mt-6 text-center text-[12px] leading-relaxed text-muted">
         Names, scores and rewards here are made up to show how Pod works.

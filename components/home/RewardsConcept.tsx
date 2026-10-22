@@ -1,16 +1,22 @@
 // Demo pod only. A concept for pod rewards with WHOOP: the pod earns together,
 // so nobody wins by leaving someone behind. Clearly marked as a concept.
+//
+// Only verified days count toward rewards (synced from WHOOP, or logged with a
+// live photo), so a manual log can't earn anything. Points go to members on
+// WHOOP; members who aren't yet get a free trial when the pod hits its run.
 
 export default function RewardsConcept({
   perfectWeeks,
   goal,
   pointsPerWeek,
   remaining,
+  whoopMembers,
 }: {
   perfectWeeks: number;
   goal: number;
   pointsPerWeek: number;
   remaining: number;
+  whoopMembers: number;
 }) {
   const earned = perfectWeeks * pointsPerWeek;
   return (
@@ -22,9 +28,9 @@ export default function RewardsConcept({
         </span>
       </div>
       <p className="mt-1.5 text-[14px] leading-relaxed text-sage-soft">
-        Every Pod Perfect week earns each member {pointsPerWeek} points. {goal} in a
-        row unlocks a free month of WHOOP for anyone in the pod who isn't a
-        member yet.
+        Every verified Pod Perfect week earns {pointsPerWeek} WHOOP points for each
+        member on WHOOP. {goal} in a row unlocks 60 days of WHOOP free for
+        pod-mates who aren't members yet.
       </p>
 
       <div className="mt-4 grid grid-cols-4 gap-1.5" aria-label={`${perfectWeeks} of ${goal} Pod Perfect weeks`}>
@@ -51,12 +57,18 @@ export default function RewardsConcept({
           <div className="text-[28px] font-semibold leading-none tabular-nums">
             {earned.toLocaleString("en-US")}
           </div>
-          <div className="mt-1 text-[12px] text-sage-soft">points each, earned together</div>
+          <div className="mt-1 text-[12px] text-sage-soft">
+            points each for {whoopMembers} WHOOP members
+          </div>
         </div>
         <div className="max-w-[55%] text-right text-[13px] leading-snug text-paper/90">
           {remaining} more active {remaining === 1 ? "day" : "days"} across the pod completes week {Math.min(perfectWeeks + 1, goal)}.
         </div>
       </div>
+      <p className="mt-3 text-[12px] leading-relaxed text-sage-soft/80">
+        Only verified days count toward rewards: synced from WHOOP, or logged
+        with a live photo.
+      </p>
     </section>
   );
 }

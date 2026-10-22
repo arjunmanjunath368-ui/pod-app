@@ -89,15 +89,17 @@ export async function GET(req: Request) {
         String(m.display_name ?? "Someone").split(/\s+/)[0]
       );
     }
-    const podName = pods[0].name;
+    // One pod: name it. Several: talk about "your pods", never one at random.
+    const title = pods.length === 1 ? pods[0].name : "Pod";
+    const where = pods.length === 1 ? pods[0].name : "your pods";
     const body =
       names.length >= 2
         ? `${names[0]} and ${names.length - 1 === 1 ? names[1] : `${names.length - 1} others`} already showed up today. Your window's open, so make it count.`
         : names.length === 1
           ? `${names[0]} already showed up today. Your window's open, so make it count.`
-          : `Your usual window is open. Be the first in ${podName} to show up today.`;
+          : `Your usual window is open. Be the first in ${where} to show up today.`;
 
-    sent += await pushToUsers(svc, [p.id], podName, body, "/app");
+    sent += await pushToUsers(svc, [p.id], title, body, "/app");
     await svc.from("profiles").update({ slot_nudged_on: todayKey }).eq("id", p.id);
   }
 

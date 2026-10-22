@@ -36,6 +36,11 @@ function MemberLine({
                 you
               </span>
             )}
+            {m.whoop && (
+              <span className="shrink-0 rounded-full bg-ink px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-paper">
+                WHOOP
+              </span>
+            )}
             {m.monthActive !== null && m.monthActive > 0 && (
               <span className="shrink-0 text-[12px] font-semibold text-terra">
                 🔥 {m.monthActive}

@@ -5,7 +5,7 @@ import { dayKeyInTz } from "./days";
 // Pod-mates who haven't been active today get the nudge that matters: it's
 // your turn. Those who already showed up get a lighter "you're both in" note.
 // Works with either a signed-in client (manual logs) or the service client
-// (WHOOP and Apple Health syncs).
+// (WHOOP syncs).
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];

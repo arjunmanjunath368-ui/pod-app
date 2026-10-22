@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
 import SignOutButton from "@/components/SignOutButton";
 import NotificationToggle from "@/components/NotificationToggle";
-import HealthSyncPanel from "@/components/HealthSyncPanel";
 import { isAdminEmail } from "@/lib/admin";
 import WhoopPanel from "@/components/WhoopPanel";
 import { whoopConfig } from "@/lib/whoop";
@@ -36,7 +35,7 @@ export default async function SettingsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, health_sync_token")
+    .select("display_name")
     .eq("id", user.id)
     .maybeSingle();
   const displayName = profile?.display_name ?? "You";
@@ -118,12 +117,6 @@ export default async function SettingsPage({
           />
         </div>
 
-        <div className="mt-4">
-          <HealthSyncPanel
-            userId={user.id}
-            initialToken={(profile as any)?.health_sync_token ?? null}
-          />
-        </div>
 
         {whoopConfig() && (
           <div id="whoop" className="mt-4 scroll-mt-6">

@@ -1,8 +1,8 @@
 import type { YourTurnData } from "./types";
 
-// The reason to move today: who in your pod already showed up, and what's
-// left for the pod to have a perfect week. It turns quiet pod-mates' activity
-// into "your turn" without anyone having to send a nudge.
+// The reason to move today: who in your pods already showed up, and what's
+// left for a perfect week. It turns pod-mates' activity into "your turn"
+// without anyone having to send a nudge. Covers every pod the member is in.
 
 function names(list: string[]): string {
   if (list.length <= 1) return list[0] ?? "";
@@ -13,40 +13,43 @@ function names(list: string[]): string {
 export default function YourTurnCard({
   data,
   cta,
-  settingsHref = "/app/settings#move-times",
+  moveTimes,
 }: {
   data: YourTurnData;
   cta?: React.ReactNode;
-  settingsHref?: string | null;
+  moveTimes?: React.ReactNode; // picker shown until they've set their times
 }) {
   const others = data.others;
   const who = names(others.map((o) => o.name));
+  const where = data.multiPod ? "your pods" : data.podName;
 
   let headline: string;
   let body: string;
   if (data.meRested) {
     headline = "Rest day, and it counts.";
     body = others.length
-      ? `${who} ${others.length === 1 ? "is" : "are"} carrying the pod today. You're back at it tomorrow.`
+      ? `${who} ${others.length === 1 ? "is" : "are"} carrying ${where} today. You're back at it tomorrow.`
       : "Recovery is part of showing up. Your pod sees you resting, not missing.";
   } else if (data.meActive) {
     headline = "You showed up today.";
     body = others.length
-      ? `So did ${who}. ${
-          data.remainingForPerfect > 0
-            ? `${data.remainingForPerfect} active ${data.remainingForPerfect === 1 ? "day" : "days"} left for a Pod Perfect week.`
-            : "The pod's week is done."
+      ? `So did ${who}.${
+          data.remainingForPerfect === null
+            ? ""
+            : data.remainingForPerfect > 0
+              ? ` ${data.remainingForPerfect} active ${data.remainingForPerfect === 1 ? "day" : "days"} left across the pod for a Pod Perfect week.`
+              : " The pod's week is done."
         }`
-      : "First one in today. Your pod just heard about it.";
-  } else if (data.lastOne) {
+      : `First one in today. ${data.multiPod ? "Your pods" : "Your pod"} got the heads-up.`;
+  } else if (data.lastOnePod) {
     headline = "You're the last one.";
-    body = `Everyone else in ${data.podName} has hit their goal. Your days are all that stand between the pod and a Pod Perfect week.`;
+    body = `Everyone else in ${data.lastOnePod} has hit their goal. Your days are all that stand between the pod and a Pod Perfect week.`;
   } else if (others.length) {
     headline = "Your turn.";
-    body = `${who} already showed up today. One activity from you keeps ${data.podName} on track.`;
+    body = `${who} already showed up today. One activity from you keeps ${where} on track.`;
   } else {
     headline = "Be the first today.";
-    body = `Nobody in ${data.podName} has moved yet. The first log sets the tone, and everyone hears about it.`;
+    body = `Nobody in ${where} has moved yet. The first log sets the tone, and everyone hears about it.`;
   }
 
   const showCta = !data.meActive && !data.meRested;
@@ -54,7 +57,7 @@ export default function YourTurnCard({
   return (
     <section className="mt-4 rounded-[28px] border border-line bg-card p-5 shadow-pod">
       <h2 className="font-serif text-[22px] font-semibold leading-tight text-ink">{headline}</h2>
-      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-soft">{body}</p>
+      <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft">{body}</p>
 
       {others.length > 0 && (
         <ul className="mt-3.5 flex flex-col gap-2">
@@ -65,6 +68,7 @@ export default function YourTurnCard({
               </span>
               <span className="min-w-0 flex-1 truncate text-ink">
                 <b className="font-semibold">{o.name}</b> · {o.label}
+                {data.multiPod && o.pod && <span className="text-muted"> · {o.pod}</span>}
               </span>
               <span className="shrink-0 text-[12px] text-muted">{o.ago}</span>
             </li>
@@ -74,19 +78,17 @@ export default function YourTurnCard({
 
       {showCta && cta && <div className="mt-4">{cta}</div>}
 
-      {showCta && (
-        <p className="mt-2.5 text-center text-[12px] text-muted">
-          {data.nextNudge ? (
-            <>Not moved by {data.nextNudge}? Pod will give you one nudge.</>
-          ) : !data.hasMoveTimes && settingsHref ? (
-            <>
-              Tell Pod when you usually move and it'll nudge you then.{" "}
-              <a href={settingsHref} className="font-semibold text-terra underline-offset-2">
-                Set times
-              </a>
-            </>
-          ) : null}
-        </p>
+      {showCta && data.hasMoveTimes && data.nextNudge && (
+        <div className="mt-3 flex items-center gap-2.5 rounded-2xl bg-paper-2/70 px-3.5 py-2.5 text-[14px] text-ink-soft">
+          <span aria-hidden className="text-[16px]">🔔</span>
+          <span>
+            Not moved by <b className="font-semibold text-ink">{data.nextNudge}</b>? Pod nudges you once.
+          </span>
+        </div>
+      )}
+
+      {!data.hasMoveTimes && moveTimes && (
+        <div className="mt-4 border-t border-line pt-4">{moveTimes}</div>
       )}
     </section>
   );

@@ -49,6 +49,7 @@ export type MemberRow = {
   restToday: boolean;
   monthActive: number | null; // null when they don't share it
   canNudge: boolean;
+  whoop?: boolean; // demo only: shows a WHOOP tag
 };
 
 export type PodData = {
@@ -71,16 +72,20 @@ export type TodayActivity = {
   label: string; // "pickleball"
   emoji: string;
   ago: string; // "2h ago"
+  pod?: string; // shown when the member is in more than one pod
+  userId?: string;
+  at?: number;
 };
 
+// Across all of the member's pods.
 export type YourTurnData = {
-  podId: string;
-  podName: string;
+  podName: string; // the pod's name, or "your pods" when there are several
+  multiPod: boolean;
   others: TodayActivity[]; // pod-mates who showed up today, newest first
   meActive: boolean;
   meRested: boolean;
-  lastOne: boolean; // everyone else has hit their goal; you're the one left
-  remainingForPerfect: number;
+  lastOnePod: string | null; // a pod where everyone else has hit their goal
+  remainingForPerfect: number | null; // single pod only
   nextNudge: string | null;
   hasMoveTimes: boolean;
 };

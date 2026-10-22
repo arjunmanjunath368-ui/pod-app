@@ -486,7 +486,7 @@ export default async function AdminPage({
         </p>
         <p className="mt-1.5">
           Goals use each member's current goal; earlier goal changes aren't
-          stored. Auto-synced Apple Health workouts count, as they do in the app.
+          stored. WHOOP-synced activities count, as they do in the app.
         </p>
       </div>
     </main>
