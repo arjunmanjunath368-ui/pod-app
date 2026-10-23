@@ -45,7 +45,7 @@ function WhoMovedGrid() {
           <tr>
             <th className="w-[84px]" />
             {DAYS.map((d, i) => (
-              <th key={i} className="text-center text-[13px] font-semibold text-muted">
+              <th key={i} className="text-center text-[15px] font-semibold text-muted">
                 {d}
               </th>
             ))}
@@ -57,7 +57,7 @@ function WhoMovedGrid() {
               <th scope="row" className="pr-1 text-left">
                 <span className="flex items-center gap-2">
                   <Avatar initials={m.initials} color={m.color} size={26} />
-                  <span className="truncate text-[14px] font-semibold text-ink">{m.name}</span>
+                  <span className="truncate text-[16px] font-semibold text-ink">{m.name}</span>
                 </span>
               </th>
               {m.days.map((c, d) => (
@@ -74,18 +74,18 @@ function WhoMovedGrid() {
                         <path d="M2.5 6.5 5 9l4.5-6" />
                       </svg>
                     )}
-                    {c === "r" && <span className="text-[11px]">💤</span>}
+                    {c === "r" && <span className="text-[13px]">💤</span>}
                   </span>
                 </td>
               ))}
             </tr>
           ))}
           <tr>
-            <th scope="row" className="pt-1 text-left text-[13px] font-semibold text-muted">
+            <th scope="row" className="pt-1 text-left text-[15px] font-semibold text-muted">
               Moved
             </th>
             {totals.map((t, d) => (
-              <td key={d} className={`pt-1 text-center text-[14px] font-semibold tabular-nums ${t === POD_SIZE ? "text-terra" : "text-ink-soft"}`}>
+              <td key={d} className={`pt-1 text-center text-[16px] font-semibold tabular-nums ${t === POD_SIZE ? "text-terra" : "text-ink-soft"}`}>
                 {t}
               </td>
             ))}
@@ -103,7 +103,7 @@ function DayAverages() {
       <div className="flex items-end gap-2" style={{ height: H + 20 }} role="img" aria-label={`Average members active by weekday, last 6 weeks: ${AVG_BY_DAY.join(", ")} of ${POD_SIZE}`}>
         {AVG_BY_DAY.map((n, i) => (
           <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1">
-            <span className="text-[12px] font-semibold tabular-nums text-ink-soft">{n.toFixed(1)}</span>
+            <span className="text-[14px] font-semibold tabular-nums text-ink-soft">{n.toFixed(1)}</span>
             <div
               className={`grow-y w-full rounded-md ${i === 4 ? "bg-terra" : "bg-sage-soft"}`}
               style={{ height: (n / POD_SIZE) * H, transitionDelay: `${i * 70}ms` }}
@@ -113,7 +113,7 @@ function DayAverages() {
       </div>
       <div className="mt-1.5 flex gap-2">
         {DAYS.map((d, i) => (
-          <span key={i} className={`flex-1 text-center text-[13px] font-semibold ${i === 4 ? "text-terra" : "text-muted"}`}>
+          <span key={i} className={`flex-1 text-center text-[15px] font-semibold ${i === 4 ? "text-terra" : "text-muted"}`}>
             {d}
           </span>
         ))}
@@ -126,8 +126,8 @@ function Section({ title, children, aside }: { title: string; children: React.Re
   return (
     <section className="mt-4 rounded-[24px] border border-line bg-card p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-[18px] font-semibold text-ink">{title}</h2>
-        {aside && <span className="text-[13px] text-muted">{aside}</span>}
+        <h2 className="text-[20px] font-semibold text-ink">{title}</h2>
+        {aside && <span className="text-[15px] text-muted">{aside}</span>}
       </div>
       {children}
     </section>
@@ -144,8 +144,8 @@ export default async function RecapDemo() {
       <DemoTopBar current="recap" />
 
       <div className="mt-5 flex items-center justify-between gap-3">
-        <span className="text-[14px] text-muted">Sunday night · {range}</span>
-        <span className="flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[13px] font-semibold text-paper">
+        <span className="text-[16px] text-muted">Sunday night · {range}</span>
+        <span className="flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[15px] font-semibold text-paper">
           <span aria-hidden className="text-[#E3B04B]">✦</span> Written by Pod AI
         </span>
       </div>
@@ -153,7 +153,7 @@ export default async function RecapDemo() {
       <h1 className="mt-3 font-serif text-[32px] font-semibold leading-[1.12] text-ink">
         Three Pod Perfect weeks in a row.
       </h1>
-      <p className="mt-2 text-[17px] leading-relaxed text-ink-soft">
+      <p className="mt-2 text-[19px] leading-relaxed text-ink-soft">
         Back Bay Movers logged 19 active days and one rest day, and all five of you hit your own goal.
       </p>
 
@@ -161,7 +161,7 @@ export default async function RecapDemo() {
         <div className="mt-3">
           <WhoMovedGrid />
         </div>
-        <ul className="mt-3 flex flex-col gap-3 text-[16px] leading-relaxed text-ink-soft">
+        <ul className="mt-3 flex flex-col gap-3 text-[17px] leading-relaxed text-ink-soft">
           <li>
             <b className="font-semibold text-ink">Thursday</b> was your best day: all five of you moved.
           </li>
@@ -178,13 +178,13 @@ export default async function RecapDemo() {
       </Section>
 
       <Section title="Patterns" aside="last 6 weeks">
-        <p className="mt-2 text-[16px] leading-relaxed text-ink-soft">
+        <p className="mt-2 text-[17px] leading-relaxed text-ink-soft">
           Members active on each day, on average:
         </p>
         <div className="mt-3">
           <DayAverages />
         </div>
-        <p className="mt-4 text-[16px] leading-relaxed text-ink">
+        <p className="mt-4 text-[17px] leading-relaxed text-ink">
           <b className="font-semibold">Fridays are your quiet day.</b> About 1 of 5 of you moves, against 4 or more on
           Thursdays. Here&apos;s what the last 6 weeks suggest:
         </p>
@@ -217,7 +217,7 @@ export default async function RecapDemo() {
                   </span>
                 ))}
               </span>
-              <p className="min-w-0 text-[15px] leading-relaxed text-ink-soft">
+              <p className="min-w-0 text-[17px] leading-relaxed text-ink-soft">
                 <b className="font-semibold text-ink">{p.who}</b> {p.text}
               </p>
             </li>
@@ -228,9 +228,9 @@ export default async function RecapDemo() {
       <Section title="Plan for next week">
         <ol className="mt-3.5 flex flex-col gap-4">
           <li className="flex gap-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-paper">1</span>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[15px] font-semibold text-paper">1</span>
             <div className="min-w-0 flex-1">
-              <p className="text-[16px] leading-relaxed text-ink-soft">
+              <p className="text-[17px] leading-relaxed text-ink-soft">
                 <b className="font-semibold text-ink">Start Thursday padel at 6 pm instead of 8.</b> Thursday stays your big
                 day, and an earlier finish should give Friday back.
               </p>
@@ -240,16 +240,16 @@ export default async function RecapDemo() {
             </div>
           </li>
           <li className="flex gap-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-paper">2</span>
-            <p className="min-w-0 flex-1 text-[16px] leading-relaxed text-ink-soft">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[15px] font-semibold text-paper">2</span>
+            <p className="min-w-0 flex-1 text-[17px] leading-relaxed text-ink-soft">
               <b className="font-semibold text-ink">Give Sam a mid-week day.</b> He&apos;s hit his goal on the last day three
               weeks running. One activity mid-week, like a Wednesday evening walk with someone from the pod, means he
               isn&apos;t chasing his goal on Sunday night.
             </p>
           </li>
           <li className="flex gap-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-paper">3</span>
-            <p className="min-w-0 flex-1 text-[16px] leading-relaxed text-ink-soft">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[15px] font-semibold text-paper">3</span>
+            <p className="min-w-0 flex-1 text-[17px] leading-relaxed text-ink-soft">
               <b className="font-semibold text-ink">Welcome Leo.</b> He joins the pod count on Monday. A fourth Pod Perfect
               week in a row earns everyone on WHOOP the 1,000-point bonus.
             </p>
@@ -259,10 +259,10 @@ export default async function RecapDemo() {
 
       <section className="mt-4 rounded-[24px] border border-terra/30 bg-terra/[0.06] p-5">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[18px] font-semibold text-ink">A message for Sam, drafted</h2>
-          <span className="text-[13px] text-muted">From you</span>
+          <h2 className="text-[20px] font-semibold text-ink">A message for Sam, drafted</h2>
+          <span className="text-[15px] text-muted">From you</span>
         </div>
-        <p className="mt-3 rounded-2xl bg-card p-4 text-[16px] leading-relaxed text-ink">
+        <p className="mt-3 rounded-2xl bg-card p-4 text-[17px] leading-relaxed text-ink">
           Sam, three Sundays in a row is clutch 😅 Want to join a Wednesday evening walk with Jordan and me? Takes the
           pressure off Sunday.
         </p>
@@ -270,7 +270,7 @@ export default async function RecapDemo() {
           <div className="flex-1">
             <DemoActionButton label="Send to Sam" doneLabel="Sent ✓" tone="terra" />
           </div>
-          <span className="flex items-center justify-center rounded-full border border-line bg-card px-5 py-2.5 text-[14px] font-semibold text-ink-soft">
+          <span className="flex items-center justify-center rounded-full border border-line bg-card px-5 py-2.5 text-[16px] font-semibold text-ink-soft">
             Edit
           </span>
         </div>
@@ -278,22 +278,22 @@ export default async function RecapDemo() {
 
       <section className="mt-4 rounded-[24px] bg-ink p-5 text-paper shadow-pod-lg">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[18px] font-semibold">Just for you</h2>
-          <span className="text-[13px] text-sage-soft">Only you see this</span>
+          <h2 className="text-[20px] font-semibold">Just for you</h2>
+          <span className="text-[15px] text-sage-soft">Only you see this</span>
         </div>
-        <p className="mt-3 text-[16px] leading-relaxed text-paper/90">
+        <p className="mt-3 text-[17px] leading-relaxed text-paper/90">
           You&apos;ve missed 5 of the last 6 Fridays. Your Friday recovery has averaged 41%, your lowest day of the week,
           and it&apos;s lowest after the late Thursday padel.
         </p>
-        <p className="mt-3 text-[16px] leading-relaxed text-paper/90">
+        <p className="mt-3 text-[17px] leading-relaxed text-paper/90">
           Your three best weeks this fall all started with a Monday log.
         </p>
-        <p className="mt-3 text-[16px] font-semibold leading-relaxed text-paper">
+        <p className="mt-3 text-[17px] font-semibold leading-relaxed text-paper">
           Try a 20-minute walk on Friday. It counts, and it won&apos;t dig the hole deeper.
         </p>
       </section>
 
-      <p className="mt-4 text-[13px] leading-relaxed text-muted">
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">
         The pod&apos;s recap only uses what the pod already sees: who was active, rest days, and how many members were in
         each recovery zone. Anything from your own WHOOP data stays in &ldquo;Just for you&rdquo;.
       </p>

@@ -140,7 +140,7 @@ export function NudgeHoursEditor({
       {heading && (
         <>
           <h2 className="font-serif text-[24px] font-semibold leading-tight text-ink">When should Pod nudge you?</h2>
-          <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft">
+          <p className="mt-1.5 text-[17px] leading-relaxed text-ink-soft">
             On a day you haven&apos;t moved yet, Pod sends one nudge at the first of these times, with who in your
             pod already showed up.
           </p>
@@ -149,13 +149,13 @@ export function NudgeHoursEditor({
       <div className="mt-4 flex flex-col gap-2">
         {rows.map((h, i) => (
           <div key={i} className="flex items-center gap-2.5">
-            <span className="w-[92px] shrink-0 text-[15px] text-ink-soft">{i === 0 ? "Nudge me at" : "or at"}</span>
+            <span className="w-[92px] shrink-0 text-[17px] text-ink-soft">{i === 0 ? "Nudge me at" : "or at"}</span>
             <label className="relative min-w-0 flex-1">
               <span className="sr-only">Nudge time {i + 1}</span>
               <select
                 value={h}
                 onChange={(e) => setRow(i, Number(e.target.value))}
-                className="w-full appearance-none rounded-xl border-2 border-line bg-card py-2.5 pl-3.5 pr-9 text-[16px] font-semibold tabular-nums text-ink outline-none focus:border-terra"
+                className="w-full appearance-none rounded-xl border-2 border-line bg-card py-2.5 pl-3.5 pr-9 text-[17px] font-semibold tabular-nums text-ink outline-none focus:border-terra"
               >
                 {NUDGE_HOURS.filter((x) => x === h || !rows.includes(x)).map((x) => (
                   <option key={x} value={x}>
@@ -163,7 +163,7 @@ export function NudgeHoursEditor({
                   </option>
                 ))}
               </select>
-              <span aria-hidden className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] text-muted">
+              <span aria-hidden className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[14px] text-muted">
                 ▾
               </span>
             </label>
@@ -171,7 +171,7 @@ export function NudgeHoursEditor({
               <button
                 onClick={() => removeRow(i)}
                 aria-label={`Remove ${formatHour(h)}`}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[18px] text-muted active:scale-95"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[20px] text-muted active:scale-95"
               >
                 ×
               </button>
@@ -179,7 +179,7 @@ export function NudgeHoursEditor({
           </div>
         ))}
         {rows.length < 3 && (
-          <button onClick={addRow} className="self-start pl-[102px] text-[14px] font-semibold text-terra">
+          <button onClick={addRow} className="self-start pl-[102px] text-[16px] font-semibold text-terra">
             + Add another time
           </button>
         )}
@@ -188,14 +188,14 @@ export function NudgeHoursEditor({
         <button
           onClick={() => save(picked)}
           disabled={state === "saving" || picked.length === 0}
-          className="flex-1 rounded-full bg-ink py-3 text-[15px] font-semibold text-paper transition disabled:opacity-40 active:scale-[0.98]"
+          className="flex-1 rounded-full bg-ink py-3 text-[17px] font-semibold text-paper transition disabled:opacity-40 active:scale-[0.98]"
         >
           {state === "saving" ? "Saving…" : "Save"}
         </button>
         {onCancel && (
           <button
             onClick={onCancel}
-            className="rounded-full border border-line bg-card px-4 py-3 text-[15px] font-semibold text-ink-soft active:scale-[0.98]"
+            className="rounded-full border border-line bg-card px-4 py-3 text-[17px] font-semibold text-ink-soft active:scale-[0.98]"
           >
             Cancel
           </button>
@@ -204,12 +204,12 @@ export function NudgeHoursEditor({
       {initialHours.length > 0 && (
         <button
           onClick={() => save([])}
-          className="mt-3 w-full text-center text-[14px] font-semibold text-muted underline-offset-2 hover:underline"
+          className="mt-3 w-full text-center text-[16px] font-semibold text-muted underline-offset-2 hover:underline"
         >
           Turn off nudges
         </button>
       )}
-      {state === "error" && <p className="mt-2 text-center text-[13px] text-terra">Couldn&apos;t save that. Try again.</p>}
+      {state === "error" && <p className="mt-2 text-center text-[15px] text-terra">Couldn&apos;t save that. Try again.</p>}
     </div>
   );
 }
@@ -221,7 +221,7 @@ export function NudgeChip() {
   return (
     <button
       onClick={ctx.open}
-      className="flex items-center gap-1.5 rounded-full bg-paper/[0.08] px-3 py-1.5 text-[13px] font-semibold text-paper transition active:scale-95"
+      className="flex items-center gap-1.5 rounded-full bg-paper/[0.08] px-3 py-1.5 text-[15px] font-semibold text-paper transition active:scale-95"
     >
       <span aria-hidden>🔔</span>
       {ctx.text ? `Nudge ${ctx.text}` : "Set a nudge time"}
@@ -237,13 +237,13 @@ export function NudgeLine() {
   return (
     <button
       onClick={ctx.open}
-      className="mt-3 flex w-full items-center gap-2.5 rounded-2xl bg-paper-2/70 px-3.5 py-2.5 text-left text-[15px] text-ink-soft transition active:scale-[0.99]"
+      className="mt-3 flex w-full items-center gap-2.5 rounded-2xl bg-paper-2/70 px-3.5 py-2.5 text-left text-[17px] text-ink-soft transition active:scale-[0.99]"
     >
-      <span aria-hidden className="text-[16px]">🔔</span>
+      <span aria-hidden className="text-[17px]">🔔</span>
       <span className="min-w-0 flex-1">
         Not moved by <b className="font-semibold text-ink">{ctx.text.replace(/^at /, "")}</b>? Pod nudges you once.
       </span>
-      <span className="shrink-0 text-[13px] font-semibold text-terra">Change</span>
+      <span className="shrink-0 text-[15px] font-semibold text-terra">Change</span>
     </button>
   );
 }

@@ -52,9 +52,9 @@ export default function HowItWorks() {
       <button
         onClick={() => setOpen(true)}
         aria-label="How Pod works"
-        className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-[13px] font-semibold text-ink-soft transition active:scale-95"
+        className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-[15px] font-semibold text-ink-soft transition active:scale-95"
       >
-        <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-ink text-[11px] font-bold text-paper">
+        <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-ink text-[13px] font-bold text-paper">
           ?
         </span>
         How it works
@@ -73,7 +73,7 @@ export default function HowItWorks() {
               <h2 className="font-serif text-[24px] font-semibold text-ink">How Pod works</h2>
               <button
                 onClick={() => setOpen(false)}
-                className="rounded-full bg-paper-2 px-3 py-1.5 text-[13px] font-semibold text-ink-soft active:scale-95"
+                className="rounded-full bg-paper-2 px-3 py-1.5 text-[15px] font-semibold text-ink-soft active:scale-95"
               >
                 Done
               </button>
@@ -81,19 +81,19 @@ export default function HowItWorks() {
             <ul className="mt-4 flex flex-col gap-4">
               {ITEMS.map((it) => (
                 <li key={it.title} className="flex gap-3.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card text-[17px] shadow-pod">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card text-[19px] shadow-pod">
                     {it.emoji}
                   </span>
                   <div className="min-w-0">
-                    <div className="text-[15px] font-semibold text-ink">{it.title}</div>
-                    <p className="mt-0.5 text-[14px] leading-relaxed text-ink-soft">{it.body}</p>
+                    <div className="text-[17px] font-semibold text-ink">{it.title}</div>
+                    <p className="mt-0.5 text-[16px] leading-relaxed text-ink-soft">{it.body}</p>
                   </div>
                 </li>
               ))}
             </ul>
             <a
               href="/app?tour=1"
-              className="mt-6 block rounded-2xl border border-line bg-card p-3.5 text-center text-[14px] font-semibold text-ink-soft active:scale-[0.99]"
+              className="mt-6 block rounded-2xl border border-line bg-card p-3.5 text-center text-[16px] font-semibold text-ink-soft active:scale-[0.99]"
             >
               ↺ Replay the welcome
             </a>

@@ -42,12 +42,12 @@ function RingStat({
             }`}
           >
             {muted || loading ? "–" : <CountUp value={pct} />}
-            {!muted && !loading && <span className="text-[13px] font-medium text-paper/70">%</span>}
+            {!muted && !loading && <span className="text-[15px] font-medium text-paper/70">%</span>}
           </span>
         </Ring>
       </div>
-      <div className="mt-2 text-[14px] font-semibold text-paper">{label}</div>
-      <div className="mt-0.5 max-w-full truncate text-[13px] text-sage-soft/90">{sub}</div>
+      <div className="mt-2 text-[16px] font-semibold text-paper">{label}</div>
+      <div className="mt-0.5 max-w-full truncate text-[15px] text-sage-soft/90">{sub}</div>
     </div>
   );
 }
@@ -97,7 +97,7 @@ export default function TodayCard({
   return (
     <section className="mt-5 rounded-[28px] bg-ink px-5 pb-5 pt-5 text-paper shadow-pod-lg">
       <div className="flex justify-end">
-        <span className="rounded-full bg-paper/[0.10] px-3 py-1 text-[14px] font-semibold text-paper">
+        <span className="rounded-full bg-paper/[0.10] px-3 py-1 text-[16px] font-semibold text-paper">
           {data.dateLabel}
         </span>
       </div>
@@ -128,14 +128,14 @@ export default function TodayCard({
       </div>
 
       {!loadingWhoop && (
-        <p className="mt-4 text-[15px] leading-relaxed text-paper/90">{status}</p>
+        <p className="mt-4 text-[17px] leading-relaxed text-paper/90">{status}</p>
       )}
       {loadingWhoop && <div className="mt-4 h-[42px]" aria-hidden />}
 
       <div className="mt-5 border-t border-paper/10 pt-4">
-        <div className="mb-2.5 text-[13px] font-semibold text-sage-soft">This week</div>
+        <div className="mb-2.5 text-[15px] font-semibold text-sage-soft">This week</div>
         <WeekStripLarge days={data.week} />
-        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 text-[14px]">
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 text-[16px]">
           <span className="flex items-center gap-2 text-paper/90">
             <span aria-hidden className="flex h-4 w-4 items-center justify-center rounded-full bg-[#E3B04B]">
               <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#1a2e1f" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.5 5 9l4.5-6" /></svg>
@@ -152,19 +152,19 @@ export default function TodayCard({
       )}
       {(whoop === "reconnect" || whoop === "connected_off") && (
         <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-paper/[0.07] p-3.5">
-          <p className="text-[13px] leading-relaxed text-sage-soft">
+          <p className="text-[15px] leading-relaxed text-sage-soft">
             {whoop === "reconnect"
               ? "WHOOP needs reconnecting before Pod can read recovery and sleep again."
               : "Turn on Recovery & sleep to fill these rings. Red-recovery days then count as rest."}
           </p>
           {demo ? (
-            <span className="shrink-0 rounded-full bg-paper px-3.5 py-2 text-[13px] font-semibold text-ink">
+            <span className="shrink-0 rounded-full bg-paper px-3.5 py-2 text-[15px] font-semibold text-ink">
               {whoop === "reconnect" ? "Reconnect" : "Turn on"}
             </span>
           ) : (
             <Link
               href={connectHref}
-              className="shrink-0 rounded-full bg-paper px-3.5 py-2 text-[13px] font-semibold text-ink active:scale-95"
+              className="shrink-0 rounded-full bg-paper px-3.5 py-2 text-[15px] font-semibold text-ink active:scale-95"
             >
               {whoop === "reconnect" ? "Reconnect" : "Turn on"}
             </Link>

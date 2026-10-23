@@ -33,25 +33,25 @@ function MemberLine({
         <Avatar url={m.avatarUrl} initials={m.initials} color={m.color} size={40} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[16px] font-semibold text-ink">{m.name}</span>
+            <span className="truncate text-[17px] font-semibold text-ink">{m.name}</span>
             {m.isMe && (
-              <span className="shrink-0 rounded-full bg-paper-2 px-2 py-0.5 text-[11px] font-semibold text-muted">
+              <span className="shrink-0 rounded-full bg-paper-2 px-2 py-0.5 text-[13px] font-semibold text-muted">
                 you
               </span>
             )}
             {m.whoop && (
-              <span className="shrink-0 rounded-full bg-ink px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-paper">
+              <span className="shrink-0 rounded-full bg-ink px-1.5 py-0.5 text-[12px] font-bold tracking-wide text-paper">
                 WHOOP
               </span>
             )}
 
           </div>
-          <div className="mt-0.5 truncate text-[14px] text-muted">{status}</div>
+          <div className="mt-0.5 truncate text-[16px] text-muted">{status}</div>
           {!m.paused && m.hasGoal && (
             <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
               <WeekDots days={m.week} />
               {m.monthActive !== null && m.monthActive > 0 && (
-                <span className="text-[12px] font-semibold text-muted">
+                <span className="text-[14px] font-semibold text-muted">
                   {m.monthActive} {m.monthActive === 1 ? "day" : "days"} in {monthShort}
                 </span>
               )}
@@ -66,21 +66,21 @@ function MemberLine({
               }`}
             >
               {m.pct}
-              <span className="text-[13px] font-medium text-muted">%</span>
+              <span className="text-[15px] font-medium text-muted">%</span>
             </div>
-            <div className="mt-1 text-[13px] tabular-nums text-muted">
+            <div className="mt-1 text-[15px] tabular-nums text-muted">
               {m.done} of {m.target} days
             </div>
           </div>
         )}
       </div>
       {m.startsMonday && !m.paused && m.hasGoal && (
-        <p className="mt-2 pl-[52px] text-[13px] leading-snug text-muted">
+        <p className="mt-2 pl-[52px] text-[15px] leading-snug text-muted">
           Joined this week. Their days count now; they join the pod total on Monday.
         </p>
       )}
       {!m.paused && !m.isMe && m.quietDays >= 5 && (
-        <p className="mt-2 pl-[52px] text-[12px] text-muted">Quiet for {m.quietDays} days</p>
+        <p className="mt-2 pl-[52px] text-[14px] text-muted">Quiet for {m.quietDays} days</p>
       )}
       {actions && <div className="mt-2.5 flex justify-end gap-2">{actions}</div>}
     </li>
@@ -107,7 +107,7 @@ export default function PodCard({
           <h2 className="truncate font-serif text-[24px] font-semibold leading-tight text-ink">
             {pod.name}
           </h2>
-          <div className="mt-0.5 text-[13px] text-muted">
+          <div className="mt-0.5 text-[15px] text-muted">
             This week · {pod.weekRange}
             {pod.photoProof && " · 📸 photo proof"}
           </div>
@@ -126,12 +126,12 @@ export default function PodCard({
         >
           <span className="text-[20px] font-semibold leading-none tabular-nums text-ink">
             <CountUp value={pod.pct} />
-            <span className="text-[12px] font-medium text-muted">%</span>
+            <span className="text-[14px] font-medium text-muted">%</span>
           </span>
         </Ring>
         <div className="min-w-0">
-          <div className="text-[14px] text-muted">of the pod's goals done</div>
-          <div className="mt-0.5 text-[15px] font-semibold leading-snug text-ink">
+          <div className="text-[16px] text-muted">of the pod's goals done</div>
+          <div className="mt-0.5 text-[17px] font-semibold leading-snug text-ink">
             {pod.perfect
               ? "Pod Perfect week. Everyone showed up 🎉"
               : warmUp
@@ -140,13 +140,13 @@ export default function PodCard({
           </div>
           <div className="mt-1.5">
             {pod.streak > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gold/[0.16] px-2.5 py-0.5 text-[12px] font-semibold text-ink">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gold/[0.16] px-2.5 py-0.5 text-[14px] font-semibold text-ink">
                 🔥 {pod.streak}-week pod streak
               </span>
             ) : warmUp ? (
-              <span className="text-[12px] text-muted">Warm-up week. The pod streak starts Monday.</span>
+              <span className="text-[14px] text-muted">Warm-up week. The pod streak starts Monday.</span>
             ) : (
-              <span className="text-[12px] text-muted">A Pod Perfect week starts the streak.</span>
+              <span className="text-[14px] text-muted">A Pod Perfect week starts the streak.</span>
             )}
           </div>
         </div>

@@ -28,13 +28,13 @@ function RetentionChart() {
         {[60, 70, 80, 90, 100].map((v) => (
           <g key={v}>
             <line x1={pad.l} x2={W - pad.r} y1={y(v)} y2={y(v)} stroke="rgba(26,46,31,0.08)" />
-            <text x={pad.l - 6} y={y(v) + 4} textAnchor="end" fontSize="10" fill="#6b7b67">
+            <text x={pad.l - 6} y={y(v) + 4} textAnchor="end" fontSize="12" fill="#6b7b67">
               {v}%
             </text>
           </g>
         ))}
         {[0, 4, 8, 12].map((w) => (
-          <text key={w} x={x(w)} y={H - 8} textAnchor="middle" fontSize="10" fill="#6b7b67">
+          <text key={w} x={x(w)} y={H - 8} textAnchor="middle" fontSize="12" fill="#6b7b67">
             {w === 0 ? "Start" : `Wk ${w}`}
           </text>
         ))}
@@ -43,10 +43,10 @@ function RetentionChart() {
         <g className="pop-in" style={{ transitionDelay: "1.2s" }}>
           <circle cx={x(12)} cy={y(88)} r="3.5" fill={POD_COLOR} />
           <circle cx={x(12)} cy={y(71)} r="3.5" fill={SOLO_COLOR} />
-          <text x={x(12) + 7} y={y(88) + 4} fontSize="11" fontWeight="600" fill={POD_COLOR}>
+          <text x={x(12) + 7} y={y(88) + 4} fontSize="13" fontWeight="600" fill={POD_COLOR}>
             Pod 88%
           </text>
-          <text x={x(12) + 7} y={y(71) + 4} fontSize="11" fontWeight="600" fill="#6b7b67">
+          <text x={x(12) + 7} y={y(71) + 4} fontSize="13" fontWeight="600" fill="#6b7b67">
             Solo 71%
           </text>
         </g>
@@ -77,23 +77,23 @@ function Compare({
   soloLabel?: string;
   gap: string;
 }) {
-  const fmt = (v: number) => `${v.toFixed(decimals)}${unit}`;
+  const fmt = (v: number) => (unit === "of100" ? `${v} of 100` : `${v.toFixed(decimals)}${unit}`);
   return (
     <section className="rounded-[24px] border border-line bg-card p-4">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-[17px] font-semibold leading-snug text-ink">{title}</h2>
-        <span className="shrink-0 rounded-full bg-sage/[0.18] px-2.5 py-1 text-[13px] font-semibold text-ink">{gap}</span>
+        <h2 className="text-[19px] font-semibold leading-snug text-ink">{title}</h2>
+        <span className="shrink-0 rounded-full bg-sage/[0.2] px-3 py-1 text-[15px] font-semibold text-ink">{gap}</span>
       </div>
-      <p className="mt-1 text-[14px] leading-relaxed text-muted">{explain}</p>
+      <p className="mt-1 text-[16px] leading-relaxed text-ink-soft">{explain}</p>
       <InView className="mt-3 flex flex-col gap-2.5">
         {[
           { label: "In a pod", v: pod, color: POD_COLOR },
           { label: soloLabel, v: solo, color: SOLO_COLOR },
         ].map((r, i) => (
           <div key={r.label}>
-            <div className="flex items-baseline justify-between text-[14px]">
+            <div className="flex items-baseline justify-between text-[16px]">
               <span className="font-semibold text-ink-soft">{r.label}</span>
-              <span className="text-[18px] font-semibold tabular-nums" style={{ color: i === 0 ? POD_COLOR : "#6b7b67" }}>
+              <span className="text-[20px] font-semibold tabular-nums" style={{ color: i === 0 ? POD_COLOR : "#6b7b67" }}>
                 {fmt(r.v)}
               </span>
             </div>
@@ -124,7 +124,7 @@ export default function PartnerViewDemo() {
       <DemoTopBar current="partner" />
 
       <h1 className="mt-5 font-serif text-[32px] font-semibold leading-tight text-ink">WHOOP Admin View</h1>
-      <p className="mt-1.5 text-[16px] leading-relaxed text-ink-soft">
+      <p className="mt-1.5 text-[17px] leading-relaxed text-ink-soft">
         What WHOOP would see 90 days into a Pod pilot: 2,400 members in 620 pods, compared with similar members who
         aren&apos;t in a pod.
       </p>
@@ -132,38 +132,38 @@ export default function PartnerViewDemo() {
       <div className="mt-5 flex flex-col gap-3">
         <Compare
           title="Still active after 12 weeks"
-          explain="Share of members who wore WHOOP and logged at least one activity in week 12."
+          explain="Out of every 100 members, how many still wore WHOOP and logged at least one activity in week 12."
           pod={88}
           solo={71}
           max={100}
-          unit="%"
-          gap="+17 points"
+          unit="of100"
+          gap="17 more per 100"
         />
         <Compare
           title="Active days a week"
-          explain="Average days a week with at least one activity."
+          explain="On average, how many days a week members logged at least one activity."
           pod={3.8}
           solo={2.4}
           max={5}
-          unit=""
+          unit=" days"
           decimals={1}
-          gap="+1.4 days"
+          gap="1.4 more days"
         />
         <Compare
-          title="Free trials that became paying members"
-          explain="Of friends who started a free WHOOP trial, the share who went on to pay. The usual trial figure is a benchmark; WHOOP's own isn't public."
+          title="Free trials that turned into paying members"
+          explain="Out of every 100 friends who start a free WHOOP trial, how many go on to pay. The usual-trial figure is an industry benchmark, since WHOOP doesn't publish its own."
           pod={52}
           solo={45}
           max={100}
-          unit="%"
+          unit="of100"
           soloLabel="Usual WHOOP trial"
-          gap="+7 points"
+          gap="7 more per 100"
         />
       </div>
 
       <section className="mt-3 rounded-[24px] border border-line bg-card p-4">
-        <h2 className="text-[17px] font-semibold text-ink">Members still active, week by week</h2>
-        <p className="mt-1 text-[14px] text-muted">The gap opens early and keeps growing.</p>
+        <h2 className="text-[19px] font-semibold text-ink">Members still active, week by week</h2>
+        <p className="mt-1 text-[16px] text-muted">The gap opens early and keeps growing.</p>
         <div className="mt-3">
           <RetentionChart />
         </div>
@@ -171,7 +171,7 @@ export default function PartnerViewDemo() {
 
       <section className="mt-3 rounded-[24px] border border-line bg-card p-4">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[17px] font-semibold text-ink">New members who came through a pod</h2>
+          <h2 className="text-[19px] font-semibold text-ink">New members who came through a pod</h2>
           <span className="text-[24px] font-semibold tabular-nums text-terra">
             <CountUp value={476} />
           </span>
@@ -179,7 +179,7 @@ export default function PartnerViewDemo() {
         <InView className="mt-3 flex flex-col gap-3">
           {FUNNEL.map((f, i) => (
             <div key={f.label}>
-              <div className="flex items-baseline justify-between gap-3 text-[14px]">
+              <div className="flex items-baseline justify-between gap-3 text-[16px]">
                 <span className="text-ink-soft">{f.label}</span>
                 <span className="shrink-0 font-semibold tabular-nums text-ink">{f.n.toLocaleString("en-US")}</span>
               </div>
@@ -199,7 +199,7 @@ export default function PartnerViewDemo() {
       </section>
 
       <section className="mt-3 rounded-[24px] bg-ink p-4 text-paper shadow-pod-lg">
-        <h2 className="text-[17px] font-semibold">This week: pods going quiet</h2>
+        <h2 className="text-[19px] font-semibold">This week: pods going quiet</h2>
         <InView className="mt-3 grid grid-cols-3 gap-2 text-center">
           {[
             { v: 41, s: "", l: "pods quiet for 4+ days" },
@@ -211,17 +211,17 @@ export default function PartnerViewDemo() {
                 <CountUp value={s.v} />
                 {s.s}
               </div>
-              <div className="mt-1.5 text-[12px] leading-snug text-sage-soft">{s.l}</div>
+              <div className="mt-1.5 text-[14px] leading-snug text-sage-soft">{s.l}</div>
             </div>
           ))}
         </InView>
-        <p className="mt-3 text-[15px] leading-relaxed text-paper/90">
+        <p className="mt-3 text-[17px] leading-relaxed text-paper/90">
           Before anyone thinks about cancelling, their pod has already noticed. WHOOP gets the early warning; Pod does
           the nudging.
         </p>
       </section>
 
-      <p className="mt-6 text-center text-[13px] leading-relaxed text-muted">
+      <p className="mt-6 text-center text-[15px] leading-relaxed text-muted">
         All numbers are simulated to show what a pilot would measure.
         <br />
         Pod isn&apos;t affiliated with or endorsed by WHOOP.

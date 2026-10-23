@@ -58,20 +58,20 @@ export default function YourTurnCard({
   return (
     <section className="mt-4 rounded-[28px] border border-line bg-card p-5 shadow-pod">
       <h2 className="font-serif text-[22px] font-semibold leading-tight text-ink">{headline}</h2>
-      <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft">{body}</p>
+      <p className="mt-1.5 text-[17px] leading-relaxed text-ink-soft">{body}</p>
 
       {others.length > 0 && (
         <ul className="mt-3.5 flex flex-col gap-2">
           {others.slice(0, 3).map((o, i) => (
-            <li key={i} className="flex items-center gap-2.5 text-[15px]">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper-2 text-[16px]">
+            <li key={i} className="flex items-center gap-2.5 text-[17px]">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper-2 text-[17px]">
                 {o.emoji}
               </span>
               <span className="min-w-0 flex-1 truncate text-ink">
                 <b className="font-semibold">{o.name}</b> · {o.label}
                 {data.multiPod && o.pod && <span className="text-muted"> · {o.pod}</span>}
               </span>
-              <span className="shrink-0 text-[13px] text-muted">{o.ago}</span>
+              <span className="shrink-0 text-[15px] text-muted">{o.ago}</span>
             </li>
           ))}
         </ul>

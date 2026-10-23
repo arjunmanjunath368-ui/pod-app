@@ -57,18 +57,18 @@ export default function PodReadiness({
   const total = counts.green + counts.yellow + counts.red;
   return (
     <section className="mt-4 rounded-[28px] bg-ink p-5 text-paper shadow-pod-lg">
-      <h2 className="text-[17px] font-semibold">Pod Readiness</h2>
-      <p className="mt-0.5 text-[14px] text-sage-soft">Today&apos;s recovery in {podName}</p>
+      <h2 className="text-[19px] font-semibold">Pod Readiness</h2>
+      <p className="mt-0.5 text-[16px] text-sage-soft">Today&apos;s recovery in {podName}</p>
 
       <InView className="mt-4 flex items-center gap-5">
         <div className="pop-in relative">
           <Donut counts={counts} />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-[22px] font-semibold leading-none tabular-nums">{total}</span>
-            <span className="mt-0.5 text-[10px] text-sage-soft">on WHOOP</span>
+            <span className="mt-0.5 text-[12px] text-sage-soft">on WHOOP</span>
           </div>
         </div>
-        <ul className="flex flex-col gap-1.5 text-[14px]">
+        <ul className="flex flex-col gap-1.5 text-[16px]">
           {(["green", "yellow", "red"] as Zone[]).map((z) => (
             <li key={z} className="flex items-center gap-2.5">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: RING.zone[z] }} />
@@ -90,11 +90,11 @@ export default function PodReadiness({
       </InView>
 
       <div className="mt-4 rounded-2xl bg-paper/[0.07] p-3.5">
-        <p className="text-[15px] leading-relaxed text-paper/90">{suggestion}</p>
+        <p className="text-[17px] leading-relaxed text-paper/90">{suggestion}</p>
         {action && <div className="mt-3">{action}</div>}
       </div>
 
-      <p className="mt-3 text-[13px] leading-relaxed text-sage-soft/80">
+      <p className="mt-3 text-[15px] leading-relaxed text-sage-soft/80">
         WHOOP scores recovery once a day, when each of you wakes up, so this stays the same until tomorrow
         morning. Only counts are shown; nobody&apos;s score is shared with the pod.
       </p>

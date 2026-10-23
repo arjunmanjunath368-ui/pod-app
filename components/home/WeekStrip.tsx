@@ -9,7 +9,7 @@ export function WeekStripLarge({ days }: { days: WeekDay[] }) {
     <InView className="grid grid-cols-7 gap-1.5">
       {days.map((d, i) => {
         const base =
-          "mx-auto flex h-9 w-9 items-center justify-center rounded-full text-[15px] leading-none";
+          "mx-auto flex h-9 w-9 items-center justify-center rounded-full text-[17px] leading-none";
         let cls = "";
         let inner: React.ReactNode = null; // icon inside the day
         let label = "";
@@ -48,7 +48,7 @@ export function WeekStripLarge({ days }: { days: WeekDay[] }) {
         return (
           <div key={i} role="listitem" className="flex flex-col items-center gap-1.5">
             <span
-              className={`text-[11px] font-semibold ${
+              className={`text-[13px] font-semibold ${
                 d.isToday ? "text-paper" : "text-sage-soft/80"
               }`}
             >

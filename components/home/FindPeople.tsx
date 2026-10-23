@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-// Demo: find WHOOP members nearby who share your interests, and start a pod
+// Demo: find WHOOP members in your neighborhood who share your interests, and start a pod
 // with them. Goals and fitness level play no part; interests and area do.
 // Only members who turned on "Let people find me" appear. Simulated people.
 
@@ -19,7 +19,7 @@ const INTERESTS: { key: string; label: string; emoji: string }[] = [
   { key: "hiking", label: "Hiking", emoji: "🥾" },
 ];
 
-type Gender = "woman" | "man";
+type Gender = "woman" | "man" | "other";
 
 type Person = {
   name: string;
@@ -36,6 +36,7 @@ type Person = {
 
 const PEOPLE: Person[] = [
   { name: "Nina R.", initials: "NR", color: "#7a9471", area: "South End", miles: 0.8, interests: ["pickleball", "yoga"], when: "Evenings", wantsPod: true, age: 31, gender: "woman" },
+  { name: "Sky A.", initials: "SA", color: "#6f8f66", area: "South End", miles: 0.9, interests: ["walking", "yoga"], when: "Evenings", wantsPod: true, age: 28, gender: "other" },
   { name: "Omar S.", initials: "OS", color: "#5b7fa6", area: "South End", miles: 1.1, interests: ["padel", "pickleball"], when: "Evenings", wantsPod: true, age: 34, gender: "man" },
   { name: "Elena P.", initials: "EP", color: "#b07a4f", area: "Fenway", miles: 1.4, interests: ["walking", "pickleball"], when: "Evenings", wantsPod: true, age: 29, gender: "woman" },
   { name: "Marcus T.", initials: "MT", color: "#8a6f9e", area: "Back Bay", miles: 0.3, interests: ["pickleball", "strength"], when: "Mornings", wantsPod: false, age: 42, gender: "man" },
@@ -61,7 +62,7 @@ function SayHi() {
     <button
       onClick={() => setSent(true)}
       disabled={sent}
-      className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition active:scale-95 ${
+      className={`shrink-0 rounded-full px-3.5 py-1.5 text-[15px] font-semibold transition active:scale-95 ${
         sent ? "bg-paper-2 text-muted" : "bg-ink text-paper"
       }`}
     >
@@ -115,8 +116,8 @@ export default function FindPeople() {
   return (
     <>
       <section className="mt-5 rounded-[24px] border border-line bg-card p-5">
-        <h2 className="text-[17px] font-semibold text-ink">What do you like to do?</h2>
-        <p className="mt-0.5 text-[14px] text-muted">Pick as many as you like.</p>
+        <h2 className="text-[19px] font-semibold text-ink">What do you like to do?</h2>
+        <p className="mt-0.5 text-[16px] text-muted">Pick as many as you like.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {INTERESTS.map((i) => {
             const on = picked.includes(i.key);
@@ -125,7 +126,7 @@ export default function FindPeople() {
                 key={i.key}
                 onClick={() => toggle(i.key)}
                 aria-pressed={on}
-                className={`rounded-full border-2 px-3.5 py-2 text-[14px] font-semibold transition active:scale-95 ${
+                className={`rounded-full border-2 px-3.5 py-2 text-[16px] font-semibold transition active:scale-95 ${
                   on ? "border-terra bg-terra/[0.10] text-ink" : "border-line bg-paper text-ink-soft"
                 }`}
               >
@@ -135,7 +136,7 @@ export default function FindPeople() {
           })}
         </div>
         <div className="mt-4 border-t border-line pt-3.5">
-          <h3 className="text-[15px] font-semibold text-ink">Who you&apos;d like to meet</h3>
+          <h3 className="text-[17px] font-semibold text-ink">Who you&apos;d like to move with</h3>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {AGES.map((a) => (
               <button
@@ -145,7 +146,7 @@ export default function FindPeople() {
                   setStarted(false);
                 }}
                 aria-pressed={age === a.key}
-                className={`rounded-full px-3 py-1.5 text-[14px] font-semibold transition active:scale-95 ${
+                className={`rounded-full px-3 py-1.5 text-[16px] font-semibold transition active:scale-95 ${
                   age === a.key ? "bg-ink text-paper" : "bg-paper-2 text-ink-soft"
                 }`}
               >
@@ -159,6 +160,7 @@ export default function FindPeople() {
                 ["any", "Anyone"],
                 ["woman", "Women"],
                 ["man", "Men"],
+                ["other", "Other"],
               ] as const
             ).map(([k, l]) => (
               <button
@@ -168,7 +170,7 @@ export default function FindPeople() {
                   setStarted(false);
                 }}
                 aria-pressed={gender === k}
-                className={`rounded-full px-3 py-1.5 text-[14px] font-semibold transition active:scale-95 ${
+                className={`rounded-full px-3 py-1.5 text-[16px] font-semibold transition active:scale-95 ${
                   gender === k ? "bg-ink text-paper" : "bg-paper-2 text-ink-soft"
                 }`}
               >
@@ -176,34 +178,40 @@ export default function FindPeople() {
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[13px] leading-relaxed text-muted">
+          <p className="mt-2 text-[15px] leading-relaxed text-muted">
             Age and gender are optional for everyone. People who don&apos;t share them only show under Any age and Anyone.
           </p>
         </div>
         <div className="mt-4 border-t border-line pt-3.5">
-          <div className="flex items-center justify-between gap-3 text-[15px]">
-            <span className="min-w-0 text-ink-soft">
-              📍 <b className="font-semibold text-ink">{area}</b> · within {radius} {radius === 1 ? "mile" : "miles"}
+          <div className="flex items-center justify-between gap-3 text-[17px]">
+            <span className="flex min-w-0 items-start gap-2">
+              <span aria-hidden>📍</span>
+              <span className="min-w-0">
+                <b className="block font-semibold text-ink">{area}</b>
+                <span className="block text-[16px] text-ink-soft">
+                  Within {radius} {radius === 1 ? "mile" : "miles"}
+                </span>
+              </span>
             </span>
             <button
               onClick={() => setEditingArea((v) => !v)}
               aria-expanded={editingArea}
-              className="shrink-0 text-[14px] font-semibold text-terra"
+              className="shrink-0 text-[16px] font-semibold text-terra"
             >
               {editingArea ? "Done" : "Change"}
             </button>
           </div>
           {editingArea && (
             <div className="mt-3 rounded-2xl bg-paper-2/60 p-3.5">
-              <label className="block text-[13px] font-semibold text-muted" htmlFor="area">
-                Neighbourhood
+              <label className="block text-[15px] font-semibold text-muted" htmlFor="area">
+                Neighborhood
               </label>
               <div className="relative mt-1.5">
                 <select
                   id="area"
                   value={area}
                   onChange={(e) => setArea(e.target.value)}
-                  className="w-full appearance-none rounded-xl border-2 border-line bg-card py-2.5 pl-3.5 pr-9 text-[16px] font-semibold text-ink outline-none focus:border-terra"
+                  className="w-full appearance-none rounded-xl border-2 border-line bg-card py-2.5 pl-3.5 pr-9 text-[17px] font-semibold text-ink outline-none focus:border-terra"
                 >
                   {[
                     "Back Bay, Boston",
@@ -219,30 +227,37 @@ export default function FindPeople() {
                     <option key={a}>{a}</option>
                   ))}
                 </select>
-                <span aria-hidden className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] text-muted">
+                <span aria-hidden className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[14px] text-muted">
                   ▾
                 </span>
               </div>
-              <div className="mt-3 text-[13px] font-semibold text-muted">How far you&apos;d go</div>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {[1, 2, 5, 10].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => {
-                      setRadius(m);
-                      setStarted(false);
-                    }}
-                    aria-pressed={radius === m}
-                    className={`rounded-full px-3.5 py-1.5 text-[14px] font-semibold transition active:scale-95 ${
-                      radius === m ? "bg-ink text-paper" : "bg-card text-ink-soft ring-1 ring-line"
-                    }`}
-                  >
-                    {m} {m === 1 ? "mile" : "miles"}
-                  </button>
-                ))}
+              <div className="mt-4 flex items-baseline justify-between">
+                <label htmlFor="radius" className="text-[15px] font-semibold text-muted">
+                  How far you&apos;d go
+                </label>
+                <span className="text-[17px] font-semibold tabular-nums text-ink">
+                  {radius} {radius === 1 ? "mile" : "miles"}
+                </span>
               </div>
-              <p className="mt-2.5 text-[13px] leading-relaxed text-muted">
-                Pod uses your neighbourhood, never your exact location.
+              <input
+                id="radius"
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={radius}
+                onChange={(e) => {
+                  setRadius(Number(e.target.value));
+                  setStarted(false);
+                }}
+                className="mt-2 h-2 w-full cursor-pointer accent-[#c8553d]"
+              />
+              <div className="mt-1 flex justify-between text-[14px] text-muted">
+                <span>1 mile</span>
+                <span>10 miles</span>
+              </div>
+              <p className="mt-2.5 text-[15px] leading-relaxed text-muted">
+                Pod uses your neighborhood, never your exact location.
               </p>
             </div>
           )}
@@ -251,7 +266,7 @@ export default function FindPeople() {
 
       {suggestion && (
         <section className="mt-4 rounded-[28px] bg-ink p-5 text-paper shadow-pod-lg">
-          <div className="text-[12px] font-semibold text-[#E3B04B]">✦ A pod waiting to happen</div>
+          <div className="text-[14px] font-semibold text-[#E3B04B]">✦ A pod waiting to happen</div>
           <h2 className="mt-1.5 font-serif text-[22px] font-semibold leading-tight">
             {suggestion.people.length} {label(suggestion.key)?.label.toLowerCase()} players near you want a pod
           </h2>
@@ -259,20 +274,20 @@ export default function FindPeople() {
             {suggestion.people.map((p, i) => (
               <span
                 key={p.name}
-                className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-paper ring-2 ring-ink"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-bold text-paper ring-2 ring-ink"
                 style={{ backgroundColor: p.color, marginLeft: i ? -8 : 0 }}
               >
                 {p.initials}
               </span>
             ))}
-            <span className="ml-3 text-[14px] text-paper/90">
+            <span className="ml-3 text-[16px] text-paper/90">
               {suggestion.people.map((p) => p.name.split(" ")[0]).join(", ")}
             </span>
           </div>
           <button
             onClick={() => setStarted(true)}
             disabled={started}
-            className={`mt-4 w-full rounded-full px-4 py-2.5 text-[14px] font-semibold transition active:scale-[0.98] ${
+            className={`mt-4 w-full rounded-full px-4 py-2.5 text-[16px] font-semibold transition active:scale-[0.98] ${
               started ? "bg-paper/20 text-paper" : "bg-paper text-ink"
             }`}
           >
@@ -283,12 +298,12 @@ export default function FindPeople() {
 
       <section className="mt-4">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[17px] font-semibold text-ink">WHOOP members near you</h2>
-          <span className="text-[13px] tabular-nums text-muted">{matches.length} found</span>
+          <h2 className="text-[19px] font-semibold text-ink">WHOOP members near you</h2>
+          <span className="text-[15px] tabular-nums text-muted">{matches.length} found</span>
         </div>
         {matches.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-line p-4 text-center text-[14px] text-muted">
-            {picked.length ? "Nobody nearby matches yet. Try more interests or a wider age range." : "Pick an interest to see who's nearby."}
+          <p className="mt-3 rounded-2xl border border-dashed border-line p-4 text-center text-[16px] text-muted">
+            {picked.length ? "Nobody in your neighborhood matches yet. Try more interests, a wider age range or a longer distance." : "Pick an interest to see who's in your neighborhood."}
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2.5">
@@ -296,21 +311,21 @@ export default function FindPeople() {
               <li key={p.name} className="rounded-2xl border border-line bg-card p-3.5">
                 <div className="flex items-center gap-3">
                   <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-paper"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold text-paper"
                     style={{ backgroundColor: p.color }}
                   >
                     {p.initials}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="truncate text-[16px] font-semibold text-ink">{p.name}</span>
+                      <span className="truncate text-[17px] font-semibold text-ink">{p.name}</span>
                       {p.wantsPod && (
-                        <span className="shrink-0 rounded-full bg-gold/[0.18] px-2 py-0.5 text-[11px] font-semibold text-ink">
+                        <span className="shrink-0 rounded-full bg-gold/[0.18] px-2 py-0.5 text-[13px] font-semibold text-ink">
                           Wants a pod
                         </span>
                       )}
                     </div>
-                    <div className="mt-0.5 truncate text-[14px] text-muted">
+                    <div className="mt-0.5 text-[16px] leading-snug text-muted">
                       {p.age} · {p.area} · {p.miles} mi · {p.when}
                     </div>
                   </div>
@@ -323,7 +338,7 @@ export default function FindPeople() {
                     return (
                       <span
                         key={k}
-                        className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${
+                        className={`rounded-full px-2.5 py-0.5 text-[14px] font-semibold ${
                           shared ? "bg-terra/[0.12] text-terra" : "bg-paper-2 text-muted"
                         }`}
                       >

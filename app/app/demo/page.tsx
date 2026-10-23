@@ -78,7 +78,7 @@ export default async function DemoPod() {
         <h2 className="font-serif text-[22px] font-semibold leading-tight text-ink">
           Sam isn't on WHOOP yet
         </h2>
-        <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
+        <p className="mt-1 text-[16px] leading-relaxed text-ink-soft">
           His rings stay empty until he joins. This is what his Home offers him.
         </p>
         <div className="mt-3 rounded-[28px] bg-ink p-4 shadow-pod-lg">
@@ -88,7 +88,7 @@ export default async function DemoPod() {
 
       </NudgeTimeProvider>
 
-      <p className="mt-6 text-center text-[12px] leading-relaxed text-muted">
+      <p className="mt-6 text-center text-[14px] leading-relaxed text-muted">
         Names, scores and rewards here are made up to show how Pod works.
         <br />
         Pod isn't affiliated with or endorsed by WHOOP.

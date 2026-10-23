@@ -15,7 +15,7 @@ const config: Config = {
         gold: "#d9a441",
         sage: "#7a9471",
         "sage-soft": "#a9bda0",
-        muted: "#6b7b67",
+        muted: "#55664f",
         line: "#dcd5c4",
       },
       fontFamily: {

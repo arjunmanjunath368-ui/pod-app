@@ -8,7 +8,7 @@ export function OpenLogButton({ label = "Log an activity" }: { label?: string })
   return (
     <button
       onClick={() => window.dispatchEvent(new CustomEvent("pod:log"))}
-      className="w-full rounded-full bg-terra py-3 text-[15px] font-semibold text-paper transition active:scale-[0.98]"
+      className="w-full rounded-full bg-terra py-3 text-[17px] font-semibold text-paper transition active:scale-[0.98]"
     >
       {label}
     </button>
@@ -38,12 +38,12 @@ export function SampleNudgeButton({ title, body }: { title: string; body: string
       <button
         onClick={send}
         disabled={state === "busy"}
-        className="w-full rounded-full bg-terra py-3 text-[15px] font-semibold text-paper transition active:scale-[0.98] disabled:opacity-60"
+        className="w-full rounded-full bg-terra py-3 text-[17px] font-semibold text-paper transition active:scale-[0.98] disabled:opacity-60"
       >
         {state === "busy" ? "Sending…" : state === "sent" ? "Sent. Check your lock screen" : "Send me this nudge"}
       </button>
       {state === "off" && (
-        <p className="mt-2 text-center text-[12px] text-muted">
+        <p className="mt-2 text-center text-[14px] text-muted">
           Turn on notifications in Settings first, then try again.
         </p>
       )}

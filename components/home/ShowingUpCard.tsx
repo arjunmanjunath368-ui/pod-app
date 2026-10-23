@@ -21,22 +21,20 @@ export default function ShowingUpCard({
     <section className="mt-4 rounded-[28px] border border-line bg-card p-5 shadow-pod">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-[17px] font-semibold text-ink">Showing Up Score</h2>
-          <div className="mt-1.5 flex items-baseline gap-2.5">
-            <span className="text-[46px] font-semibold leading-none text-ink">
-              <CountUp value={score} />
-            </span>
-            <span className="text-[14px] font-semibold text-sage">
-              {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)} vs a month ago
-            </span>
+          <h2 className="text-[19px] font-semibold text-ink">Showing Up Score</h2>
+          <div className="mt-1.5 text-[46px] font-semibold leading-none text-ink">
+            <CountUp value={score} />
+          </div>
+          <div className="mt-1 text-[16px] font-semibold text-sage">
+            {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)} vs a month ago
           </div>
         </div>
-        <span className="rounded-full bg-gold/[0.18] px-3 py-1 text-[13px] font-semibold text-ink">
+        <span className="rounded-full bg-gold/[0.18] px-3 py-1 text-[15px] font-semibold text-ink">
           {scoreLabel(score)}
         </span>
       </div>
 
-      <p className="mt-3 text-[16px] leading-relaxed text-ink">
+      <p className="mt-3 text-[17px] leading-relaxed text-ink">
         You showed up on <b className="font-semibold">{done} of your {target} goal days</b> in the last{" "}
         {SCORE_WEEKS} weeks.
       </p>
@@ -52,7 +50,7 @@ export default function ShowingUpCard({
             const full = w.done >= w.target;
             return (
               <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1">
-                <span className={`text-[11px] font-semibold tabular-nums ${full ? "text-ink" : "text-muted"}`}>
+                <span className={`text-[13px] font-semibold tabular-nums ${full ? "text-ink" : "text-muted"}`}>
                   {Math.min(w.done, w.target)}/{w.target}
                 </span>
                 <div
@@ -63,13 +61,13 @@ export default function ShowingUpCard({
             );
           })}
         </div>
-        <div className="mt-1.5 flex justify-between text-[12px] text-muted">
+        <div className="mt-1.5 flex justify-between text-[14px] text-muted">
           <span>8 weeks ago</span>
           <span>Last week</span>
         </div>
       </InView>
 
-      <div className="mt-4 rounded-2xl bg-paper-2/70 p-3.5 text-[14px] leading-relaxed text-ink-soft">
+      <div className="mt-4 rounded-2xl bg-paper-2/70 p-3.5 text-[16px] leading-relaxed text-ink-soft">
         <b className="font-semibold text-ink">How it&apos;s worked out:</b> days you showed up ÷ days you aimed for, over
         your last {SCORE_WEEKS} weeks. {done} ÷ {target} = {score}. Extra days don&apos;t count beyond your goal; red-recovery
         rest days do. WHOOP measures how hard you went; this measures whether you showed up.

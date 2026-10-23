@@ -26,12 +26,12 @@ export default function RewardsConcept({
   return (
     <section className="mt-5 overflow-hidden rounded-[28px] bg-ink p-5 text-paper shadow-pod-lg">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[17px] font-semibold">Pod rewards with WHOOP</h2>
-        <span className="rounded-full border border-paper/25 px-2.5 py-0.5 text-[11px] font-semibold text-sage-soft">
+        <h2 className="text-[19px] font-semibold">Pod rewards with WHOOP</h2>
+        <span className="rounded-full border border-paper/25 px-2.5 py-0.5 text-[13px] font-semibold text-sage-soft">
           Concept
         </span>
       </div>
-      <p className="mt-1.5 text-[15px] leading-relaxed text-sage-soft">
+      <p className="mt-1.5 text-[17px] leading-relaxed text-sage-soft">
         Every verified Pod Perfect week earns {pointsPerWeek} WHOOP points for each
         member on WHOOP, and {goal} in a row adds a {bonus.toLocaleString("en-US")}-point
         bonus. The pod earns together, so nobody gets ahead by leaving someone behind.
@@ -51,7 +51,7 @@ export default function RewardsConcept({
                   />
                 )}
               </div>
-              <span className={`text-[12px] ${done ? "text-paper" : "text-sage-soft/70"}`}>
+              <span className={`text-[14px] ${done ? "text-paper" : "text-sage-soft/70"}`}>
                 {done ? `Week ${i + 1} ✓` : current ? "This week" : `Week ${i + 1}`}
               </span>
             </div>
@@ -64,15 +64,15 @@ export default function RewardsConcept({
           <div className="text-[28px] font-semibold leading-none tabular-nums">
             <CountUp value={earned} />
           </div>
-          <div className="mt-1 text-[13px] text-sage-soft">
+          <div className="mt-1 text-[15px] text-sage-soft">
             points each for {whoopMembers} WHOOP members
           </div>
         </div>
-        <div className="max-w-[55%] text-right text-[14px] leading-snug text-paper/90">
+        <div className="max-w-[55%] text-right text-[16px] leading-snug text-paper/90">
           {remaining} more active {remaining === 1 ? "day" : "days"} across the pod completes week {Math.min(perfectWeeks + 1, goal)} and the bonus.
         </div>
       </div>
-      <p className="mt-3 text-[13px] leading-relaxed text-sage-soft/80">
+      <p className="mt-3 text-[15px] leading-relaxed text-sage-soft/80">
         Only verified days count toward rewards: synced from WHOOP, or logged
         with a live photo.
       </p>

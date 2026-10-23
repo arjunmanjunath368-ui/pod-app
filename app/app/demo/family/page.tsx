@@ -3,23 +3,23 @@ import FamilyView from "@/components/home/FamilyView";
 
 export const dynamic = "force-dynamic";
 
-// Demo: family members share more than a pod does, metric by metric, with
-// both people's consent. Simulated.
+// Demo: Day Ones (your closest people) share more than a pod does, metric by
+// metric, with both people's consent. Simulated.
 export default function FamilyDemo() {
   return (
     <main className="px-5 pb-32 pt-4">
       <DemoTopBar current="family" />
 
-      <h1 className="mt-5 font-serif text-[32px] font-semibold leading-tight text-ink">Family</h1>
-      <p className="mt-1.5 text-[16px] leading-relaxed text-ink-soft">
-        Family is whoever you say it is: a partner, a parent, a sibling, a best friend. Family see more than your pod
-        does. Each of you chooses what to share, and either of you can stop at any time.
+      <h1 className="mt-5 font-serif text-[32px] font-semibold leading-tight text-ink">Day Ones</h1>
+      <p className="mt-1.5 text-[17px] leading-relaxed text-ink-soft">
+        The people who&apos;ve had your back since day one: a partner, a parent, a sibling, a best friend. Your Day
+        Ones see more than your pod does. Each of you chooses what to share, and either of you can stop at any time.
       </p>
 
       <FamilyView />
 
-      <p className="mt-4 text-[13px] leading-relaxed text-muted">
-        Family sharing starts only when both of you accept. None of it is ever shown to your pods.
+      <p className="mt-4 text-[15px] leading-relaxed text-muted">
+        Sharing with a Day One starts only when both of you accept. None of it is ever shown to your pods.
       </p>
 
       <DemoPager current="family" />
