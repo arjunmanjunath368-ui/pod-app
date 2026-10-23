@@ -3,7 +3,7 @@ import Link from "next/link";
 // The demo walkthrough: one screen per idea, in the order to present them.
 export const DEMO_STEPS = [
   { key: "home", href: "/app/demo", label: "Home", short: "Home", pager: "Home" },
-  { key: "recap", href: "/app/demo/recap", label: "Sunday recap", short: "Recap", pager: "Recap" },
+  { key: "recap", href: "/app/demo/recap", label: "Weekly Huddle", short: "Huddle", pager: "Huddle" },
   { key: "family", href: "/app/demo/family", label: "Core", short: "Core", pager: "Core" },
   { key: "discover", href: "/app/demo/discover", label: "Pod Neighborhood", short: "Neighborhood", pager: "Neighborhood" },
   { key: "partner", href: "/app/demo/partner", label: "Admin View", short: "Admin", pager: "Admin View" },

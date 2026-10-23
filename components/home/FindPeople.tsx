@@ -116,8 +116,8 @@ export default function FindPeople() {
   return (
     <>
       <section className="mt-5 rounded-[24px] border border-line bg-card p-5">
-        <h2 className="text-[19px] font-semibold text-ink">What do you like to do?</h2>
-        <p className="mt-0.5 text-[16px] text-muted">Pick as many as you like.</p>
+        <h2 className="text-[19px] font-semibold text-ink">What do you love to do?</h2>
+        <p className="mt-0.5 text-[16px] text-muted">Choose any you’d like to make part of your routine.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {INTERESTS.map((i) => {
             const on = picked.includes(i.key);
@@ -136,7 +136,7 @@ export default function FindPeople() {
           })}
         </div>
         <div className="mt-4 border-t border-line pt-3.5">
-          <h3 className="text-[17px] font-semibold text-ink">Who you&apos;d like to move with</h3>
+          <h3 className="text-[17px] font-semibold text-ink">Who would you like to be introduced to?</h3>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {AGES.map((a) => (
               <button

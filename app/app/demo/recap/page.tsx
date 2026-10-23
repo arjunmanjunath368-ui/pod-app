@@ -7,7 +7,7 @@ import InView from "@/components/home/InView";
 
 export const dynamic = "force-dynamic";
 
-// Demo: the AI recap every pod gets on Sunday night. The pod's part is written
+// Demo: the Weekly Huddle, written by Pod AI, that every pod gets on Sunday night. The pod's part is written
 // only from what the pod can already see (who was active, rest days, how many
 // were in each recovery zone). The personal part uses the member's own WHOOP
 // data and is shown only to them.
@@ -145,14 +145,17 @@ export default async function RecapDemo() {
       <DemoTopBar current="recap" />
 
       <div className="mt-5 flex items-center justify-between gap-3">
-        <span className="text-[16px] text-muted">Sunday night · {range}</span>
-        <span className="flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[15px] font-semibold text-paper">
+        <div className="min-w-0">
+          <div className="text-[17px] font-semibold text-ink">Weekly Huddle</div>
+          <div className="text-[15px] text-muted">{range}</div>
+        </div>
+        <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-ink px-3 py-1 text-[15px] font-semibold text-paper">
           <span aria-hidden className="text-[#E3B04B]">✦</span> Written by Pod AI
         </span>
       </div>
 
       <h1 className="mt-3 font-serif text-[32px] font-semibold leading-[1.12] text-ink">
-        Three Pod Perfect weeks in a row.
+        A Pod Perfect week, your third in a row.
       </h1>
       <p className="mt-2 text-[19px] leading-relaxed text-ink-soft">
         Back Bay Movers logged 19 active days and one rest day, and all five of you hit your own goal.
@@ -285,7 +288,7 @@ export default async function RecapDemo() {
       </section>
 
       <p className="mt-4 text-[15px] leading-relaxed text-muted">
-        The pod&apos;s recap only uses what the pod already sees: who was active, rest days, and how many members were in
+        The pod&apos;s Huddle only uses what the pod already sees: who was active, rest days, and how many members were in
         each recovery zone. Anything from your own WHOOP data stays in &ldquo;Just for you&rdquo;.
       </p>
 
