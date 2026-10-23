@@ -22,7 +22,8 @@ const WEEK: { name: string; initials: string; color: string; days: Cell[] }[] = 
   { name: "Sam", initials: "SO", color: "#8a6f9e", days: ["a", "-", "-", "a", "-", "-", "a"] },
 ];
 // Average members active on each weekday, last 6 weeks.
-const AVG_BY_DAY = [3.8, 3.2, 2.5, 4.5, 1.2, 3.6, 1.5];
+const AVG_BY_DAY = [4.2, 2.8, 1.3, 4.6, 2.0, 3.6, 1.7];
+const QUIET_DAY = 2; // Wednesday
 const POD_SIZE = 5;
 
 function Avatar({ initials, color, size = 32 }: { initials: string; color: string; size?: number }) {
@@ -105,7 +106,7 @@ function DayAverages() {
           <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1">
             <span className="text-[14px] font-semibold tabular-nums text-ink-soft">{n.toFixed(1)}</span>
             <div
-              className={`grow-y w-full rounded-md ${i === 4 ? "bg-terra" : "bg-sage-soft"}`}
+              className={`grow-y w-full rounded-md ${i === QUIET_DAY ? "bg-terra" : "bg-sage-soft"}`}
               style={{ height: (n / POD_SIZE) * H, transitionDelay: `${i * 70}ms` }}
             />
           </div>
@@ -113,7 +114,7 @@ function DayAverages() {
       </div>
       <div className="mt-1.5 flex gap-2">
         {DAYS.map((d, i) => (
-          <span key={i} className={`flex-1 text-center text-[15px] font-semibold ${i === 4 ? "text-terra" : "text-muted"}`}>
+          <span key={i} className={`flex-1 text-center text-[15px] font-semibold ${i === QUIET_DAY ? "text-terra" : "text-muted"}`}>
             {d}
           </span>
         ))}
@@ -185,8 +186,8 @@ export default async function RecapDemo() {
           <DayAverages />
         </div>
         <p className="mt-4 text-[17px] leading-relaxed text-ink">
-          <b className="font-semibold">Fridays are your quiet day.</b> About 1 of 5 of you moves, against 4 or more on
-          Thursdays. Here&apos;s what the last 6 weeks suggest:
+          <b className="font-semibold">Your planned days are your strong days.</b> Monday&apos;s run and Thursday&apos;s
+          padel average more than 4 of 5 of you. Wednesday has nothing planned, and averages about 1.
         </p>
         <ul className="mt-3 flex flex-col gap-3">
           {[
@@ -194,19 +195,13 @@ export default async function RecapDemo() {
               who: "You, Jordan and Priya",
               initials: ["AJ", "JK", "PS"],
               colors: ["#c8553d", "#d9a441", "#5b7fa6"],
-              text: "play Thursday padel, which usually starts at 8 pm. None of you has logged a Friday in 5 of the last 6 weeks. The late Thursday seems to take Friday with it.",
+              text: "have played Thursday padel 6 weeks out of 6, and on padel nights Maya and Sam usually move too. When something is on the calendar, the pod shows up.",
             },
             {
               who: "Sam",
               initials: ["SO"],
               colors: ["#8a6f9e"],
-              text: "has needed Sunday to hit his goal in 4 of the last 6 weeks. He starts fine on Mondays; it's the middle of the week that slips.",
-            },
-            {
-              who: "Maya",
-              initials: ["MR"],
-              colors: ["#7a9471"],
-              text: "is the pod's Friday regular: 6 Fridays out of 6, always a morning run.",
+              text: "has needed a Sunday-night workout to hit his goal in 4 of the last 6 weeks. With nothing planned mid-week, his week slips until Sunday.",
             },
           ].map((p) => (
             <li key={p.who} className="flex gap-3 rounded-2xl bg-paper-2/60 p-3.5">
@@ -231,20 +226,19 @@ export default async function RecapDemo() {
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[15px] font-semibold text-paper">1</span>
             <div className="min-w-0 flex-1">
               <p className="text-[17px] leading-relaxed text-ink-soft">
-                <b className="font-semibold text-ink">Start Thursday padel at 6 pm instead of 8.</b> Thursday stays your big
-                day, and an earlier finish should give Friday back.
+                <b className="font-semibold text-ink">Plan a Wednesday walk at 6:30 pm.</b> It&apos;s the one day with nothing
+                planned. Days with a plan average 4 of you; Wednesday averages 1.
               </p>
               <div className="mt-2.5">
-                <DemoActionButton label="Suggest Thursday, 6 pm" doneLabel="Suggested to the pod ✓" tone="ink" full={false} />
+                <DemoActionButton label="Suggest Wednesday, 6:30 pm" doneLabel="Suggested to the pod ✓" tone="ink" full={false} />
               </div>
             </div>
           </li>
           <li className="flex gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[15px] font-semibold text-paper">2</span>
             <p className="min-w-0 flex-1 text-[17px] leading-relaxed text-ink-soft">
-              <b className="font-semibold text-ink">Give Sam a mid-week day.</b> He&apos;s hit his goal on the last day three
-              weeks running. One activity mid-week, like a Wednesday evening walk with someone from the pod, means he
-              isn&apos;t chasing his goal on Sunday night.
+              <b className="font-semibold text-ink">Invite Sam to the Wednesday walk.</b> He&apos;s finished his goal on a
+              Sunday night in 4 of the last 6 weeks. One workout mid-week means Sunday isn&apos;t do-or-die.
             </p>
           </li>
           <li className="flex gap-3">
@@ -282,14 +276,11 @@ export default async function RecapDemo() {
           <span className="text-[15px] text-sage-soft">Only you see this</span>
         </div>
         <p className="mt-3 text-[17px] leading-relaxed text-paper/90">
-          You&apos;ve missed 5 of the last 6 Fridays. Your Friday recovery has averaged 41%, your lowest day of the week,
-          and it&apos;s lowest after the late Thursday padel.
-        </p>
-        <p className="mt-3 text-[17px] leading-relaxed text-paper/90">
-          Your three best weeks this fall all started with a Monday log.
+          Your three best weeks this fall all started with a Monday run. On Mondays after a Sunday bedtime before
+          10:30 pm, your recovery has averaged 71%; after later nights, 48%.
         </p>
         <p className="mt-3 text-[17px] font-semibold leading-relaxed text-paper">
-          Try a 20-minute walk on Friday. It counts, and it won&apos;t dig the hole deeper.
+          Keep Sunday nights early. Monday sets up your week.
         </p>
       </section>
 

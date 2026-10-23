@@ -4,8 +4,8 @@ import { useState } from "react";
 import FamilyInsight from "./FamilyInsight";
 import { usePopover, MENU_CLS, MENU_ITEM_CLS } from "./Popover";
 
-// Demo: Day Ones sharing. Each person picks what they share with each other
-// Day One; the metrics are ones WHOOP's developer API provides
+// Demo: Core sharing. Each person picks what they share with each other
+// Core member; the metrics are ones WHOOP's developer API provides
 // (recovery, sleep and cycle data). Simulated.
 
 type Metric = {
@@ -227,7 +227,7 @@ function AskFamily() {
     <section className="mt-4 rounded-[24px] border border-line bg-card p-5">
       <h2 className="text-[20px] font-semibold text-ink">Working on something?</h2>
       <p className="mt-1 text-[17px] leading-relaxed text-ink-soft">
-        Ask your Day Ones for help. Pick a topic and Pod drafts the question, or write your own. They also see what
+        Ask your Core for help. Pick a topic and Pod drafts the question, or write your own. They also see what
         worked in their own data, so their answer is more than a guess.
       </p>
 
@@ -415,7 +415,7 @@ export default function FamilyView() {
       <section className="mt-4 rounded-[28px] bg-ink p-5 text-paper shadow-pod-lg">
         <div className="flex items-center justify-between gap-3">
           <label className="relative">
-            <span className="sr-only">Day One</span>
+            <span className="sr-only">Core member</span>
             <select
               value={sel}
               onChange={(e) => setSel(e.target.value)}

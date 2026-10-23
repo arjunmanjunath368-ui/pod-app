@@ -4,7 +4,7 @@ import Link from "next/link";
 export const DEMO_STEPS = [
   { key: "home", href: "/app/demo", label: "Home", short: "Home", pager: "Home" },
   { key: "recap", href: "/app/demo/recap", label: "Sunday recap", short: "Recap", pager: "Recap" },
-  { key: "family", href: "/app/demo/family", label: "Day Ones", short: "Day Ones", pager: "Day Ones" },
+  { key: "family", href: "/app/demo/family", label: "Core", short: "Core", pager: "Core" },
   { key: "discover", href: "/app/demo/discover", label: "Pod Neighborhood", short: "Neighborhood", pager: "Neighborhood" },
   { key: "partner", href: "/app/demo/partner", label: "Admin View", short: "Admin", pager: "Admin View" },
 ] as const;
