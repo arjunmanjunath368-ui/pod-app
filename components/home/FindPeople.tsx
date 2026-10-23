@@ -75,8 +75,12 @@ export default function FindPeople() {
   const [age, setAge] = useState("any");
   const [gender, setGender] = useState<"any" | Gender>("any");
   const [started, setStarted] = useState(false);
+  const [area, setArea] = useState("Back Bay, Boston");
+  const [radius, setRadius] = useState(2);
+  const [editingArea, setEditingArea] = useState(false);
 
   const fits = (p: Person) => {
+    if (p.miles > radius) return false;
     const a = AGES.find((x) => x.key === age) ?? AGES[0];
     if (p.age < a.min || p.age > a.max) return false;
     if (gender !== "any" && p.gender !== gender) return false;
@@ -90,7 +94,7 @@ export default function FindPeople() {
         const sb = b.interests.filter((i) => picked.includes(i)).length;
         return sb - sa || a.miles - b.miles;
       }),
-    [picked, age, gender] // eslint-disable-line react-hooks/exhaustive-deps
+    [picked, age, gender, radius] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // The interest with the most people who want a pod: suggest starting one.
@@ -101,7 +105,7 @@ export default function FindPeople() {
       if (ps.length >= 2 && (!best || ps.length > best.people.length)) best = { key: k, people: ps };
     }
     return best;
-  }, [picked, age, gender]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [picked, age, gender, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggle(k: string) {
     setStarted(false);
@@ -176,11 +180,72 @@ export default function FindPeople() {
             Age and gender are optional for everyone. People who don&apos;t share them only show under Any age and Anyone.
           </p>
         </div>
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5 text-[14px]">
-          <span className="text-ink-soft">
-            📍 <b className="font-semibold text-ink">Back Bay, Boston</b> · within 2 miles
-          </span>
-          <span className="text-[13px] font-semibold text-terra">Change</span>
+        <div className="mt-4 border-t border-line pt-3.5">
+          <div className="flex items-center justify-between gap-3 text-[15px]">
+            <span className="min-w-0 text-ink-soft">
+              📍 <b className="font-semibold text-ink">{area}</b> · within {radius} {radius === 1 ? "mile" : "miles"}
+            </span>
+            <button
+              onClick={() => setEditingArea((v) => !v)}
+              aria-expanded={editingArea}
+              className="shrink-0 text-[14px] font-semibold text-terra"
+            >
+              {editingArea ? "Done" : "Change"}
+            </button>
+          </div>
+          {editingArea && (
+            <div className="mt-3 rounded-2xl bg-paper-2/60 p-3.5">
+              <label className="block text-[13px] font-semibold text-muted" htmlFor="area">
+                Neighbourhood
+              </label>
+              <div className="relative mt-1.5">
+                <select
+                  id="area"
+                  value={area}
+                  onChange={(e) => setArea(e.target.value)}
+                  className="w-full appearance-none rounded-xl border-2 border-line bg-card py-2.5 pl-3.5 pr-9 text-[16px] font-semibold text-ink outline-none focus:border-terra"
+                >
+                  {[
+                    "Back Bay, Boston",
+                    "South End, Boston",
+                    "Fenway, Boston",
+                    "Beacon Hill, Boston",
+                    "Seaport, Boston",
+                    "Jamaica Plain, Boston",
+                    "Cambridge",
+                    "Somerville",
+                    "Brookline",
+                  ].map((a) => (
+                    <option key={a}>{a}</option>
+                  ))}
+                </select>
+                <span aria-hidden className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] text-muted">
+                  ▾
+                </span>
+              </div>
+              <div className="mt-3 text-[13px] font-semibold text-muted">How far you&apos;d go</div>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {[1, 2, 5, 10].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      setRadius(m);
+                      setStarted(false);
+                    }}
+                    aria-pressed={radius === m}
+                    className={`rounded-full px-3.5 py-1.5 text-[14px] font-semibold transition active:scale-95 ${
+                      radius === m ? "bg-ink text-paper" : "bg-card text-ink-soft ring-1 ring-line"
+                    }`}
+                  >
+                    {m} {m === 1 ? "mile" : "miles"}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2.5 text-[13px] leading-relaxed text-muted">
+                Pod uses your neighbourhood, never your exact location.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

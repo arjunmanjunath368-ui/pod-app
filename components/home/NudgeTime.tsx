@@ -91,12 +91,22 @@ export function NudgeHoursEditor({
   heading?: boolean;
 }) {
   const router = useRouter();
-  const [picked, setPicked] = useState<number[]>(initialHours);
+  // One dropdown per nudge time (up to 3). Starts at 6 pm if none are set.
+  const [rows, setRows] = useState<number[]>(initialHours.length ? initialHours : [18]);
   const [state, setState] = useState<"idle" | "saving" | "error">("idle");
+  const picked = Array.from(new Set(rows)).sort((a, b) => a - b);
 
-  function toggle(h: number) {
+  function setRow(i: number, h: number) {
     setState("idle");
-    setPicked((p) => (p.includes(h) ? p.filter((x) => x !== h) : p.concat([h]).sort((a, b) => a - b)));
+    setRows((r) => r.map((x, j) => (j === i ? h : x)));
+  }
+  function addRow() {
+    const free = NUDGE_HOURS.filter((h) => !rows.includes(h));
+    const pick = free.find((h) => h > Math.max(...rows)) ?? free[0];
+    if (pick !== undefined) setRows((r) => r.concat([pick]));
+  }
+  function removeRow(i: number) {
+    setRows((r) => r.filter((_, j) => j !== i));
   }
 
   async function save(next: number[]) {
@@ -136,22 +146,43 @@ export function NudgeHoursEditor({
           </p>
         </>
       )}
-      <div className="mt-4 grid grid-cols-4 gap-2">
-        {NUDGE_HOURS.map((h) => {
-          const on = picked.includes(h);
-          return (
-            <button
-              key={h}
-              onClick={() => toggle(h)}
-              aria-pressed={on}
-              className={`rounded-xl border-2 py-2.5 text-[14px] font-semibold tabular-nums transition active:scale-[0.97] ${
-                on ? "border-terra bg-terra/[0.10] text-ink" : "border-line bg-card text-ink-soft"
-              }`}
-            >
-              {formatHour(h)}
-            </button>
-          );
-        })}
+      <div className="mt-4 flex flex-col gap-2">
+        {rows.map((h, i) => (
+          <div key={i} className="flex items-center gap-2.5">
+            <span className="w-[92px] shrink-0 text-[15px] text-ink-soft">{i === 0 ? "Nudge me at" : "or at"}</span>
+            <label className="relative min-w-0 flex-1">
+              <span className="sr-only">Nudge time {i + 1}</span>
+              <select
+                value={h}
+                onChange={(e) => setRow(i, Number(e.target.value))}
+                className="w-full appearance-none rounded-xl border-2 border-line bg-card py-2.5 pl-3.5 pr-9 text-[16px] font-semibold tabular-nums text-ink outline-none focus:border-terra"
+              >
+                {NUDGE_HOURS.filter((x) => x === h || !rows.includes(x)).map((x) => (
+                  <option key={x} value={x}>
+                    {formatHour(x)}
+                  </option>
+                ))}
+              </select>
+              <span aria-hidden className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] text-muted">
+                ▾
+              </span>
+            </label>
+            {rows.length > 1 && (
+              <button
+                onClick={() => removeRow(i)}
+                aria-label={`Remove ${formatHour(h)}`}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[18px] text-muted active:scale-95"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+        {rows.length < 3 && (
+          <button onClick={addRow} className="self-start pl-[102px] text-[14px] font-semibold text-terra">
+            + Add another time
+          </button>
+        )}
       </div>
       <div className="mt-4 flex gap-2">
         <button
@@ -159,11 +190,7 @@ export function NudgeHoursEditor({
           disabled={state === "saving" || picked.length === 0}
           className="flex-1 rounded-full bg-ink py-3 text-[15px] font-semibold text-paper transition disabled:opacity-40 active:scale-[0.98]"
         >
-          {state === "saving"
-            ? "Saving…"
-            : picked.length
-              ? `Nudge me at ${picked.map(formatHour).join(", ")}`
-              : "Pick a time"}
+          {state === "saving" ? "Saving…" : "Save"}
         </button>
         {onCancel && (
           <button

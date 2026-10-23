@@ -128,54 +128,170 @@ function Row({ m }: { m: Metric }) {
   );
 }
 
+const ASK: Record<string, { q: string; reply: string }> = {
+  Sleep: {
+    q: "I'm trying to sleep better. My sleep has averaged 68% this month and I'd like it above 80%. What's worked for you?",
+    reply: "Phone out of the bedroom by 10. My sleep went up within a week. Want to try it together?",
+  },
+  Recovery: {
+    q: "My recovery has been in the yellow most mornings lately. Has anything helped yours?",
+    reply: "No caffeine after 2 pm made the biggest difference for me. Took about two weeks to show up.",
+  },
+  "Showing up": {
+    q: "I keep missing my Friday workouts. How do you keep going at the end of the week?",
+    reply: "I book Friday as a walk, not a workout. Easier to say yes to. Join me this Friday?",
+  },
+  Stress: {
+    q: "Work has been stressful and it's showing in my sleep. How do you switch off in the evenings?",
+    reply: "A 20-minute walk after dinner, no podcasts. It's the only thing that works for me.",
+  },
+  "Strength training": {
+    q: "I want to start strength training twice a week. How did you get started?",
+    reply: "Two 30-minute sessions with the same 4 moves. Keep it boring and it sticks.",
+  },
+  Running: {
+    q: "I'd like to run a 5k by spring. Any tips for starting slowly?",
+    reply: "Run-walk: 1 minute running, 1 walking, three times a week. I'll send you my plan.",
+  },
+  "Eating well": {
+    q: "I'm trying to eat better on weekdays. What's helped you?",
+    reply: "Sunday prep: two big batches, lunches sorted for the week. Happy to share recipes.",
+  },
+  "Staying motivated": {
+    q: "My motivation's dipped lately. What keeps you going when you don't feel like it?",
+    reply: "I tell myself 10 minutes only. Most days I end up doing more.",
+  },
+  "Getting back after a break": {
+    q: "I've been off for two weeks. How do you restart without overdoing it?",
+    reply: "Start at half of what you used to do for a week. Your body catches up fast.",
+  },
+};
+const MAIN_TOPICS = ["Sleep", "Recovery", "Showing up"];
+const MORE_TOPICS = Object.keys(ASK).filter((k) => !MAIN_TOPICS.includes(k));
+
+type Msg = { from: "me" | "mom"; text: string };
+
 function AskFamily() {
-  const TOPICS = ["Sleep", "Recovery", "Showing up"];
   const [topic, setTopic] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-  const messages: Record<string, string> = {
-    Sleep:
-      "I'm trying to sleep better. My sleep has averaged 68% this month and I'd like it above 80%. What's worked for you?",
-    Recovery:
-      "My recovery has been in the yellow most mornings lately. Has anything helped yours? I'd love a tip.",
-    "Showing up":
-      "I keep missing my Friday workouts. How do you keep going at the end of the week?",
-  };
+  const [text, setText] = useState("");
+  const [thread, setThread] = useState<Msg[]>([]);
+  const [typing, setTyping] = useState(false);
+
+  function pick(t: string) {
+    setTopic(t);
+    setText(t === "own" ? "" : ASK[t].q);
+  }
+
+  function send() {
+    const body = text.trim();
+    if (!body) return;
+    setThread((th) => th.concat([{ from: "me", text: body }]));
+    setText("");
+    const reply = topic && topic !== "own" ? ASK[topic].reply : "Good question. Let me think, I'll call you tonight.";
+    setTopic(null);
+    setTyping(true);
+    setTimeout(() => {
+      setTyping(false);
+      setThread((th) => th.concat([{ from: "mom", text: reply }]));
+    }, 1400);
+  }
+
+  const chip = (on: boolean) =>
+    `rounded-full border-2 px-3.5 py-2 text-[14px] font-semibold transition active:scale-95 ${
+      on ? "border-terra bg-terra/[0.10] text-ink" : "border-line bg-paper text-ink-soft"
+    }`;
+
   return (
     <section className="mt-4 rounded-[24px] border border-line bg-card p-5">
       <h2 className="text-[18px] font-semibold text-ink">Working on something?</h2>
       <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">
-        Ask your family for help. Pick what you&apos;re working on and Pod drafts the question. Each of them also sees
-        what worked in their own data, so their answer is more than a guess.
+        Ask your family for help. Pick a topic and Pod drafts the question, or write your own. They also see what
+        worked in their own data, so their answer is more than a guess.
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {TOPICS.map((t) => (
-          <button
-            key={t}
-            onClick={() => {
-              setTopic(t);
-              setSent(false);
-            }}
-            aria-pressed={topic === t}
-            className={`rounded-full border-2 px-3.5 py-2 text-[14px] font-semibold transition active:scale-95 ${
-              topic === t ? "border-terra bg-terra/[0.10] text-ink" : "border-line bg-paper text-ink-soft"
-            }`}
-          >
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {MAIN_TOPICS.map((t) => (
+          <button key={t} onClick={() => pick(t)} aria-pressed={topic === t} className={chip(topic === t)}>
             {t}
           </button>
         ))}
-      </div>
-      {topic && (
-        <div className="mt-4">
-          <div className="text-[13px] font-semibold text-muted">Your question to Mom and Dad</div>
-          <p className="mt-1.5 rounded-2xl bg-paper-2/70 p-3.5 text-[15px] leading-relaxed text-ink">{messages[topic]}</p>
-          <button
-            onClick={() => setSent(true)}
-            disabled={sent}
-            className={`mt-3 w-full rounded-full px-4 py-2.5 text-[15px] font-semibold transition active:scale-[0.98] ${
-              sent ? "bg-paper-2 text-muted" : "bg-ink text-paper"
-            }`}
+        {topic && MORE_TOPICS.includes(topic) && (
+          <button aria-pressed className={chip(true)}>
+            {topic}
+          </button>
+        )}
+        <label className="relative">
+          <span className="sr-only">More topics</span>
+          <select
+            value=""
+            onChange={(e) => e.target.value && pick(e.target.value)}
+            className={`${chip(false)} w-[104px] appearance-none pr-8`}
           >
-            {sent ? "Asked Mom and Dad ✓" : "Ask Mom and Dad"}
+            <option value="">More</option>
+            {MORE_TOPICS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted">
+            ▾
+          </span>
+        </label>
+        <button onClick={() => pick("own")} aria-pressed={topic === "own"} className={chip(topic === "own")}>
+          Write your own
+        </button>
+      </div>
+
+      {thread.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-paper-2/50 p-3">
+          <div className="mb-2 text-[13px] font-semibold text-muted">Messages with Mom and Dad</div>
+          <ul className="flex flex-col gap-2">
+            {thread.map((m, i) => (
+              <li key={i} className={`flex ${m.from === "me" ? "justify-end" : "justify-start gap-2"}`}>
+                {m.from === "mom" && (
+                  <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#b07a4f] text-[11px] font-bold text-paper">
+                    M
+                  </span>
+                )}
+                <span
+                  className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed ${
+                    m.from === "me" ? "bg-terra text-paper" : "bg-card text-ink"
+                  }`}
+                >
+                  {m.text}
+                </span>
+              </li>
+            ))}
+            {typing && (
+              <li className="flex items-center gap-2 text-[13px] text-muted">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#b07a4f] text-[11px] font-bold text-paper">M</span>
+                Mom is typing…
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+
+      {(topic || thread.length > 0) && (
+        <div className="mt-3">
+          <label className="sr-only" htmlFor="family-msg">
+            Message to Mom and Dad
+          </label>
+          <textarea
+            id="family-msg"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={3}
+            placeholder="Write to Mom and Dad…"
+            className="w-full resize-none rounded-2xl border-2 border-line bg-paper p-3.5 text-[16px] leading-relaxed text-ink outline-none focus:border-terra"
+          />
+          <button
+            onClick={send}
+            disabled={!text.trim()}
+            className="mt-2 w-full rounded-full bg-ink px-4 py-2.5 text-[15px] font-semibold text-paper transition disabled:opacity-40 active:scale-[0.98]"
+          >
+            Send to Mom and Dad
           </button>
         </div>
       )}

@@ -5,7 +5,7 @@ export const DEMO_STEPS = [
   { key: "home", href: "/app/demo", label: "Home", short: "Home" },
   { key: "recap", href: "/app/demo/recap", label: "Sunday recap", short: "Recap" },
   { key: "family", href: "/app/demo/family", label: "Family", short: "Family" },
-  { key: "discover", href: "/app/demo/discover", label: "Find your people", short: "People" },
+  { key: "discover", href: "/app/demo/discover", label: "Nearby", short: "Nearby" },
   { key: "partner", href: "/app/demo/partner", label: "Admin View", short: "Admin" },
 ] as const;
 
@@ -44,38 +44,34 @@ export function DemoTopBar({ current }: { current: DemoStep }) {
   );
 }
 
-// Previous / next, pinned to the bottom of the screen while presenting.
+// Previous / next, pinned to the bottom of the screen while presenting. Each
+// button is as wide as its label, so there's no empty space inside them.
 export function DemoPager({ current }: { current: DemoStep }) {
   const i = DEMO_STEPS.findIndex((s) => s.key === current);
   const prev = DEMO_STEPS[i - 1];
   const next = DEMO_STEPS[i + 1];
   const btn =
-    "flex min-w-0 flex-1 items-center gap-1.5 rounded-full px-4 py-3 text-[15px] font-semibold transition active:scale-[0.98]";
+    "inline-flex max-w-full items-center gap-1.5 rounded-full px-4 py-3 text-[15px] font-semibold transition active:scale-[0.98]";
   return (
     <nav aria-label="Demo pages" className="podnav border-t border-line bg-paper/95 backdrop-blur">
-      <div className="flex items-center gap-2 px-4 pb-6 pt-3">
-        {prev ? (
-          <Link href={prev.href} className={`${btn} border border-line bg-card text-ink-soft`}>
-            <span aria-hidden>‹</span>
-            <span className="truncate">{prev.label}</span>
-          </Link>
-        ) : (
-          <span className={`${btn} invisible`} aria-hidden />
-        )}
-        <span className="shrink-0 text-[13px] font-semibold tabular-nums text-muted">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 pb-6 pt-3">
+        <div className="min-w-0 justify-self-start">
+          {prev && (
+            <Link href={prev.href} className={`${btn} border border-line bg-card text-ink-soft`}>
+              <span aria-hidden>‹</span>
+              <span className="truncate">{prev.label}</span>
+            </Link>
+          )}
+        </div>
+        <span className="text-[13px] font-semibold tabular-nums text-muted">
           {i + 1} / {DEMO_STEPS.length}
         </span>
-        {next ? (
-          <Link href={next.href} className={`${btn} justify-end bg-ink text-paper`}>
-            <span className="truncate">{next.label}</span>
-            <span aria-hidden>›</span>
+        <div className="min-w-0 justify-self-end">
+          <Link href={next ? next.href : DEMO_STEPS[0].href} className={`${btn} bg-ink text-paper`}>
+            <span className="truncate">{next ? next.label : "Start over"}</span>
+            <span aria-hidden>{next ? "›" : "↺"}</span>
           </Link>
-        ) : (
-          <Link href={DEMO_STEPS[0].href} className={`${btn} justify-end bg-ink text-paper`}>
-            <span className="truncate">Start over</span>
-            <span aria-hidden>↺</span>
-          </Link>
-        )}
+        </div>
       </div>
     </nav>
   );

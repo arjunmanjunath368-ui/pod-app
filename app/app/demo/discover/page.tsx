@@ -9,10 +9,10 @@ export default function DiscoverDemo() {
     <main className="px-5 pb-32 pt-4">
       <DemoTopBar current="discover" />
 
-      <h1 className="mt-5 font-serif text-[32px] font-semibold leading-tight text-ink">Find your people</h1>
+      <h1 className="mt-5 font-serif text-[32px] font-semibold leading-tight text-ink">Nearby</h1>
       <p className="mt-1.5 text-[16px] leading-relaxed text-ink-soft">
-        WHOOP members nearby who like what you like. Fitness level and goals don&apos;t matter; showing
-        up does.
+        Find your people: WHOOP members near you who like what you like. Fitness level and goals don&apos;t
+        matter; showing up does.
       </p>
 
       <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-paper-2/70 px-4 py-3">
