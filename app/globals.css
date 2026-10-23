@@ -69,39 +69,44 @@ body {
 }
 
 /* Charts that build as they scroll into view (InView adds .in-view).
-   Without motion preferences, everything simply shows. */
+   Rings, bars and lines fill in place even with Reduce Motion on: they stay
+   inside their own box and nothing on the page moves. Reduce Motion only
+   drops the zoom on .pop-in, which then simply fades in. */
+.grow-y {
+  transform-origin: bottom;
+  transform: scaleY(0);
+  transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.grow-x {
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.draw-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pop-in {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
 @media (prefers-reduced-motion: no-preference) {
-  .grow-y {
-    transform-origin: bottom;
-    transform: scaleY(0);
-    transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-  .grow-x {
-    transform-origin: left;
-    transform: scaleX(0);
-    transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-  .draw-line {
-    stroke-dasharray: 1;
-    stroke-dashoffset: 1;
-    transition: stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
   .pop-in {
-    opacity: 0;
     transform: scale(0.6);
     transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
-  .in-view .grow-y,
-  .in-view .grow-x,
-  .in-view.grow-y,
-  .in-view.grow-x {
-    transform: none;
-  }
-  .in-view .draw-line {
-    stroke-dashoffset: 0;
-  }
-  .in-view .pop-in {
-    opacity: 1;
-    transform: none;
-  }
+}
+.in-view .grow-y,
+.in-view .grow-x,
+.in-view.grow-y,
+.in-view.grow-x {
+  transform: none;
+}
+.in-view .draw-line {
+  stroke-dashoffset: 0;
+}
+.in-view .pop-in {
+  opacity: 1;
+  transform: none;
 }

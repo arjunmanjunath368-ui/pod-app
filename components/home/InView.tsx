@@ -52,13 +52,8 @@ export function CountUp({ value, duration = 1100 }: { value: number; duration?: 
   const { ref, seen } = useInView<HTMLSpanElement>(0.4);
   const [shown, setShown] = useState(0);
   useEffect(() => {
+    // Counting runs with Reduce Motion on too: the digits change, nothing moves.
     if (!seen) return;
-    const reduce =
-      typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      setShown(value);
-      return;
-    }
     let raf = 0;
     const start = performance.now();
     const tick = (t: number) => {

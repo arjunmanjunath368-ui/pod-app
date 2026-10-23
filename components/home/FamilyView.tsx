@@ -248,7 +248,7 @@ function AskFamily() {
             <span aria-hidden className="text-[12px] text-muted">▾</span>
           </button>
           {more.open && (
-            <div role="menu" className={`${MENU_CLS} right-0`}>
+            <div role="menu" ref={more.menu.ref} style={more.menu.style} className={`${MENU_CLS} ${more.menu.pos} right-0`}>
               {MORE_TOPICS.map((t) => (
                 <button key={t} role="menuitem" onClick={() => pick(t)} className={MENU_ITEM_CLS}>
                   {t}
@@ -313,7 +313,7 @@ function AskFamily() {
               <span aria-hidden className="text-[12px] text-muted">▾</span>
             </button>
             {sendTo.open && (
-              <div role="menu" className={`${MENU_CLS} left-8`}>
+              <div role="menu" ref={sendTo.menu.ref} style={sendTo.menu.style} className={`${MENU_CLS} ${sendTo.menu.pos} left-8`}>
                 <button
                   role="menuitemcheckbox"
                   aria-checked={to.length === WHO.length}

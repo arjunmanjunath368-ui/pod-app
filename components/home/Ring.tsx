@@ -59,7 +59,7 @@ export default function Ring({
             strokeLinecap="round"
             strokeDasharray={c}
             strokeDashoffset={offset}
-            className="motion-safe:transition-[stroke-dashoffset] motion-safe:duration-[1100ms] motion-safe:ease-out"
+            className="transition-[stroke-dashoffset] duration-[1100ms] ease-out"
           />
         )}
       </svg>
