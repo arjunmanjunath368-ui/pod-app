@@ -2,7 +2,8 @@ import Link from "next/link";
 
 // For members without WHOOP: what they're missing, and a clear way in.
 // `offer` shows the Pod member offer. It's a concept (not agreed with WHOOP),
-// so only the demo pod passes it.
+// so only the demo pod passes it. It matches the earned 60-day trial model:
+// 30 days free, and 30 more for hitting the pod goal in 3 of the first 4 weeks.
 
 const PERKS: { color: string; text: string }[] = [
   { color: "#6FCF7F", text: "Recovery and sleep, every morning" },
@@ -23,7 +24,7 @@ export default function WhoopJoin({
     "flex items-center justify-center rounded-full bg-paper px-3 py-2.5 text-[14px] font-semibold text-ink transition active:scale-[0.98]";
   const secondaryCls =
     "flex items-center justify-center rounded-full border border-paper/30 px-3 py-2.5 text-[14px] font-semibold text-paper transition active:scale-[0.98]";
-  const primaryLabel = offer ? "Start 60 days free" : "Join WHOOP";
+  const primaryLabel = offer ? "Start free trial" : "Join WHOOP";
 
   return (
     <div className="rounded-2xl bg-paper/[0.07] p-4">
@@ -49,9 +50,10 @@ export default function WhoopJoin({
 
       {offer && (
         <div className="mt-3.5 rounded-xl border border-[#E3B04B]/35 bg-[#E3B04B]/[0.12] px-3.5 py-3">
-          <div className="text-[22px] font-semibold leading-none text-paper">60 days free</div>
-          <div className="mt-1 text-[13px] text-paper/85">
-            then 20% off your first year, for Pod members
+          <div className="text-[22px] font-semibold leading-none text-paper">Up to 60 days free</div>
+          <div className="mt-1.5 text-[13px] leading-snug text-paper/85">
+            30 days to start. Hit your pod goal in 3 of your first 4 weeks and get
+            30 more, free.
           </div>
         </div>
       )}

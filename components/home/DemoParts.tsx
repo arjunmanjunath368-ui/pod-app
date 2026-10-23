@@ -64,3 +64,33 @@ export function DemoActions({ name }: { name: string }) {
     </>
   );
 }
+
+// A one-tap demo action that only changes on screen ("Suggested to the pod").
+export function DemoActionButton({
+  label,
+  doneLabel,
+  tone = "light",
+  full = true,
+}: {
+  label: string;
+  doneLabel: string;
+  tone?: "light" | "terra" | "ink";
+  full?: boolean;
+}) {
+  const [done, setDone] = useState(false);
+  const base = `${full ? "w-full" : ""} rounded-full px-4 py-2.5 text-[14px] font-semibold transition active:scale-[0.98]`;
+  const cls = done
+    ? tone === "light"
+      ? "bg-paper/20 text-paper"
+      : "bg-paper-2 text-muted"
+    : tone === "light"
+      ? "bg-paper text-ink"
+      : tone === "terra"
+        ? "bg-terra text-paper"
+        : "bg-ink text-paper";
+  return (
+    <button onClick={() => setDone(true)} disabled={done} className={`${base} ${cls}`}>
+      {done ? doneLabel : label}
+    </button>
+  );
+}

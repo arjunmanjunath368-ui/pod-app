@@ -1,5 +1,6 @@
 import { weekStartUtc } from "./week";
 import { weekKeys, weekLetters, buildWeek, weekRangeShort, dateLabel, monthName, pct } from "./homeModel";
+import { showingUpScore, SCORE_WEEKS } from "./showingUp";
 import type { MemberRow, PodData, TodayData, YourTurnData } from "@/components/home/types";
 
 // The demo pod: a believable mid-week, built fresh for the viewer's week so
@@ -144,7 +145,29 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
     perfectWeeks: 3,
     goal: 4,
     pointsPerWeek: 250,
+    bonus: 1000,
   };
 
-  return { today, yourTurn, pod, notification, rewards };
+  // Showing Up Score: % of goal hit in each finished week, oldest first. The
+  // last three are 100: the pod's three Pod Perfect weeks.
+  const history = [75, 50, 100, 75, 100, 50, 75, 100, 75, 100, 100, 100];
+  const recent = history.slice(-SCORE_WEEKS);
+  const monthAgo = history.slice(-SCORE_WEEKS - 4, -4);
+  const showingUp = {
+    score: showingUpScore(recent),
+    delta: showingUpScore(recent) - showingUpScore(monthAgo),
+    weeks: recent,
+    podScore: 84,
+  };
+
+  // Pod Readiness this morning: WHOOP members only (Sam and Leo aren't on it).
+  // Priya is red (her rest day), Jordan yellow, AJ and Maya green.
+  const readiness = {
+    counts: { green: 2, yellow: 1, red: 1 },
+    notOnWhoop: people.filter((p) => !p.whoop).length,
+    suggestion:
+      "Most of the pod is recovered, and 4 of you usually move in the evening. Jordan's already played padel today. Suggest a group session for tomorrow at 6 pm?",
+  };
+
+  return { today, yourTurn, pod, notification, rewards, showingUp, readiness };
 }

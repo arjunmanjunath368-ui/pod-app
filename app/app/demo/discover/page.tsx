@@ -1,0 +1,38 @@
+import { DemoTopBar, DemoNext } from "@/components/home/DemoNav";
+import FindPeople from "@/components/home/FindPeople";
+
+export const dynamic = "force-dynamic";
+
+// Demo: find WHOOP members nearby by interest and start a pod with them.
+export default function DiscoverDemo() {
+  return (
+    <main className="px-5 pb-16 pt-4">
+      <DemoTopBar current="discover" />
+
+      <h1 className="mt-5 font-serif text-[30px] font-semibold leading-tight text-ink">Find your people</h1>
+      <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft">
+        WHOOP members nearby who like what you like. Fitness level and goals don&apos;t matter; showing
+        up does.
+      </p>
+
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-paper-2/70 px-4 py-3">
+        <div className="min-w-0">
+          <div className="text-[14px] font-semibold text-ink">Let people find me</div>
+          <div className="text-[12px] text-muted">First name, interests and neighbourhood only</div>
+        </div>
+        <span aria-hidden className="flex h-7 w-12 shrink-0 items-center justify-end rounded-full bg-sage p-0.5">
+          <span className="h-6 w-6 rounded-full bg-card shadow" />
+        </span>
+      </div>
+
+      <FindPeople />
+
+      <p className="mt-4 text-[12px] leading-relaxed text-muted">
+        Only members who turn on &ldquo;Let people find me&rdquo; appear. Nothing else is shared until you
+        both accept, and Pod never shows an exact location.
+      </p>
+
+      <DemoNext current="discover" />
+    </main>
+  );
+}

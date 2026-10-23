@@ -3,7 +3,8 @@
 //
 // Only verified days count toward rewards (synced from WHOOP, or logged with a
 // live photo), so a manual log can't earn anything. Points go to members on
-// WHOOP; members who aren't yet get a free trial when the pod hits its run.
+// WHOOP. Pod-mates who aren't on WHOOP yet get the earned trial instead
+// (WhoopJoin's offer).
 
 export default function RewardsConcept({
   perfectWeeks,
@@ -11,12 +12,14 @@ export default function RewardsConcept({
   pointsPerWeek,
   remaining,
   whoopMembers,
+  bonus,
 }: {
   perfectWeeks: number;
   goal: number;
   pointsPerWeek: number;
   remaining: number;
   whoopMembers: number;
+  bonus: number;
 }) {
   const earned = perfectWeeks * pointsPerWeek;
   return (
@@ -29,8 +32,8 @@ export default function RewardsConcept({
       </div>
       <p className="mt-1.5 text-[14px] leading-relaxed text-sage-soft">
         Every verified Pod Perfect week earns {pointsPerWeek} WHOOP points for each
-        member on WHOOP. {goal} in a row unlocks 60 days of WHOOP free for
-        pod-mates who aren't members yet.
+        member on WHOOP, and {goal} in a row adds a {bonus.toLocaleString("en-US")}-point
+        bonus. The pod earns together, so nobody gets ahead by leaving someone behind.
       </p>
 
       <div className="mt-4 grid grid-cols-4 gap-1.5" aria-label={`${perfectWeeks} of ${goal} Pod Perfect weeks`}>
@@ -62,7 +65,7 @@ export default function RewardsConcept({
           </div>
         </div>
         <div className="max-w-[55%] text-right text-[13px] leading-snug text-paper/90">
-          {remaining} more active {remaining === 1 ? "day" : "days"} across the pod completes week {Math.min(perfectWeeks + 1, goal)}.
+          {remaining} more active {remaining === 1 ? "day" : "days"} across the pod completes week {Math.min(perfectWeeks + 1, goal)} and the bonus.
         </div>
       </div>
       <p className="mt-3 text-[12px] leading-relaxed text-sage-soft/80">
