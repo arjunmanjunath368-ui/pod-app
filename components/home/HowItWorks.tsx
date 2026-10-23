@@ -6,14 +6,14 @@ import { useEffect, useState } from "react";
 // ask them.
 const ITEMS: { emoji: string; title: string; body: string }[] = [
   {
-    emoji: "🔥",
+    emoji: "✅",
     title: "Active days",
     body: "Your goal is a number of active days a week. Any activity makes a day active, and a day counts once however much you do. Your days count from the moment you join.",
   },
   {
     emoji: "⌚",
     title: "The rings",
-    body: "My week is how much of your weekly goal is done. With WHOOP, Recovery and Sleep show today's numbers. Only you see those. Your pod never does.",
+    body: "Weekly goal is how much of this week's goal you've hit. With WHOOP, Recovery shows today's score and Sleep shows last night's. Only you see those. Your pod never does.",
   },
   {
     emoji: "🫛",

@@ -9,7 +9,7 @@ import WhoopPanel from "@/components/WhoopPanel";
 import { whoopConfig } from "@/lib/whoop";
 import { getServiceClient } from "@/lib/whoopStore";
 import MoveTimesPanel from "@/components/MoveTimesPanel";
-import { cleanSlots } from "@/lib/moveSlots";
+import { slotHours } from "@/lib/moveSlots";
 
 export default async function SettingsPage({
   searchParams,
@@ -112,7 +112,7 @@ export default async function SettingsPage({
         <div className="mt-4">
           <MoveTimesPanel
             userId={user.id}
-            initial={cleanSlots((slotRow as any)?.move_slots)}
+            initialHours={slotHours((slotRow as any)?.move_slots)}
             available={!slotErr}
           />
         </div>

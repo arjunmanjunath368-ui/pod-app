@@ -8,7 +8,9 @@ import RewardsConcept from "@/components/home/RewardsConcept";
 import WhoopJoin from "@/components/home/WhoopJoin";
 import ShowingUpCard from "@/components/home/ShowingUpCard";
 import PodReadiness from "@/components/home/PodReadiness";
-import { DemoTopBar, DemoNext } from "@/components/home/DemoNav";
+import { DemoTopBar, DemoPager } from "@/components/home/DemoNav";
+import { NudgeTimeProvider } from "@/components/home/NudgeTime";
+import { demoNow } from "@/lib/demoPod";
 import { SampleNudgeButton } from "@/components/home/LogButton";
 import { NotificationPreview, DemoActions, DemoActionButton } from "@/components/home/DemoParts";
 
@@ -22,8 +24,9 @@ export default async function DemoPod() {
   const demo = buildDemo(tz, firstName);
 
   return (
-    <main className="px-5 pb-16 pt-4">
+    <main className="px-5 pb-32 pt-4">
       <DemoTopBar current="home" />
+      <NudgeTimeProvider initialHours={[18]} tz={tz} nowIso={demoNow(tz).toISOString()} demo>
 
       <NotificationPreview title={demo.notification.title} body={demo.notification.body} />
 
@@ -53,7 +56,7 @@ export default async function DemoPod() {
         counts={demo.readiness.counts}
         notOnWhoop={demo.readiness.notOnWhoop}
         suggestion={demo.readiness.suggestion}
-        action={<DemoActionButton label="Suggest padel, tomorrow 6 pm" doneLabel="Suggested to the pod ✓" />}
+        action={<DemoActionButton label="Suggest a session tonight, 7 pm" doneLabel="Suggested to the pod ✓" />}
       />
 
       <PodCard
@@ -83,13 +86,14 @@ export default async function DemoPod() {
         </div>
       </section>
 
-      <DemoNext current="home" />
+      </NudgeTimeProvider>
 
       <p className="mt-6 text-center text-[12px] leading-relaxed text-muted">
         Names, scores and rewards here are made up to show how Pod works.
         <br />
         Pod isn't affiliated with or endorsed by WHOOP.
       </p>
+      <DemoPager current="home" />
     </main>
   );
 }

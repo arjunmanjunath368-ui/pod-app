@@ -1,21 +1,26 @@
 import type { WeekDay } from "./types";
+import InView from "./InView";
 
 // A week as seven days. Big variant on the Today card (dark), small dots on
 // each member row (light).
 
 export function WeekStripLarge({ days }: { days: WeekDay[] }) {
   return (
-    <div className="grid grid-cols-7 gap-1.5" role="list" aria-label="Your week">
+    <InView className="grid grid-cols-7 gap-1.5">
       {days.map((d, i) => {
         const base =
           "mx-auto flex h-9 w-9 items-center justify-center rounded-full text-[15px] leading-none";
         let cls = "";
-        let inner: React.ReactNode = null;
+        let inner: React.ReactNode = null; // icon inside the day
         let label = "";
         switch (d.state) {
           case "active":
-            cls = "bg-gold/90";
-            inner = "🔥";
+            cls = "bg-[#E3B04B]";
+            inner = (
+              <svg width="16" height="16" viewBox="0 0 12 12" fill="none" stroke="#1a2e1f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M2.5 6.5 5 9l4.5-6" />
+              </svg>
+            );
             label = "active";
             break;
           case "rest":
@@ -50,17 +55,18 @@ export function WeekStripLarge({ days }: { days: WeekDay[] }) {
               {d.letter}
             </span>
             <span
-              className={`${base} ${cls} ${
+              className={`pop-in ${base} ${cls} ${
                 d.isToday && d.state !== "today" ? "ring-2 ring-paper/70 ring-offset-2 ring-offset-ink" : ""
               }`}
               aria-label={`${d.letter}: ${label}`}
+              style={{ transitionDelay: `${i * 70}ms` }}
             >
               {inner}
             </span>
           </div>
         );
       })}
-    </div>
+    </InView>
   );
 }
 

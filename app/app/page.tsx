@@ -21,9 +21,11 @@ import {
   weekRangeShort,
   dateLabel,
   monthName,
+  monthShort,
   pct,
 } from "@/lib/homeModel";
-import { cleanSlots, nextNudgeLabel } from "@/lib/moveSlots";
+import { cleanSlots, nextNudgeLabel, slotHours } from "@/lib/moveSlots";
+import { NudgeTimeProvider } from "@/components/home/NudgeTime";
 import { whoopConfig } from "@/lib/whoop";
 import { buildDeps, getServiceClient } from "@/lib/whoopStore";
 import { loadWhoopHealth } from "@/lib/whoopHealth";
@@ -285,6 +287,7 @@ async function buildSection(supabase: any, pod: any, userId: string, now: Date) 
     id: podId,
     name: pod.name,
     weekRange: weekRangeShort(tz, wso, now),
+    monthShort: monthShort(tz, now),
     inviteCode: pod.invite_code,
     photoProof: false,
     pct: podPct,
@@ -706,6 +709,12 @@ export default async function Home({
           canSkip={allHaveGoals}
         />
 
+        <NudgeTimeProvider
+          initialHours={slotHours(slots)}
+          tz={myTz}
+          nowIso={now.toISOString()}
+          userId={user.id}
+        >
         <div className="flex items-center justify-between gap-3">
           <h1 className="min-w-0 truncate font-serif text-[28px] font-semibold leading-tight text-ink">
             {greeting}, {firstName}
@@ -830,6 +839,8 @@ export default async function Home({
             </Link>
           </div>
         ))}
+
+        </NudgeTimeProvider>
 
         <div className="mt-6 flex justify-center gap-5 text-[13px] font-semibold text-muted">
           <Link href="/app/start/create?from=home" className="underline-offset-2 hover:underline">

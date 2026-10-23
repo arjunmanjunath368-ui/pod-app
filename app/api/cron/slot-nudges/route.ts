@@ -44,7 +44,7 @@ export async function GET(req: Request) {
     } catch {
       continue; // bad timezone string
     }
-    if (!slotStartingAt(slots, hour)) continue;
+    if (!slotStartingAt(slots, hour)) continue; // not one of their nudge times
     if (p.slot_nudged_on === todayKey) continue;
     considered++;
 

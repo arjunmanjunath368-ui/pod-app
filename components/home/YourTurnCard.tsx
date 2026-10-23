@@ -1,4 +1,5 @@
 import type { YourTurnData } from "./types";
+import { NudgeLine } from "./NudgeTime";
 
 // The reason to move today: who in your pods already showed up, and what's
 // left for a perfect week. It turns pod-mates' activity into "your turn"
@@ -62,7 +63,7 @@ export default function YourTurnCard({
       {others.length > 0 && (
         <ul className="mt-3.5 flex flex-col gap-2">
           {others.slice(0, 3).map((o, i) => (
-            <li key={i} className="flex items-center gap-2.5 text-[14px]">
+            <li key={i} className="flex items-center gap-2.5 text-[15px]">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper-2 text-[16px]">
                 {o.emoji}
               </span>
@@ -70,7 +71,7 @@ export default function YourTurnCard({
                 <b className="font-semibold">{o.name}</b> · {o.label}
                 {data.multiPod && o.pod && <span className="text-muted"> · {o.pod}</span>}
               </span>
-              <span className="shrink-0 text-[12px] text-muted">{o.ago}</span>
+              <span className="shrink-0 text-[13px] text-muted">{o.ago}</span>
             </li>
           ))}
         </ul>
@@ -78,14 +79,7 @@ export default function YourTurnCard({
 
       {showCta && cta && <div className="mt-4">{cta}</div>}
 
-      {showCta && data.hasMoveTimes && data.nextNudge && (
-        <div className="mt-3 flex items-center gap-2.5 rounded-2xl bg-paper-2/70 px-3.5 py-2.5 text-[14px] text-ink-soft">
-          <span aria-hidden className="text-[16px]">🔔</span>
-          <span>
-            Not moved by <b className="font-semibold text-ink">{data.nextNudge}</b>? Pod nudges you once.
-          </span>
-        </div>
-      )}
+      {showCta && data.hasMoveTimes && <NudgeLine />}
 
       {!data.hasMoveTimes && moveTimes && (
         <div className="mt-4 border-t border-line pt-4">{moveTimes}</div>

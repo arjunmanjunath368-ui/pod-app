@@ -63,6 +63,10 @@ export function dateLabel(tz: string, now: Date = new Date()): string {
   }).format(now);
 }
 
+export function monthShort(tz: string, now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short" }).format(now);
+}
+
 export function monthName(tz: string, now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "long" }).format(now);
 }

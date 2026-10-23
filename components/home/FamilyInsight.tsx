@@ -8,10 +8,12 @@ export default function FamilyInsight({
   name,
   insight,
   draft,
+  actionLabel = "Share what worked",
 }: {
   name: string;
   insight: React.ReactNode;
   draft: string;
+  actionLabel?: string;
 }) {
   const [step, setStep] = useState<"idle" | "draft" | "sent" | "dismissed">("idle");
   if (step === "dismissed") return null;
@@ -20,7 +22,7 @@ export default function FamilyInsight({
       <div className="flex items-center gap-1.5 text-[12px] font-semibold text-terra">
         <span aria-hidden>✦</span> Pod AI noticed
       </div>
-      <div className="mt-2 text-[16px] leading-relaxed text-ink">{insight}</div>
+      <div className="mt-2 text-[17px] leading-relaxed text-ink">{insight}</div>
 
       {step === "idle" && (
         <div className="mt-4 flex gap-2">
@@ -28,7 +30,7 @@ export default function FamilyInsight({
             onClick={() => setStep("draft")}
             className="flex-1 rounded-full bg-terra px-4 py-2.5 text-[14px] font-semibold text-paper transition active:scale-[0.98]"
           >
-            Share what worked
+            {actionLabel}
           </button>
           <button
             onClick={() => setStep("dismissed")}

@@ -1,5 +1,5 @@
 import { weekStartUtc } from "./week";
-import { weekKeys, weekLetters, buildWeek, weekRangeShort, dateLabel, monthName, pct } from "./homeModel";
+import { weekKeys, weekLetters, buildWeek, weekRangeShort, dateLabel, monthName, monthShort, pct } from "./homeModel";
 import { showingUpScore, SCORE_WEEKS } from "./showingUp";
 import type { MemberRow, PodData, TodayData, YourTurnData } from "@/components/home/types";
 
@@ -92,6 +92,7 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
     id: "demo",
     name: "Back Bay Movers",
     weekRange: weekRangeShort(tz, WSO, at),
+    monthShort: monthShort(tz, at),
     inviteCode: "DEMO",
     photoProof: false,
     pct: podPct,
@@ -148,9 +149,9 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
     bonus: 1000,
   };
 
-  // Showing Up Score: % of goal hit in each finished week, oldest first. The
-  // last three are 100: the pod's three Pod Perfect weeks.
-  const history = [75, 50, 100, 75, 100, 50, 75, 100, 75, 100, 100, 100];
+  // Showing Up Score: days hit each finished week on a 4-day goal, oldest
+  // first. The last three are 4 of 4: the pod's three Pod Perfect weeks.
+  const history = [3, 2, 4, 3, 4, 2, 3, 4, 3, 4, 4, 4].map((done) => ({ done, target: 4 }));
   const recent = history.slice(-SCORE_WEEKS);
   const monthAgo = history.slice(-SCORE_WEEKS - 4, -4);
   const showingUp = {
@@ -166,7 +167,7 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
     counts: { green: 2, yellow: 1, red: 1 },
     notOnWhoop: people.filter((p) => !p.whoop).length,
     suggestion:
-      "Most of the pod is recovered, and 4 of you usually move in the evening. Jordan's already played padel today. Suggest a group session for tomorrow at 6 pm?",
+      "2 of the 4 of you on WHOOP are recovered enough to push today, and both usually move in the evening. Suggest a session together tonight?",
   };
 
   return { today, yourTurn, pod, notification, rewards, showingUp, readiness };

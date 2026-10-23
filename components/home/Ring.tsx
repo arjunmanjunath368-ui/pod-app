@@ -1,5 +1,10 @@
+"use client";
+
+import { useInView } from "./InView";
+
 // A progress ring, drawn to scale: the arc covers exactly `pct` of the circle.
-// `muted` draws a dashed, empty ring for data the member doesn't have yet.
+// It fills from zero the first time it scrolls into view. `muted` draws a
+// dashed, empty ring for data the member doesn't have yet.
 
 export default function Ring({
   pct,
@@ -20,12 +25,14 @@ export default function Ring({
   children?: React.ReactNode;
   label?: string;
 }) {
+  const { ref, seen } = useInView<HTMLDivElement>(0.4);
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const clamped = Math.max(0, Math.min(100, pct));
-  const offset = c * (1 - clamped / 100);
+  const offset = seen ? c * (1 - clamped / 100) : c;
   return (
     <div
+      ref={ref}
       className="relative shrink-0"
       style={{ width: size, height: size }}
       role="img"
@@ -52,13 +59,11 @@ export default function Ring({
             strokeLinecap="round"
             strokeDasharray={c}
             strokeDashoffset={offset}
-            style={{ transition: "stroke-dashoffset 0.9s cubic-bezier(.2,.8,.2,1)" }}
+            className="motion-safe:transition-[stroke-dashoffset] motion-safe:duration-[1100ms] motion-safe:ease-out"
           />
         )}
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        {children}
-      </div>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
     </div>
   );
 }

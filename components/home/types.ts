@@ -65,6 +65,7 @@ export type PodData = {
   hasGoalRows: boolean;
   goalsSet: number;
   members: MemberRow[];
+  monthShort?: string; // "Oct": labels each member's active days this month
 };
 
 export type TodayActivity = {

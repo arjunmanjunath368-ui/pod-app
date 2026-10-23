@@ -1,7 +1,8 @@
-import { scoreLabel } from "@/lib/showingUp";
+import { scoreLabel, scoreParts, SCORE_WEEKS, type ScoreWeek } from "@/lib/showingUp";
+import InView, { CountUp } from "./InView";
 
-// Pod's own metric: consistency over the last 8 weeks. Bars are drawn to
-// scale: each is that week's share of the goal, full height = 100%.
+// Pod's own metric: consistency over the last 8 weeks, in plain numbers. Each
+// bar is one week, drawn to scale: full height = the whole goal.
 
 export default function ShowingUpCard({
   score,
@@ -10,55 +11,75 @@ export default function ShowingUpCard({
   podScore,
 }: {
   score: number;
-  delta: number; // change vs four weeks ago
-  weeks: number[]; // % of goal hit per finished week, oldest first
+  delta: number; // change vs a month ago
+  weeks: ScoreWeek[]; // last 8 finished weeks, oldest first
   podScore?: number;
 }) {
-  const H = 52;
+  const H = 56;
+  const { done, target } = scoreParts(weeks);
   return (
     <section className="mt-4 rounded-[28px] border border-line bg-card p-5 shadow-pod">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-semibold text-ink">Showing Up Score</h2>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="text-[44px] font-semibold leading-none tabular-nums text-ink">{score}</span>
+          <h2 className="text-[17px] font-semibold text-ink">Showing Up Score</h2>
+          <div className="mt-1.5 flex items-baseline gap-2.5">
+            <span className="text-[46px] font-semibold leading-none text-ink">
+              <CountUp value={score} />
+            </span>
             <span className="text-[14px] font-semibold text-sage">
-              {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)} this month
+              {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)} vs a month ago
             </span>
           </div>
         </div>
-        <span className="rounded-full bg-gold/[0.18] px-3 py-1 text-[12px] font-semibold text-ink">
+        <span className="rounded-full bg-gold/[0.18] px-3 py-1 text-[13px] font-semibold text-ink">
           {scoreLabel(score)}
         </span>
       </div>
 
-      <div className="mt-4" role="img" aria-label={`Goal hit over the last ${weeks.length} weeks: ${weeks.join("%, ")}%`}>
-        <div className="flex items-end gap-1.5" style={{ height: H }}>
-          {weeks.map((p, i) => (
-            <div key={i} className="flex flex-1 flex-col justify-end" style={{ height: H }}>
-              <div
-                className={`w-full rounded-md ${p >= 100 ? "bg-[#E3B04B]" : "bg-paper-2"}`}
-                style={{ height: Math.max(4, (Math.min(p, 100) / 100) * H) }}
-              />
-            </div>
-          ))}
+      <p className="mt-3 text-[16px] leading-relaxed text-ink">
+        You showed up on <b className="font-semibold">{done} of your {target} goal days</b> in the last{" "}
+        {SCORE_WEEKS} weeks.
+      </p>
+
+      <InView className="mt-4">
+        <div
+          className="flex items-end gap-1.5"
+          style={{ height: H + 20 }}
+          role="img"
+          aria-label={`Days hit each week: ${weeks.map((w) => `${w.done} of ${w.target}`).join(", ")}`}
+        >
+          {weeks.map((w, i) => {
+            const full = w.done >= w.target;
+            return (
+              <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1">
+                <span className={`text-[11px] font-semibold tabular-nums ${full ? "text-ink" : "text-muted"}`}>
+                  {Math.min(w.done, w.target)}/{w.target}
+                </span>
+                <div
+                  className={`grow-y w-full rounded-md ${full ? "bg-[#E3B04B]" : "bg-[#E3B04B]/35"}`}
+                  style={{ height: Math.max(4, (Math.min(w.done, w.target) / w.target) * H), transitionDelay: `${i * 60}ms` }}
+                />
+              </div>
+            );
+          })}
         </div>
-        <div className="mt-1.5 flex justify-between text-[11px] text-muted">
+        <div className="mt-1.5 flex justify-between text-[12px] text-muted">
           <span>8 weeks ago</span>
           <span>Last week</span>
         </div>
-      </div>
+      </InView>
 
-      <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
-        WHOOP measures how hard you went. This measures whether you showed up: how
-        often you hit your own goal, with recent weeks counting most.
+      <div className="mt-4 rounded-2xl bg-paper-2/70 p-3.5 text-[14px] leading-relaxed text-ink-soft">
+        <b className="font-semibold text-ink">How it&apos;s worked out:</b> days you showed up ÷ days you aimed for, over
+        your last {SCORE_WEEKS} weeks. {done} ÷ {target} = {score}. Extra days don&apos;t count beyond your goal; red-recovery
+        rest days do. WHOOP measures how hard you went; this measures whether you showed up.
         {podScore !== undefined && (
           <>
             {" "}
-            Your pod's score is <b className="font-semibold text-ink">{podScore}</b>.
+            Your pod&apos;s score is <b className="font-semibold text-ink">{podScore}</b>.
           </>
         )}
-      </p>
+      </div>
     </section>
   );
 }
