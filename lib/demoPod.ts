@@ -108,6 +108,7 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
   const today: TodayData = {
     dateLabel: dateLabel(tz, at),
     my: { pct: me.pct, done: me.done, target: me.target, hasGoal: true },
+    pod: { pct: podPct, remaining, perfect: remaining === 0 },
     whoop: "on",
     recovery: { score: 74, zone: "green" },
     sleep: { performance: 85 },
@@ -137,7 +138,7 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
 
   const notification = {
     title: pod.name,
-    body: "Jordan just logged padel. Your turn to make it count 💪",
+    body: "Jordan just logged padel. Your turn 💪",
   };
 
   // Concept: pod rewards with WHOOP. Simulated.
@@ -167,7 +168,7 @@ export function buildDemo(tz: string, firstName: string, now: Date = new Date())
     counts: { green: 2, yellow: 1, red: 1 },
     notOnWhoop: people.filter((p) => !p.whoop).length,
     suggestion:
-      "2 of the 4 of you on WHOOP are recovered enough to push today, and both usually move in the evening. Suggest a session together tonight?",
+      "Two of you are ready to push, and both usually move in the evening. Plan a session tonight?",
   };
 
   return { today, yourTurn, pod, notification, rewards, showingUp, readiness };

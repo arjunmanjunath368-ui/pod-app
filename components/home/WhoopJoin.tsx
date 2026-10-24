@@ -52,8 +52,7 @@ export default function WhoopJoin({
         <div className="mt-3.5 rounded-xl border border-[#E3B04B]/35 bg-[#E3B04B]/[0.12] px-3.5 py-3">
           <div className="text-[22px] font-semibold leading-none text-paper">Up to 60 days free</div>
           <div className="mt-1.5 text-[15px] leading-snug text-paper/85">
-            30 days to start. Hit your pod goal in 3 of your first 4 weeks and get
-            30 more, free.
+            30 days free, plus 30 more for hitting your pod goal in 3 of your first 4 weeks.
           </div>
         </div>
       )}

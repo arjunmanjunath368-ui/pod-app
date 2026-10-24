@@ -87,27 +87,22 @@ export function todayStatus(t: {
   zone: "red" | "yellow" | "green" | null;
 }): string {
   const left = Math.max(t.target - t.done, 0);
-  if (t.restToday)
-    return "Red recovery, so today counts as a rest day. Your pod sees you resting, not missing.";
-  if (t.hasGoal && left === 0)
-    return "Goal hit for the week. Anything else is a bonus for the pod.";
+  const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+  if (t.restToday) return "Red recovery: today counts as a rest day.";
+  if (t.hasGoal && left === 0) return "Goal hit. Anything more is a bonus for the pod.";
   if (t.activeToday) {
-    return left === 1
-      ? "You showed up today. One more active day hits your goal."
-      : `You showed up today. ${left} more active days hit your goal.`;
+    return left === 1 ? "Done for today. 1 more day hits your goal." : `Done for today. ${left} more days hit your goal.`;
   }
   const zoneHint =
     t.zone === "green"
-      ? "Green recovery: a good day to push. "
+      ? "Green recovery: push today. "
       : t.zone === "yellow"
-        ? "Yellow recovery: move, but keep it moderate. "
+        ? "Yellow recovery: keep it moderate. "
         : t.zone === "red"
-          ? "Red recovery: an easy walk still counts. "
+          ? "Red recovery: an easy walk counts. "
           : "";
-  if (!t.hasGoal) return `${zoneHint}Set your weekly goal to start counting.`;
-  if (left > t.daysLeft)
-    return `${zoneHint}${t.daysLeft} ${t.daysLeft === 1 ? "day" : "days"} left this week. Every one you show up still counts for the pod.`;
-  if (left === t.daysLeft)
-    return `${zoneHint}You need every day left this week, starting today.`;
-  return `${zoneHint}${left === 1 ? "1 more active day hits" : `${left} more active days hit`} your goal. ${t.daysLeft} ${t.daysLeft === 1 ? "day" : "days"} left.`;
+  if (!t.hasGoal) return `${zoneHint}Set a weekly goal to start.`;
+  if (left > t.daysLeft) return `${zoneHint}${days(t.daysLeft)} left. Each one still counts for the pod.`;
+  if (left === t.daysLeft) return `${zoneHint}You need every day left, starting today.`;
+  return `${zoneHint}${left === 1 ? "1 more day hits" : `${left} more days hit`} your goal. ${days(t.daysLeft)} left.`;
 }

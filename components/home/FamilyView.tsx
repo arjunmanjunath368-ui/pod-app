@@ -68,13 +68,12 @@ const MEMBERS: Member[] = [
     ],
     insight: (
       <>
-        Mom&apos;s sleep has averaged <b className="font-semibold">61%</b> over the last 7 days, down from her 30-day
-        average of 78%. Yours went from <b className="font-semibold">72% to 89%</b> after you started a fixed 10:30 pm
-        bedtime in September.
+        Mom&apos;s sleep: <b className="font-semibold">61%</b> this week, down from 78%. Yours rose from{" "}
+        <b className="font-semibold">72% to 89%</b> with a fixed 10:30 pm bedtime.
       </>
     ),
     draft:
-      "Mom, I saw your sleep's been rough this week. What helped me most was going to bed at 10:30 every night, even on weekends. My sleep went from 72% to 89%. Want to try it together this week?",
+      "Mom, your sleep's been rough this week. A fixed 10:30 bedtime took mine from 72% to 89%. Want to try it together?",
     actionLabel: "Share what worked",
   },
   {
@@ -102,8 +101,7 @@ const MEMBERS: Member[] = [
     ],
     insight: (
       <>
-        Dad&apos;s sleep consistency hit <b className="font-semibold">86%</b> over the last 7 days, his best in 3 months
-        and well above his 30-day average of 71%.
+        Dad&apos;s sleep consistency: <b className="font-semibold">86%</b> this week, his best in 3 months (average 71%).
       </>
     ),
     draft: "Dad, 86% sleep consistency, your best in 3 months! Whatever you changed, it's working 👏",
@@ -131,7 +129,7 @@ function Row({ m }: { m: Metric }) {
 
 const ASK: Record<string, { q: string; reply: string }> = {
   Sleep: {
-    q: "I'm trying to sleep better. My sleep has averaged 68% this month and I'd like it above 80%. What's worked for you?",
+    q: "My sleep has averaged 68% this month. I'd like it above 80%. What's worked for you?",
     reply: "Phone out of the bedroom by 10. My sleep went up within a week. Want to try it together?",
   },
   Recovery: {
@@ -227,8 +225,7 @@ function AskFamily() {
     <section className="mt-4 rounded-[24px] border border-line bg-card p-5">
       <h2 className="text-[20px] font-semibold text-ink">Working on something?</h2>
       <p className="mt-1 text-[17px] leading-relaxed text-ink-soft">
-        Ask your Core for help. Pick a topic and Pod drafts the question, or write your own. They also see what
-        worked in their own data, so their answer is more than a guess.
+        Ask your Core for help. Pick a topic and Pod drafts the question.
       </p>
 
       <div ref={more.ref} className="relative mt-3 flex flex-wrap items-center gap-2">

@@ -76,7 +76,7 @@ function MemberLine({
       </div>
       {m.startsMonday && !m.paused && m.hasGoal && (
         <p className="mt-2 pl-[52px] text-[15px] leading-snug text-muted">
-          Joined this week. Their days count now; they join the pod total on Monday.
+          New this week. Joins the pod total on Monday.
         </p>
       )}
       {!m.paused && !m.isMe && m.quietDays >= 5 && (
@@ -92,11 +92,13 @@ export default function PodCard({
   headerActions,
   renderActions,
   footer,
+  chat,
 }: {
   pod: PodData;
   headerActions?: React.ReactNode;
   renderActions?: (m: MemberRow) => React.ReactNode;
   footer?: React.ReactNode;
+  chat?: React.ReactNode; // quick messages with the pod, under the week summary
 }) {
   const warmUp = !pod.hasGoalRows && pod.goalsSet > 0;
   const monthShort = pod.monthShort ?? "this month";
@@ -151,6 +153,8 @@ export default function PodCard({
           </div>
         </div>
       </div>
+
+      {chat}
 
       <ul className="mt-2 divide-y divide-line/70">
         {pod.members.map((m) => (

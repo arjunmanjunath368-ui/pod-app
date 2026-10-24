@@ -29,8 +29,8 @@ export default function YourTurnCard({
   if (data.meRested) {
     headline = "Rest day, and it counts.";
     body = others.length
-      ? `${who} ${others.length === 1 ? "is" : "are"} carrying ${where} today. You're back at it tomorrow.`
-      : "Recovery is part of showing up. Your pod sees you resting, not missing.";
+      ? `${who} ${others.length === 1 ? "is" : "are"} moving for ${where} today.`
+      : "Recovery counts. Your pod sees you resting, not missing.";
   } else if (data.meActive) {
     headline = "You showed up today.";
     body = others.length
@@ -38,19 +38,19 @@ export default function YourTurnCard({
           data.remainingForPerfect === null
             ? ""
             : data.remainingForPerfect > 0
-              ? ` ${data.remainingForPerfect} active ${data.remainingForPerfect === 1 ? "day" : "days"} left across the pod for a Pod Perfect week.`
+              ? ` ${data.remainingForPerfect} ${data.remainingForPerfect === 1 ? "day" : "days"} to a Pod Perfect week.`
               : " The pod's week is done."
         }`
-      : `First one in today. ${data.multiPod ? "Your pods" : "Your pod"} got the heads-up.`;
+      : `First one in. ${data.multiPod ? "Your pods" : "Your pod"} got the heads-up.`;
   } else if (data.lastOnePod) {
     headline = "You're the last one.";
-    body = `Everyone else in ${data.lastOnePod} has hit their goal. Your days are all that stand between the pod and a Pod Perfect week.`;
+    body = `Everyone else in ${data.lastOnePod} hit their goal. You're all that's left for a Pod Perfect week.`;
   } else if (others.length) {
     headline = "Your turn.";
-    body = `${who} already showed up today. One activity from you keeps ${where} on track.`;
+    body = `${who} already moved today. Keep ${where} on track.`;
   } else {
     headline = "Be the first today.";
-    body = `Nobody in ${where} has moved yet. The first log sets the tone, and everyone hears about it.`;
+    body = `Nobody in ${where} has moved yet. Set the tone.`;
   }
 
   const showCta = !data.meActive && !data.meRested;

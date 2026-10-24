@@ -15,6 +15,9 @@ export type WhoopState =
 export type TodayData = {
   dateLabel: string; // "Thu, Oct 22"
   my: { pct: number; done: number; target: number; hasGoal: boolean };
+  // The pod's week beside yours: share of everyone's goals done. Absent for a
+  // pod of one.
+  pod?: { pct: number; remaining: number; perfect: boolean };
   whoop: WhoopState;
   recovery: { score: number; zone: "red" | "yellow" | "green" } | null;
   sleep: { performance: number } | null;

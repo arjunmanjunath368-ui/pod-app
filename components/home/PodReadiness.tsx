@@ -95,8 +95,7 @@ export default function PodReadiness({
       </div>
 
       <p className="mt-3 text-[15px] leading-relaxed text-sage-soft/80">
-        WHOOP scores recovery once a day, when each of you wakes up, so this stays the same until tomorrow
-        morning. Only counts are shown; nobody&apos;s score is shared with the pod.
+        Updated each morning. Only counts are shown, never anyone&apos;s score.
       </p>
     </section>
   );

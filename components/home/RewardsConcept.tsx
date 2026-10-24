@@ -32,9 +32,8 @@ export default function RewardsConcept({
         </span>
       </div>
       <p className="mt-1.5 text-[17px] leading-relaxed text-sage-soft">
-        Every verified Pod Perfect week earns {pointsPerWeek} WHOOP points for each
-        member on WHOOP, and {goal} in a row adds a {bonus.toLocaleString("en-US")}-point
-        bonus. The pod earns together, so nobody gets ahead by leaving someone behind.
+        Each verified Pod Perfect week earns {pointsPerWeek} WHOOP points per member. {goal} in a
+        row adds a {bonus.toLocaleString("en-US")}-point bonus. The pod earns together.
       </p>
 
       <InView className="mt-4 grid grid-cols-4 gap-1.5">
@@ -69,12 +68,11 @@ export default function RewardsConcept({
           </div>
         </div>
         <div className="max-w-[55%] text-right text-[16px] leading-snug text-paper/90">
-          {remaining} more active {remaining === 1 ? "day" : "days"} across the pod completes week {Math.min(perfectWeeks + 1, goal)} and the bonus.
+          {remaining} more {remaining === 1 ? "day" : "days"} unlock week {Math.min(perfectWeeks + 1, goal)} and the bonus.
         </div>
       </div>
       <p className="mt-3 text-[15px] leading-relaxed text-sage-soft/80">
-        Only verified days count toward rewards: synced from WHOOP, or logged
-        with a live photo.
+        Only verified days count: synced from WHOOP or a live photo.
       </p>
     </section>
   );

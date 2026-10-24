@@ -12,14 +12,14 @@ export default function FamilyDemo() {
 
       <h1 className="mt-5 font-serif text-[32px] font-semibold leading-tight text-ink">Core</h1>
       <p className="mt-1.5 text-[17px] leading-relaxed text-ink-soft">
-        Your Core is the few people closest to you: a partner, a parent, a sibling, a best friend. They see more than
-        your pod does. Each of you chooses what to share, and either of you can stop at any time.
+        The few people closest to you: a partner, a parent, a sibling, a best friend. They see more than your pod,
+        and each of you chooses what to share.
       </p>
 
       <FamilyView />
 
       <p className="mt-4 text-[15px] leading-relaxed text-muted">
-        Sharing with someone in your Core starts only when both of you accept. None of it is ever shown to your pods.
+        Sharing starts only when both of you accept, and is never shown to your pods.
       </p>
 
       <DemoPager current="family" />

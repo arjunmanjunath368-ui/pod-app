@@ -11,8 +11,7 @@ export default function DiscoverDemo() {
 
       <h1 className="mt-5 font-serif text-[32px] font-semibold leading-tight text-ink">Pod Neighborhood</h1>
       <p className="mt-1.5 text-[17px] leading-relaxed text-ink-soft">
-        Find your people: WHOOP members near you who like what you like. Fitness level and goals don&apos;t
-        matter; showing up does.
+        Find people nearby who enjoy the same activities you do.
       </p>
 
       <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-paper-2/70 px-4 py-3">
@@ -28,8 +27,8 @@ export default function DiscoverDemo() {
       <FindPeople />
 
       <p className="mt-4 text-[15px] leading-relaxed text-muted">
-        Only members who turn on &ldquo;Let people find me&rdquo; appear. Nothing else is shared until you
-        both accept, and Pod never shows an exact location.
+        Only members who turn on &ldquo;Let people find me&rdquo; appear. Nothing more is shared until you both
+        accept, and never an exact location.
       </p>
 
       <DemoPager current="discover" />

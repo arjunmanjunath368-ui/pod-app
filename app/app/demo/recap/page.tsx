@@ -4,6 +4,7 @@ import { weekRangeShort } from "@/lib/homeModel";
 import { DemoTopBar, DemoPager } from "@/components/home/DemoNav";
 import { DemoActionButton } from "@/components/home/DemoParts";
 import InView from "@/components/home/InView";
+import LearnMore from "@/components/home/LearnMore";
 
 export const dynamic = "force-dynamic";
 
@@ -123,9 +124,9 @@ function DayAverages() {
   );
 }
 
-function Section({ title, children, aside }: { title: string; children: React.ReactNode; aside?: string }) {
+function Section({ id, title, children, aside }: { id?: string; title: string; children: React.ReactNode; aside?: string }) {
   return (
-    <section className="mt-4 rounded-[24px] border border-line bg-card p-5">
+    <section id={id} className="mt-4 scroll-mt-4 rounded-[24px] border border-line bg-card p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-[20px] font-semibold text-ink">{title}</h2>
         {aside && <span className="text-[15px] text-muted">{aside}</span>}
@@ -158,39 +159,55 @@ export default async function RecapDemo() {
         A Pod Perfect week, your third in a row.
       </h1>
       <p className="mt-2 text-[19px] leading-relaxed text-ink-soft">
-        Back Bay Movers logged 19 active days and one rest day, and all five of you hit your own goal.
+        19 active days, 1 rest day, and all five of you hit your goal.
       </p>
 
-      <Section title="Who moved each day" aside={range}>
+      <section className="mt-4 rounded-[24px] bg-ink p-5 text-paper shadow-pod-lg" aria-labelledby="highlights">
+        <h2 id="highlights" className="text-[19px] font-semibold">This week’s highlights</h2>
+        <ul className="mt-3 flex flex-col divide-y divide-paper/10">
+          {[
+            { k: "Best day", t: "Thursday: all five of you moved.", to: "who-moved" },
+            { k: "Pattern", t: "Planned days draw 3× the turnout.", to: "patterns" },
+            { k: "Next week", t: "A Wednesday walk at 6:30 pm.", to: "plan" },
+          ].map((h) => (
+            <li key={h.to} className="py-3 first:pt-0 last:pb-0">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[14px] font-semibold text-[#E3B04B]">{h.k}</span>
+                <LearnMore target={h.to} dark />
+              </div>
+              <p className="mt-0.5 text-[17px] leading-snug text-paper">{h.t}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <Section id="who-moved" title="Who moved each day" aside={range}>
         <div className="mt-3">
           <WhoMovedGrid />
         </div>
         <ul className="mt-3 flex flex-col gap-3 text-[17px] leading-relaxed text-ink-soft">
           <li>
-            <b className="font-semibold text-ink">Thursday</b> was your best day: all five of you moved.
+            <b className="font-semibold text-ink">Maya:</b> the only Friday mover, 5 days on a 4-day goal.
           </li>
           <li>
-            <b className="font-semibold text-ink">Maya</b> was the only one to move on Friday, and went 5 for her 4.
+            <b className="font-semibold text-ink">Priya:</b> a Wednesday rest day, and still 5 of 5.
           </li>
           <li>
-            <b className="font-semibold text-ink">Priya</b> took a rest day on Wednesday. It counted, and she still finished 5 of 5.
-          </li>
-          <li>
-            <b className="font-semibold text-ink">Sam</b> made it on Sunday evening, after Jordan&apos;s nudge.
+            <b className="font-semibold text-ink">Sam:</b> made it Sunday evening, after Jordan&apos;s nudge.
           </li>
         </ul>
       </Section>
 
-      <Section title="Patterns" aside="last 6 weeks">
+      <Section id="patterns" title="Patterns" aside="last 6 weeks">
         <p className="mt-2 text-[17px] leading-relaxed text-ink-soft">
-          Members active on each day, on average:
+          Average members active, by day:
         </p>
         <div className="mt-3">
           <DayAverages />
         </div>
         <p className="mt-4 text-[17px] leading-relaxed text-ink">
-          <b className="font-semibold">Your planned days are your strong days.</b> Monday&apos;s run and Thursday&apos;s
-          padel average more than 4 of 5 of you. Wednesday has nothing planned, and averages about 1.
+          <b className="font-semibold">Planned days are your strong days.</b> Monday&apos;s run and Thursday&apos;s padel
+          draw 4 or more of you. Wednesday, with nothing planned, draws about 1.
         </p>
         <ul className="mt-3 flex flex-col gap-3">
           {[
@@ -198,13 +215,13 @@ export default async function RecapDemo() {
               who: "You, Jordan and Priya",
               initials: ["AJ", "JK", "PS"],
               colors: ["#c8553d", "#d9a441", "#5b7fa6"],
-              text: "have played Thursday padel 6 weeks out of 6, and on padel nights Maya and Sam usually move too. When something is on the calendar, the pod shows up.",
+              text: "have played Thursday padel 6 weeks out of 6. Maya and Sam usually move that night too.",
             },
             {
               who: "Sam",
               initials: ["SO"],
               colors: ["#8a6f9e"],
-              text: "has needed a Sunday-night workout to hit his goal in 4 of the last 6 weeks. With nothing planned mid-week, his week slips until Sunday.",
+              text: "has finished his goal on a Sunday night in 4 of the last 6 weeks. Mid-week is where it slips.",
             },
           ].map((p) => (
             <li key={p.who} className="flex gap-3 rounded-2xl bg-paper-2/60 p-3.5">
@@ -223,14 +240,14 @@ export default async function RecapDemo() {
         </ul>
       </Section>
 
-      <Section title="Plan for next week">
+      <Section id="plan" title="Plan for next week">
         <ol className="mt-3.5 flex flex-col gap-4">
           <li className="flex gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[15px] font-semibold text-paper">1</span>
             <div className="min-w-0 flex-1">
               <p className="text-[17px] leading-relaxed text-ink-soft">
-                <b className="font-semibold text-ink">Plan a Wednesday walk at 6:30 pm.</b> It&apos;s the one day with nothing
-                planned. Days with a plan average 4 of you; Wednesday averages 1.
+                <b className="font-semibold text-ink">Plan a Wednesday walk at 6:30 pm.</b> Your only day with nothing
+                planned.
               </p>
               <div className="mt-2.5">
                 <DemoActionButton label="Suggest Wednesday, 6:30 pm" doneLabel="Suggested to the pod ✓" tone="ink" full={false} />
@@ -240,15 +257,14 @@ export default async function RecapDemo() {
           <li className="flex gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[15px] font-semibold text-paper">2</span>
             <p className="min-w-0 flex-1 text-[17px] leading-relaxed text-ink-soft">
-              <b className="font-semibold text-ink">Invite Sam to the Wednesday walk.</b> He&apos;s finished his goal on a
-              Sunday night in 4 of the last 6 weeks. One workout mid-week means Sunday isn&apos;t do-or-die.
+              <b className="font-semibold text-ink">Invite Sam.</b> A mid-week workout means Sunday isn&apos;t do-or-die.
             </p>
           </li>
           <li className="flex gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[15px] font-semibold text-paper">3</span>
             <p className="min-w-0 flex-1 text-[17px] leading-relaxed text-ink-soft">
-              <b className="font-semibold text-ink">Welcome Leo.</b> He joins the pod count on Monday. A fourth Pod Perfect
-              week in a row earns everyone on WHOOP the 1,000-point bonus.
+              <b className="font-semibold text-ink">Welcome Leo.</b> He counts from Monday. A fourth perfect week earns the
+              1,000-point bonus.
             </p>
           </li>
         </ol>
@@ -260,8 +276,7 @@ export default async function RecapDemo() {
           <span className="text-[15px] text-muted">From you</span>
         </div>
         <p className="mt-3 rounded-2xl bg-card p-4 text-[17px] leading-relaxed text-ink">
-          Sam, three Sundays in a row is clutch 😅 Want to join a Wednesday evening walk with Jordan and me? Takes the
-          pressure off Sunday.
+          Sam, three Sundays in a row is clutch 😅 Join our Wednesday walk? Takes the pressure off Sunday.
         </p>
         <div className="mt-3 flex gap-2">
           <div className="flex-1">
@@ -279,8 +294,8 @@ export default async function RecapDemo() {
           <span className="text-[15px] text-sage-soft">Only you see this</span>
         </div>
         <p className="mt-3 text-[17px] leading-relaxed text-paper/90">
-          Your three best weeks this fall all started with a Monday run. On Mondays after a Sunday bedtime before
-          10:30 pm, your recovery has averaged 71%; after later nights, 48%.
+          Your best weeks start with a Monday run. After Sunday bedtimes before 10:30 pm, Monday recovery averages 71%;
+          after later nights, 48%.
         </p>
         <p className="mt-3 text-[17px] font-semibold leading-relaxed text-paper">
           Keep Sunday nights early. Monday sets up your week.
@@ -288,8 +303,7 @@ export default async function RecapDemo() {
       </section>
 
       <p className="mt-4 text-[15px] leading-relaxed text-muted">
-        The pod&apos;s Huddle only uses what the pod already sees: who was active, rest days, and how many members were in
-        each recovery zone. Anything from your own WHOOP data stays in &ldquo;Just for you&rdquo;.
+        The Huddle uses only what the pod already sees. Your own WHOOP data stays in &ldquo;Just for you&rdquo;.
       </p>
 
       <DemoPager current="recap" />

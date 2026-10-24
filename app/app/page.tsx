@@ -539,6 +539,14 @@ export default async function Home({
       target: me?.target ?? 0,
       hasGoal: !!me?.hasGoal,
     },
+    pod:
+      weekSection.podData.members.length > 1
+        ? {
+            pct: weekSection.podData.pct,
+            remaining: weekSection.podData.remaining,
+            perfect: weekSection.podData.perfect,
+          }
+        : undefined,
     whoop: whoopState,
     recovery: null,
     sleep: null,

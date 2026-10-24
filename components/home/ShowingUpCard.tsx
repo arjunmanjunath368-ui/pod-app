@@ -35,8 +35,7 @@ export default function ShowingUpCard({
       </div>
 
       <p className="mt-3 text-[17px] leading-relaxed text-ink">
-        You showed up on <b className="font-semibold">{done} of your {target} goal days</b> in the last{" "}
-        {SCORE_WEEKS} weeks.
+        <b className="font-semibold">{done} of {target} goal days</b> in the last {SCORE_WEEKS} weeks.
       </p>
 
       <InView className="mt-4">
@@ -68,13 +67,12 @@ export default function ShowingUpCard({
       </InView>
 
       <div className="mt-4 rounded-2xl bg-paper-2/70 p-3.5 text-[16px] leading-relaxed text-ink-soft">
-        <b className="font-semibold text-ink">How it&apos;s worked out:</b> days you showed up ÷ days you aimed for, over
-        your last {SCORE_WEEKS} weeks. {done} ÷ {target} = {score}. Extra days don&apos;t count beyond your goal; red-recovery
-        rest days do. WHOOP measures how hard you went; this measures whether you showed up.
+        <b className="font-semibold text-ink">How it&apos;s worked out:</b> days you showed up ÷ days you aimed for:{" "}
+        {done} ÷ {target} = {score}. Rest days count; extra days don&apos;t.
         {podScore !== undefined && (
           <>
             {" "}
-            Your pod&apos;s score is <b className="font-semibold text-ink">{podScore}</b>.
+            Pod score: <b className="font-semibold text-ink">{podScore}</b>.
           </>
         )}
       </div>

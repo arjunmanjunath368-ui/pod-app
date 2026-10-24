@@ -179,7 +179,7 @@ export default function FindPeople() {
             ))}
           </div>
           <p className="mt-2 text-[15px] leading-relaxed text-muted">
-            Age and gender are optional for everyone. People who don&apos;t share them only show under Any age and Anyone.
+            Age and gender are optional. Members who skip them appear only under Any age and Anyone.
           </p>
         </div>
         <div className="mt-4 border-t border-line pt-3.5">

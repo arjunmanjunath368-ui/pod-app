@@ -8,11 +8,12 @@ import { CountUp } from "./InView";
 import { NudgeChip } from "./NudgeTime";
 
 // The member's own rings, WHOOP-style: how far through this week's goal they
-// are, and (with WHOOP) today's recovery and last night's sleep. Recovery and sleep
+// are, the pod's week beside it, and (with WHOOP) today's recovery and last night's sleep. Recovery and sleep
 // are only ever shown to the member they belong to.
 
 export const RING = {
   week: "#E3B04B",
+  pod: "#E07A5F",
   sleep: "#8FA8D8",
   zone: { red: "#E0634A", yellow: "#E8C25A", green: "#6FCF7F" },
 };
@@ -24,6 +25,7 @@ function RingStat({
   sub,
   muted,
   loading,
+  compact = false,
 }: {
   pct: number;
   color: string;
@@ -31,23 +33,31 @@ function RingStat({
   sub: string;
   muted?: boolean;
   loading?: boolean;
+  compact?: boolean;
 }) {
   return (
     <div className="flex min-w-0 flex-col items-center">
       <div className={loading ? "animate-pulse" : ""}>
-        <Ring pct={muted || loading ? 0 : pct} color={color} muted={muted || loading} label={`${label}: ${muted ? "not available" : `${pct}%`}`}>
+        <Ring
+          pct={muted || loading ? 0 : pct}
+          color={color}
+          muted={muted || loading}
+          size={compact ? 70 : 92}
+          stroke={compact ? 8 : 9}
+          label={`${label}: ${muted ? "not available" : `${pct}%`}`}
+        >
           <span
-            className={`text-[22px] font-semibold leading-none tabular-nums ${
+            className={`${compact ? "text-[18px]" : "text-[22px]"} font-semibold leading-none tabular-nums ${
               muted || loading ? "text-paper/35" : "text-paper"
             }`}
           >
             {muted || loading ? "–" : <CountUp value={pct} />}
-            {!muted && !loading && <span className="text-[15px] font-medium text-paper/70">%</span>}
+            {!muted && !loading && <span className={`${compact ? "text-[12px]" : "text-[15px]"} font-medium text-paper/70`}>%</span>}
           </span>
         </Ring>
       </div>
-      <div className="mt-2 text-[16px] font-semibold text-paper">{label}</div>
-      <div className="mt-0.5 max-w-full truncate text-[15px] text-sage-soft/90">{sub}</div>
+      <div className={`mt-2 whitespace-nowrap ${compact ? "text-[15px]" : "text-[16px]"} font-semibold text-paper`}>{label}</div>
+      <div className={`mt-0.5 max-w-full truncate ${compact ? "text-[13px]" : "text-[15px]"} text-sage-soft/90`}>{sub}</div>
     </div>
   );
 }
@@ -63,7 +73,7 @@ export default function TodayCard({
   connectHref?: string;
   demo?: boolean;
 }) {
-  const { my, whoop } = data;
+  const { my, whoop, pod } = data;
   const zone = data.recovery?.zone ?? null;
   const whoopLive = whoop === "on";
 
@@ -95,20 +105,30 @@ export default function TodayCard({
   });
 
   return (
-    <section className="mt-5 rounded-[28px] bg-ink px-5 pb-5 pt-5 text-paper shadow-pod-lg">
+    <section className={`mt-5 rounded-[28px] bg-ink ${pod ? "px-4" : "px-5"} pb-5 pt-5 text-paper shadow-pod-lg`}>
       <div className="flex justify-end">
         <span className="rounded-full bg-paper/[0.10] px-3 py-1 text-[16px] font-semibold text-paper">
           {data.dateLabel}
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <div className={`mt-4 grid ${pod ? "grid-cols-4 gap-0.5" : "grid-cols-3 gap-2"}`}>
         <RingStat
           pct={my.pct}
           color={RING.week}
-          label="Weekly goal"
+          label={pod ? "Your goal" : "Weekly goal"}
           sub={my.hasGoal ? `${my.done} of ${my.target} days` : "No goal yet"}
+          compact={!!pod}
         />
+        {pod && (
+          <RingStat
+            pct={pod.pct}
+            color={RING.pod}
+            label="Pod goal"
+            sub={pod.perfect ? "Perfect week" : `${pod.remaining} ${pod.remaining === 1 ? "day" : "days"} to go`}
+            compact
+          />
+        )}
         <RingStat
           pct={data.recovery?.score ?? 0}
           color={zone ? RING.zone[zone] : RING.zone.green}
@@ -116,6 +136,7 @@ export default function TodayCard({
           sub={recoverySub}
           muted={!whoopLive || (!data.recovery && !loadingWhoop)}
           loading={whoopLive && loadingWhoop}
+          compact={!!pod}
         />
         <RingStat
           pct={data.sleep?.performance ?? 0}
@@ -124,6 +145,7 @@ export default function TodayCard({
           sub={sleepSub}
           muted={!whoopLive || (!data.sleep && !loadingWhoop)}
           loading={whoopLive && loadingWhoop && !data.sleepNeedsReconnect}
+          compact={!!pod}
         />
       </div>
 

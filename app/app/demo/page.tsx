@@ -13,6 +13,9 @@ import { NudgeTimeProvider } from "@/components/home/NudgeTime";
 import { demoNow } from "@/lib/demoPod";
 import { SampleNudgeButton } from "@/components/home/LogButton";
 import { NotificationPreview, DemoActions, DemoActionButton } from "@/components/home/DemoParts";
+import PodQuote from "@/components/home/PodQuote";
+import PodChat from "@/components/home/PodChat";
+import { podQuote } from "@/lib/podQuote";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +32,17 @@ export default async function DemoPod() {
       <NudgeTimeProvider initialHours={[18]} tz={tz} nowIso={demoNow(tz).toISOString()} demo>
 
       <NotificationPreview title={demo.notification.title} body={demo.notification.body} />
+      <PodQuote
+        podName={demo.pod.name}
+        text={podQuote({
+          streak: demo.pod.streak,
+          perfect: demo.pod.perfect,
+          remaining: demo.pod.remaining,
+          othersToday: demo.yourTurn.others.map((o) => o.name),
+          meActive: demo.yourTurn.meActive,
+          lastOne: !!demo.yourTurn.lastOnePod,
+        })}
+      />
 
       <div className="mt-5 flex items-center justify-between gap-3">
         <h1 className="min-w-0 truncate font-serif text-[28px] font-semibold leading-tight text-ink">
@@ -62,6 +76,15 @@ export default async function DemoPod() {
       <PodCard
         pod={demo.pod}
         renderActions={(m) => (m.canNudge ? <DemoActions name={m.name} /> : null)}
+        chat={
+          <PodChat
+            initial={[
+              { from: "Maya", initials: "MR", color: "#7a9471", text: "Padel at 7 tomorrow? I booked two courts 🎾", ago: "12m" },
+              { from: "Jordan", initials: "JK", color: "#d9a441", text: "I’m in. Sam, you coming?", ago: "5m" },
+            ]}
+            reply={{ from: "Maya", initials: "MR", color: "#7a9471", text: "Great, see you there 🙌", ago: "now" }}
+          />
+        }
       />
 
       <RewardsConcept
@@ -79,7 +102,7 @@ export default async function DemoPod() {
           Sam isn't on WHOOP yet
         </h2>
         <p className="mt-1 text-[16px] leading-relaxed text-ink-soft">
-          His rings stay empty until he joins. This is what his Home offers him.
+          What his Home offers until he joins.
         </p>
         <div className="mt-3 rounded-[28px] bg-ink p-4 shadow-pod-lg">
           <WhoopJoin offer demo />

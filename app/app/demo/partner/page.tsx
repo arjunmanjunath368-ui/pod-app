@@ -125,39 +125,38 @@ export default function PartnerViewDemo() {
 
       <h1 className="mt-5 font-serif text-[32px] font-semibold leading-tight text-ink">WHOOP Admin View</h1>
       <p className="mt-1.5 text-[17px] leading-relaxed text-ink-soft">
-        What WHOOP would see 90 days into a Pod pilot: 2,400 members in 620 pods, compared with similar members who
-        aren&apos;t in a pod.
+        A 90-day Pod pilot: 2,400 members in 620 pods, compared with similar members outside a pod.
       </p>
 
       <div className="mt-5 flex flex-col gap-3">
         <Compare
           title="Still active after 12 weeks"
-          explain="Out of every 100 members, how many still wore WHOOP and logged at least one activity in week 12."
+          explain="Per 100 members: still wearing WHOOP and logging activity in week 12."
           pod={88}
           solo={71}
           max={100}
           unit="of100"
-          gap="17 more per 100"
+          gap="24% more"
         />
         <Compare
           title="Active days a week"
-          explain="On average, how many days a week members logged at least one activity."
+          explain="Average days a week with at least one logged activity."
           pod={3.8}
           solo={2.4}
           max={5}
           unit=" days"
           decimals={1}
-          gap="1.4 more days"
+          gap="58% more"
         />
         <Compare
           title="Free trials that turned into paying members"
-          explain="Out of every 100 friends who start a free WHOOP trial, how many go on to pay. The usual-trial figure is an industry benchmark, since WHOOP doesn't publish its own."
+          explain="Per 100 friends who start a free trial. The usual-trial figure is an industry benchmark."
           pod={52}
           solo={45}
           max={100}
           unit="of100"
           soloLabel="Usual WHOOP trial"
-          gap="7 more per 100"
+          gap="16% more"
         />
       </div>
 
@@ -216,8 +215,7 @@ export default function PartnerViewDemo() {
           ))}
         </InView>
         <p className="mt-3 text-[17px] leading-relaxed text-paper/90">
-          Before anyone thinks about cancelling, their pod has already noticed. WHOOP gets the early warning; Pod does
-          the nudging.
+          The pod notices before anyone thinks about cancelling. WHOOP gets the early warning; Pod sends the nudge.
         </p>
       </section>
 
