@@ -11,7 +11,7 @@ export default function DiscoverDemo() {
 
       <h1 className="mt-5 font-serif text-[32px] font-semibold leading-tight text-ink">Pod Neighborhood</h1>
       <p className="mt-1.5 text-[17px] leading-relaxed text-ink-soft">
-        Find people nearby who enjoy the same activities you do.
+        Find WHOOP members nearby who enjoy the same activities you do.
       </p>
 
       <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-paper-2/70 px-4 py-3">
